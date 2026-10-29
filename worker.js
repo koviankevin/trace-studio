@@ -4,7 +4,7 @@ import {summarizeGroups} from './track-layout.js?v=0.2.1';
 import {hardwareDemo} from './hardware-demo.js';
 import {analyzeTrace,scanTraceIndex} from './analysis.js';
 import {loadExtensionHost} from './extensions/runtime.js';
-import {createSessionStore} from './session-store.js?v=0.3.0';
+import {createSessionStore} from './session-store.js?v=0.3.1';
 // Register onmessage synchronously. A top-level await here drops messages
 // delivered while custom.js is loading, including the UI's first import.
 const extensionHostReady=loadExtensionHost();
