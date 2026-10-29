@@ -110,14 +110,20 @@ function readRecord(v,o) {return {ts:v.getFloat64(o,true),dur:v.getFloat64(o+8,t
 export class TraceIndex {
   constructor(rawHandle,indexHandle) {
     this.raw=new BufferedFile(rawHandle); this.index=new BufferedFile(indexHandle);
-    this.tracks=[];this.trackMap=new Map();this.names=['Event'];this.nameMap=new Map();this.processes={};
+    this.tracks=[];this.trackMap=new Map();this.names=['Event'];this.nameMap=new Map();this.fallbackNames=new Map();this.processes={};
     this.blocks=[];this.buffered=0;this.openSpans=0;this.metadata={};this.phases={};this.start=Infinity;this.end=-Infinity;
     this.count=0;this.slices=0;this.skipped=0;this.unmatched=0;this.outOfOrder=0;this.top=[];
     this.categories=new Map();this.cache=new Map();this.nameLimit=0;this.metadataBytes=0;
   }
-  intern(name) {name=String(name||'Event').slice(0,160);let id=this.nameMap.get(name);if(id!==undefined)return id;
+  intern(name,identity) {name=String(name||'Event').slice(0,160);const key=identity??name;let id=this.nameMap.get(key);if(id!==undefined)return id;
     if(this.names.length>=LIMITS.maxNames){this.nameLimit++;return 0;}
-    id=this.names.length;this.names.push(name);this.nameMap.set(name,id);return id;}
+    id=this.names.length;this.names.push(name);this.nameMap.set(key,id);return id;}
+  eventName(e,t,suffix=null){
+    if(e.name!==null&&e.name!==undefined&&String(e.name).trim())return this.intern(suffix===null?e.name:`${e.name} · ${suffix}`);
+    const key=`${t.id}/${suffix===null?'event':`counter:${suffix}`}`;let fallback=this.fallbackNames.get(key);
+    if(!fallback){fallback={id:this.intern('未命名事件',Symbol()),trackId:t.id,suffix};this.fallbackNames.set(key,fallback);}
+    return fallback.id;
+  }
   track(e,suffix='',kind='slice') {
     const key=`${e.pid??0}/${e.tid??0}/${suffix}`;
     let t=this.trackMap.get(key);if(t)return t;
@@ -146,7 +152,7 @@ export class TraceIndex {
     this.start=Math.min(this.start,ts);this.end=Math.max(this.end,ts);
     const category=String(e.cat||'uncategorized');
     if(this.categories.size<1024 || this.categories.has(category))this.categories.set(category,(this.categories.get(category)||0)+1);
-    const r={ts,dur:phase==='X'&&Number.isFinite(e.dur)&&e.dur>=0?e.dur:0,offset,length,name:this.intern(e.name),color:hash(category),kind:0,depth:0};
+    const r={ts,dur:phase==='X'&&Number.isFinite(e.dur)&&e.dur>=0?e.dur:0,offset,length,name:this.eventName(e,t),color:hash(category),kind:0,depth:0};
     this.onEvent?.(e,{...r,trackId:t.id});
     if(phase==='B') {
       if(this.openSpans>=LIMITS.maxOpenSpans)throw Error('未結束的 B 事件超過 100,000 筆');
@@ -163,7 +169,9 @@ export class TraceIndex {
     } else if(phase==='i'||phase==='I'||phase==='R') {r.kind=1;this.add(t,r);}
     else if(phase==='C') {
       for(const [key,value] of Object.entries(e.args||{}))if(Number.isFinite(value)){
-        const ct=this.track(e,`${e.name} · ${key}`,'counter');this.add(ct,{...r,name:this.intern(`${e.name} · ${key}`),kind:2,value});
+        const ct=this.track(e,`${String(e.name??'').trim()||'未命名事件'} · ${key}`,'counter');const name=this.eventName(e,t,key);
+        if(!String(e.name??'').trim())ct.fallbackName=name;
+        this.add(ct,{...r,name,kind:2,value});
       }
     } else {r.kind=3;this.add(t,r);}
   }
@@ -192,6 +200,10 @@ export class TraceIndex {
     t.blocks.push(this.blocks.length);this.blocks.push(block);this.buffered-=rows.length;t.buffer=[];
   }
   finish() {
+    // Resolve after all metadata, including thread_name at the end of a file.
+    for(const {id,trackId,suffix}of this.fallbackNames.values())if(id!==0){const t=this.tracks[trackId],name=t.name===`Thread ${t.tid}`?String(t.tid):t.name;this.names[id]=`${name||'未命名事件'}${suffix===null?'':` · ${suffix}`}`.slice(0,160);}
+    for(const t of this.tracks)if(t.fallbackName!==undefined){t.name=this.names[t.fallbackName];delete t.fallbackName;}
+    this.fallbackNames.clear();
     for(const t of this.tracks){this.unmatched+=t.stack.length;t.stack=[];this.flushTrack(t);}
     this.raw.flush();this.index.flush();
     this.raw.handle.flush?.();this.index.handle.flush?.();
