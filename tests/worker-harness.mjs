@@ -1,4 +1,4 @@
-import {parentPort,workerData} from 'node:worker_threads';
+import {parentPort,workerData,locks} from 'node:worker_threads';
 import fs from 'node:fs';
 import path from 'node:path';
 const root=workerData.root;
@@ -16,7 +16,10 @@ class Directory{
   async removeEntry(name,{recursive=false}={}){const filename=path.join(this.folder,name);if(path.dirname(filename)!==this.folder)throw Error('unsafe path');fs.rmSync(filename,{recursive});}
   async* keys(){yield* fs.readdirSync(this.folder);}
 }
-Object.defineProperty(globalThis,'navigator',{value:{storage:{getDirectory:async()=>new Directory(root),estimate:async()=>(workerData.storageEstimate??{quota:1e12,usage:0})}}});
+Object.defineProperty(globalThis,'navigator',{value:{locks,storage:{getDirectory:async()=>new Directory(root),estimate:async()=>(workerData.storageEstimate??{quota:1e12,usage:0})}}});
 globalThis.postMessage=message=>parentPort.postMessage(message);globalThis.onmessage=null;
 await import('../dist/worker.js');
-parentPort.on('message',data=>globalThis.onmessage({data}));parentPort.postMessage({type:'initialized'});
+parentPort.on('message',data=>{
+  if(data.type==='import'&&workerData.slowInput){const file=data.file;data.file={name:file.name,size:file.size,slice:file.slice.bind(file),stream:()=>file.stream().pipeThrough(new TransformStream({async transform(chunk,controller){for(let at=0;at<chunk.length;at+=16*1024){controller.enqueue(chunk.subarray(at,at+16*1024));await new Promise(resolve=>setTimeout(resolve,20));}}}))};}
+  return globalThis.onmessage({data});
+});parentPort.postMessage({type:'initialized'});

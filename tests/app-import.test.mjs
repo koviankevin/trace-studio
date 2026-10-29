@@ -73,5 +73,14 @@ test('application startup and file selection reach the loaded timeline',async()=
     elements.get('insights-list').handlers.click({target:{closest:()=>({dataset:{source:'top',result:'0'}})}});
     await until(()=>elements.get('details-content').innerHTML.includes('完整原始 JSON'));
     assert.equal(elements.get('selection-heading').textContent,'CORE0_COMPUTE');
+    const inputCache=workers.map(worker=>worker.lastReady?.info).find(info=>info?.source.name==='input.json').id;
+    elements.get('storage').click();await until(()=>elements.get('cache-list').innerHTML.includes(inputCache));
+    assert(elements.get('cache-dialog').open);assert.match(elements.get('cache-list').innerHTML,/目前開啟/);
+    elements.get('cache-list').handlers.click({target:{closest:selector=>selector==='[data-cache-open]'?{dataset:{cacheOpen:inputCache}}:null}});
+    await until(()=>elements.get('file-name').textContent==='input.json'&&!elements.get('loading').open);
+    assert.equal(elements.get('events-count').textContent,'1');
+    elements.get('storage').click();await until(()=>elements.get('cache-status').textContent.includes('份快取'));
+    elements.get('clear-unused').click();await until(()=>elements.get('cache-status').textContent.startsWith('已清除'));
+    assert.equal(elements.get('file-name').textContent,'input.json');assert.match(elements.get('cache-list').innerHTML,/目前開啟/);
   }finally{await Promise.all(workers.map(w=>w.stopped||w.terminate()));await rm(root,{recursive:true});}
 });

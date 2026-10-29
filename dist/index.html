@@ -4,7 +4,7 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="時跡 Trace Studio：純網頁 Chrome JSON trace 分析工具。磁碟索引、大檔時間軸與 address 關聯探索。">
 <meta name="theme-color" content="#163b32"><title>時跡 Trace Studio — 把時間，看清楚</title>
-<link rel="icon" href="./icon.svg" type="image/svg+xml"><link rel="stylesheet" href="./style.css?v=0.2.2"><link rel="stylesheet" href="./workspace.css?v=0.2.2">
+<link rel="icon" href="./icon.svg" type="image/svg+xml"><link rel="stylesheet" href="./style.css?v=0.3.0"><link rel="stylesheet" href="./workspace.css?v=0.3.0">
 </head>
 <body class="timeline-workspace sidebar-collapsed density-compact">
 <aside class="sidebar">
@@ -23,7 +23,7 @@
   <div class="session"><span class="file-symbol">{ }</span><div><b id="side-file">尚未開啟</b><small id="side-size">JSON Trace</small></div></div>
   <button class="text-button demo" id="demo">↗ 載入多核心示範</button>
   <div class="local-card"><span class="local-icon">⌁</span><strong>你的 trace，留在你的電腦</strong><p>背景解析・本機磁碟索引<br>檔案不會上傳到伺服器</p><span class="local-badge"><i></i> Browser local</span></div>
-  <div class="side-bottom"><button id="shortcuts">⌨ <span>操作與快捷鍵</span><kbd>?</kbd></button><button id="storage">▧ <span>清除 Trace 快取</span></button><a href="https://github.com/koviankevin/trace-studio" target="_blank" rel="noreferrer">↗ GitHub <span>v0.2.2</span></a></div>
+  <div class="side-bottom"><button id="shortcuts">⌨ <span>操作與快捷鍵</span><kbd>?</kbd></button><button id="storage">▧ <span>Trace 快取管理</span></button><a href="https://github.com/koviankevin/trace-studio" target="_blank" rel="noreferrer">↗ GitHub <span>v0.3.0</span></a></div>
 </aside>
 <main>
   <header class="topbar"><div class="topbar-left"><button id="toggle-sidebar" class="icon-button" title="展開側欄" aria-label="展開側欄" aria-expanded="false">☰</button><div class="breadcrumb">時跡 <span>/</span> <b id="breadcrumb">時間軸</b></div></div><div class="file-pill"><span>{ }</span><div><b id="file-name">載入中…</b><small id="file-subtitle">Chrome Trace JSON</small></div><span class="pill-dot"></span></div><div class="top-right"><span class="engine-state"><i></i> 純網頁引擎</span><button id="theme" class="icon-button" title="切換深色模式" aria-label="切換深色模式">◐</button></div></header>
@@ -52,7 +52,7 @@
 <dialog id="loading"><div class="loader-mark">▥</div><div class="eyebrow">BUILDING YOUR WORKSPACE</div><h2 id="loading-title">正在讀取 Trace</h2><p id="loading-note">分段解析並建立磁碟索引，介面可持續回應。</p><div class="progress-track"><div id="progress-bar"></div></div><div class="progress-meta"><b id="progress-percent">0%</b><span id="progress-bytes">準備中…</span></div><div class="loading-stats"><span><b id="progress-events">0</b> events</span><span id="progress-rate">— MB/s</span></div><button id="cancel" class="soft-button">取消載入</button></dialog>
 <dialog id="help"><div class="modal-top"><div><div class="eyebrow">FAMILIAR BY DESIGN</div><h2>熟悉的操作，新的視野。</h2></div><button data-close="help" class="icon-button" aria-label="關閉">×</button></div><p>時間軸核心操作對齊 Perfetto。按 <kbd>?</kbd> 隨時查看。</p><div class="shortcuts-grid"><span>放大 / 縮小</span><div><kbd>W</kbd> / <kbd>S</kbd></div><span>向左 / 向右平移</span><div><kbd>A</kbd> / <kbd>D</kbd></div><span>滑鼠縮放（以游標為中心）</span><div><kbd>Ctrl</kbd> + 滾輪</div><span>滑鼠平移</span><div><kbd>Shift</kbd> + 拖曳</div><span>選取時間範圍</span><div>直接拖曳</div><span>聚焦目前選取</span><div><kbd>F</kbd></div><span>前一筆 / 後一筆事件</span><div><kbd>,</kbd> / <kbd>.</kbd></div><span>轉換為範圍選取</span><div><kbd>R</kbd></div><span>切換詳情面板</span><div><kbd>Q</kbd></div><span>尋找軌道 / 指令選單</span><div><kbd>Ctrl P</kbd> / <kbd>Ctrl Shift P</kbd></div><span>清除選取</span><div><kbd>Esc</kbd></div></div><a href="https://perfetto.dev/docs/visualization/perfetto-ui" target="_blank" rel="noreferrer">參考 Perfetto 官方操作說明 ↗</a></dialog>
 <dialog id="commands"><div class="modal-top"><h2>指令選單</h2><button data-close="commands" class="icon-button" aria-label="關閉">×</button></div><input id="command-input" placeholder="搜尋指令…" aria-label="搜尋指令"><div id="command-list"></div></dialog>
-<dialog id="cache-dialog"><div class="modal-top"><h2>清除 Trace 快取</h2><button data-close="cache-dialog" class="icon-button" aria-label="關閉">×</button></div><p>刪除這個網站儲存在瀏覽器內的 trace 索引與事件快取。原始 JSON 檔案不受影響。</p><p id="storage-usage"></p><button id="clear-cache" class="primary">清除本站所有 Trace 快取</button></dialog>
+<dialog id="cache-dialog"><div class="modal-top"><h2>Trace 快取管理</h2><button data-close="cache-dialog" class="icon-button" aria-label="關閉">×</button></div><p>直接還原之前的索引，或清理不再使用的快取。原始 JSON 不受影響；其他分頁使用中的快取會保留。</p><p id="storage-usage"></p><div class="cache-actions"><button id="refresh-cache" class="soft-button">重新整理</button><button id="clear-unused" class="soft-button">清除未使用快取</button></div><p id="cache-status" role="status">讀取中…</p><div id="cache-list"></div><div class="cache-pagination"><button id="cache-prev" class="soft-button">上一頁</button><span id="cache-page">1 / 1</span><button id="cache-next" class="soft-button">下一頁</button></div><div class="cache-close-current"><p>下方操作會關閉目前 Trace，清理可刪除的快取後載入示範。其他分頁使用中的資料不會清除。</p><button id="clear-cache" class="soft-button">關閉目前 Trace 並清除快取</button></div></dialog>
 <div id="toast" role="status" hidden></div><div id="tooltip" hidden></div>
-<script type="module" src="./app.js?v=0.2.2"></script>
+<script type="module" src="./app.js?v=0.3.0"></script>
 </body></html>

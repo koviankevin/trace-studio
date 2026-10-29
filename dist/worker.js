@@ -4,17 +4,20 @@ import {summarizeGroups} from './track-layout.js?v=0.2.1';
 import {hardwareDemo} from './hardware-demo.js';
 import {analyzeTrace,scanTraceIndex} from './analysis.js';
 import {loadExtensionHost} from './extensions/runtime.js';
+import {createSessionStore} from './session-store.js?v=0.3.0';
 // Register onmessage synchronously. A top-level await here drops messages
 // delivered while custom.js is loading, including the UI's first import.
 const extensionHostReady=loadExtensionHost();
 let analysisToken=0;
-let db,folder,rawHandle,indexHandle,relationHandle,relations,sessionId,source;
+let db,folder,rawHandle,indexHandle,relationHandle,relations,sessionId,source,sessionLease;
 const send=(type,data={})=>postMessage({type,...data});
-async function close(){analysisToken++;for(const h of [rawHandle,indexHandle,relationHandle]){try{h?.close();}catch{}}rawHandle=indexHandle=relationHandle=null;db=null;}
+const sessions=createSessionStore(root,navigator.locks);
+async function close(){analysisToken++;for(const h of [rawHandle,indexHandle,relationHandle]){try{h?.close();}catch{}}rawHandle=indexHandle=relationHandle=null;db=null;await sessionLease?.release();sessionLease=null;}
 async function root(){if(!navigator.storage?.getDirectory)throw Error('這個瀏覽器無法使用磁碟索引，請用最新版桌面 Chrome 或 Edge，並以 HTTPS 開啟。');return (await navigator.storage.getDirectory()).getDirectoryHandle('trace-studio-v1',{create:true});}
 async function open(id,create){
-  await close();folder=await(await root()).getDirectoryHandle(id,{create});sessionId=id;
+  await close();sessionLease=await sessions.lease(id);
   try{
+    folder=await(await root()).getDirectoryHandle(id,{create});sessionId=id;
     rawHandle=await(await folder.getFileHandle('events.bin',{create})).createSyncAccessHandle();
     indexHandle=await(await folder.getFileHandle('index.bin',{create})).createSyncAccessHandle();
     db=new TraceIndex(rawHandle,indexHandle);
@@ -36,7 +39,8 @@ async function importFile(file,isDemo=false){
   if(!isDemo && !gzip && available<file.size*1.3)throw Error('瀏覽器剩餘儲存空間不足。請先清除舊快取或釋出磁碟空間後再匯入。');
   const id=crypto.randomUUID();let chunks;
   try{
-    await open(id,true);source={name:file.name,size:file.size,demo:isDemo};
+    await open(id,true);source={name:file.name,size:file.size,demo:isDemo};const createdAt=new Date().toISOString();
+    await sessions.write(folder,{source,createdAt});
     let read=0,lastReport=0;
     const reader=new TraceJSONReader((event,text)=>db.ingest(event,text),(key,value)=>db.addMetadata(key,value));
     let stream=file.stream().pipeThrough(new TransformStream({transform(chunk,controller){read+=chunk.byteLength;controller.enqueue(chunk);}}));
@@ -45,9 +49,10 @@ async function importFile(file,isDemo=false){
     for(;;){const {value,done}=await chunks.read();if(done)break;reader.feed(value);
       const now=performance.now();if(now-lastReport>100){lastReport=now;send('progress',{bytes:read,total:file.size,events:db.count,elapsed:(now-started)/1000,diskBytes:db.raw.offset+db.index.offset});}
     }
-    reader.end();const manifest=db.finish();manifest.relations=relations.finish();manifest.source=source;manifest.importSeconds=(performance.now()-started)/1000;
+    reader.end();const manifest=db.finish();manifest.relations=relations.finish();manifest.source=source;manifest.createdAt=createdAt;manifest.importSeconds=(performance.now()-started)/1000;
     const writable=await(await folder.getFileHandle('manifest.json',{create:true})).createWritable();
     await writable.write(JSON.stringify(manifest));await writable.close();
+    await sessions.write(folder,{source,createdAt,count:manifest.count});
     send('ready',{info:publicInfo(manifest)});
   }catch(error){await chunks?.cancel().catch(()=>{});await close();try{await(await root()).removeEntry(id,{recursive:true});}catch{}throw error;}
 }
@@ -64,8 +69,14 @@ onmessage=async({data})=>{
       await open(data.id,false);const m=JSON.parse(await(await(await folder.getFileHandle('manifest.json')).getFile()).text());
       if(m.version!==1)throw Error('快取版本不相容，請重新開啟原始 trace。');
       db.restore(m);if(!m.relations)throw Error('關聯索引版本已更新，請重新匯入 trace。');relations.restore(m.relations);source=m.source;send('ready',{info:publicInfo(m),restored:true});
+    }else if(type==='sessions'){send('sessions',{requestId,sessions:await sessions.list(db?sessionId:null)});
+    }else if(type==='removeSession'){
+      if(db&&data.id===sessionId)throw Error('請先關閉目前的 Trace，或使用「清除全部未鎖定快取」。');
+      send('sessionRemoved',{requestId,...await sessions.remove(data.id),sessions:await sessions.list(db?sessionId:null)});
+    }else if(type==='clearUnused'){
+      const result=await sessions.clear({keep:db?[sessionId]:[]});send('unusedCleared',{requestId,...result,sessions:await sessions.list(db?sessionId:null)});
     }else if(type==='clear'){
-      await close();const r=await root();for await(const name of r.keys())await r.removeEntry(name,{recursive:true});send('cleared');
+      await close();const result=await sessions.clear();sessionId=null;send('cleared',result);
     }else if(type==='query'&&db){const start=performance.now();send('query',{requestId,rows:db.query(data),groups:summarizeGroups(db,data.groups||[],data.start,data.end,data.width||1000),ms:performance.now()-start});}
     else if(type==='analysis'&&db){const token=++analysisToken,current=db,cancelled=()=>analysisToken!==token||db!==current;
       const result=await analyzeTrace(current,{...data,cancelled,onProgress:progress=>send('analysisProgress',{requestId,...progress})});
@@ -88,5 +99,5 @@ onmessage=async({data})=>{
       if(batch)await w.write(batch);await w.write(']}');await w.close();
       const f=await handle.getFile();try{await importFile(new File([f],`synthetic-${f.size}.json`));}finally{await r.removeEntry(name).catch(()=>{});}
     }
-  }catch(error){if(type==='analysis'&&error.name==='AbortError')send('analysisCancelled',{requestId});else send('error',{requestId,operation:type,message:error.name==='QuotaExceededError'?'瀏覽器儲存額度不足。原始檔未變更；請清除快取或釋出空間再試。':error.message});}
+  }catch(error){if(type==='analysis'&&error.name==='AbortError')send('analysisCancelled',{requestId});else send('error',{requestId,operation:type,code:error.name,message:error.name==='QuotaExceededError'?'瀏覽器儲存額度不足。原始檔未變更；請清除快取或釋出空間再試。':error.name==='NoModificationAllowedError'?'這份 Trace 正由其他分頁或背景作業使用，請關閉該分頁後重試。':error.message});}
 };

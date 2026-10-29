@@ -49,6 +49,52 @@ test('disk initialization failures release handles and remove the incomplete ses
     reply=next(worker,'ready');worker.postMessage({type:'import',file});assert.equal((await reply).info.count,1);
   }finally{await worker.terminate();await rm(root,{recursive:true});}
 });
+
+test('clearing caches preserves another worker active session and reports it as busy',async()=>{
+  const root=await mkdtemp(join(tmpdir(),'trace-studio-test-')),workers=[];
+  try{
+    for(let i=0;i<2;i++){const worker=new Worker(new URL('./worker-harness.mjs',import.meta.url),{workerData:{root}});workers.push(worker);await next(worker,'initialized');}
+    let reply=next(workers[0],'ready');workers[0].postMessage({type:'demo'});const first=(await reply).info;
+    reply=next(workers[1],'ready');workers[1].postMessage({type:'demo'});const second=(await reply).info;
+    reply=next(workers[1],'cleared');workers[1].postMessage({type:'clear'});const result=await reply;
+    assert((await readdir(join(root,'trace-studio-v1'))).includes(first.id),'another tab cache must not be removed');
+    assert(!((await readdir(join(root,'trace-studio-v1'))).includes(second.id)));
+    assert(result.skipped.some(item=>item.id===first.id&&item.reason==='busy'));
+    reply=next(workers[0],'query',30);workers[0].postMessage({type:'query',requestId:30,start:first.start,end:first.end,trackIds:[0],width:1000});assert((await reply).rows[0].rows.length);
+  }finally{await Promise.all(workers.map(worker=>worker.terminate()));await rm(root,{recursive:true});}
+});
+
+test('session manager lists lightweight cache entries, skips active locks and releases them on termination',async()=>{
+  const root=await mkdtemp(join(tmpdir(),'trace-studio-test-')),workers=[];
+  try{
+    for(let i=0;i<2;i++){const worker=new Worker(new URL('./worker-harness.mjs',import.meta.url),{workerData:{root}});workers.push(worker);await next(worker,'initialized');}
+    let reply=next(workers[0],'ready');workers[0].postMessage({type:'demo'});const first=(await reply).info;
+    reply=next(workers[1],'ready');workers[1].postMessage({type:'demo'});const second=(await reply).info;
+    reply=next(workers[1],'sessions',40);workers[1].postMessage({type:'sessions',requestId:40});const entries=(await reply).sessions;
+    assert.equal(entries.length,2);assert(entries.every(entry=>entry.complete&&entry.bytes>0&&entry.name==='checkout-flow.demo.json'&&!('blocks'in entry)));
+    assert(entries.find(entry=>entry.id===second.id).current);assert(entries.find(entry=>entry.id===first.id).busy);
+    reply=next(workers[1],'sessionRemoved',41);workers[1].postMessage({type:'removeSession',id:first.id,requestId:41});assert.equal((await reply).reason,'busy');
+    reply=next(workers[1],'unusedCleared',42);workers[1].postMessage({type:'clearUnused',requestId:42});assert.equal((await reply).removed.length,0);
+    reply=next(workers[1],'error');workers[1].postMessage({type:'restore',id:first.id});assert.match((await reply).message,/其他分頁/);
+    await workers[0].terminate();
+    reply=next(workers[1],'ready');workers[1].postMessage({type:'restore',id:first.id});assert.equal((await reply).info.id,first.id);
+    reply=next(workers[1],'sessionRemoved',43);workers[1].postMessage({type:'removeSession',id:second.id,requestId:43});assert((await reply).removed);
+    reply=next(workers[1],'error');workers[1].postMessage({type:'removeSession',id:'../escape'});assert.match((await reply).message,/識別碼/);
+  }finally{await Promise.all(workers.map(worker=>worker.terminate()));await rm(root,{recursive:true});}
+});
+
+test('an interrupted import can be reclaimed, while an active incomplete import stays protected',async()=>{
+  const root=await mkdtemp(join(tmpdir(),'trace-studio-test-')),worker=new Worker(new URL('./worker-harness.mjs',import.meta.url),{workerData:{root,slowInput:true}}),cleaner=new Worker(new URL('./worker-harness.mjs',import.meta.url),{workerData:{root}});
+  try{
+    await Promise.all([next(worker,'initialized'),next(cleaner,'initialized')]);
+    const text=JSON.stringify(Array.from({length:20000},(_,i)=>({name:'Cancelled import',ph:'X',ts:i,dur:1,args:{payload:'x'.repeat(100)}})));
+    let reply=next(worker,'progress');worker.postMessage({type:'import',file:new File([text],'interrupted.json')});await reply;
+    reply=next(cleaner,'sessions',50);cleaner.postMessage({type:'sessions',requestId:50});const entry=(await reply).sessions[0];assert.equal(entry.name,'interrupted.json');assert(!entry.complete&&entry.busy);
+    reply=next(cleaner,'unusedCleared',51);cleaner.postMessage({type:'clearUnused',requestId:51});assert.equal((await reply).removed.length,0);
+    await worker.terminate();
+    reply=next(cleaner,'unusedCleared',52);cleaner.postMessage({type:'clearUnused',requestId:52});assert.deepEqual((await reply).removed,[entry.id]);assert.deepEqual(await readdir(join(root,'trace-studio-v1')),[]);
+  }finally{await worker.terminate();await cleaner.terminate();await rm(root,{recursive:true});}
+});
 test('hardware demo worker supplies grouped summaries and keeps selected event hardware fields',async()=>{
   const root=await mkdtemp(join(tmpdir(),'trace-studio-test-')),worker=new Worker(new URL('./worker-harness.mjs',import.meta.url),{workerData:{root}});
   try{
@@ -71,7 +117,7 @@ test('application element references and local assets exist; engine benchmark ha
   const base=new URL('../dist/',import.meta.url),html=await readFile(new URL('index.html',base),'utf8'),app=await readFile(new URL('app.js',base),'utf8');
   const ids=new Set([...html.matchAll(/id="([^"]+)"/g)].map(m=>m[1]));const dynamic=new Set(['area-focus','show-relations']);
   for(const m of app.matchAll(/\$\('([^']+)'\)/g))assert(ids.has(m[1])||dynamic.has(m[1]),`Missing #${m[1]}`);
-  for(const asset of ['style.css','workspace.css','app.js','worker.js','core.js','relations.js','navigation.js','track-layout.js','event-summary.js','event-colors.js','analysis.js','extensions/runtime.js','extensions/custom.js','extensions/example.js','hardware-demo.js','icon.svg'])assert((await readFile(new URL(asset,base))).length>0);
+  for(const asset of ['style.css','workspace.css','app.js','worker.js','core.js','relations.js','navigation.js','track-layout.js','event-summary.js','event-colors.js','analysis.js','session-store.js','extensions/runtime.js','extensions/custom.js','extensions/example.js','hardware-demo.js','icon.svg'])assert((await readFile(new URL(asset,base))).length>0);
   const benchmark=JSON.parse(await readFile(new URL('../docs/benchmark-2026-10-29-v0.2.1.json',import.meta.url),'utf8'));
   for(const [file,expected]of Object.entries(benchmark.sourceHashes))assert.equal(createHash('sha256').update(await readFile(new URL(file,base))).digest('hex'),expected,`Rerun benchmark after changing ${file}`);
 });

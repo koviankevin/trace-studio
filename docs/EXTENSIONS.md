@@ -82,6 +82,7 @@ export default {
 | `dist/event-colors.js` | 內建依名稱規則分類的淡色配色。 |
 | `dist/track-layout.js` | 程序／核心／數值曲線分組、篩選、釘選與列高。 |
 | `dist/worker.js` | 索引生命週期、通訊及分析取消。 |
+| `dist/session-store.js` | OPFS 快取摘要、同源 session lease 與安全清理。擴充不應直接修改快取檔或繞過鎖定。 |
 | `dist/app.js` / `dist/workspace.css` | 畫面及事件互動；保留緊湊布局與既有快捷鍵。 |
 
 ## 維護規則
