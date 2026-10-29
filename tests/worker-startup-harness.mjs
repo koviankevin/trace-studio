@@ -10,7 +10,7 @@ const messages=[];
 const context=vm.createContext({
   onmessage:null,postMessage:message=>messages.push(message),
   navigator:{storage:{estimate:async()=>({quota:0,usage:0})}},
-  performance,File,crypto,console,setTimeout,clearTimeout
+  performance,File,TransformStream,crypto,console,setTimeout,clearTimeout
 });
 const url=new URL('../dist/worker.js',import.meta.url);
 const module=new vm.SourceTextModule(await readFile(url,'utf8'),{context,identifier:url.href});
