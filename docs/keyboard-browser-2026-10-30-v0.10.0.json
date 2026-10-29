@@ -1,0 +1,177 @@
+{
+  "version": "0.10.0",
+  "recordedAt": "2026-10-29T16:35:36.321Z",
+  "sourceHashes": {
+    "core.js": "ba932ad7ee25e1d2ee0bf8afbcc6759cbca6deebbafc0f625a549b10b9e773a1",
+    "relations.js": "e799fd13f3273e3d69fc9b628f970a4bc08a4951d153aaeaf3edbff23540c23d",
+    "worker.js": "bc5bded96d885022f82ba5da8af207b6429819b4b3bdaceb2388ad18d313d100",
+    "app.js": "0cbc244bad60b7dc3eea06b4a271cbfb37ab682b247fbf6ad3ebe2692a3dd88a",
+    "focus.js": "d3b61f93f195d0791f78a00b6c7bf75e7db0cd971773c35b0201d9994884f282",
+    "event-colors.js": "ea6540d4fea81bef7f760b64f43178344466f97e9fc07d9eefd516e915b22ff5",
+    "style.css": "1f47eece119fbed19ea99b70afe6c3325607b46f3209af97f30ec071d7385170",
+    "workspace.css": "7151674bbb70cf8af3f1a611664c9185a72b5b783630fb686bd6ba24d6f9ff72",
+    "index.html": "3ddc2d280ad75d44f5dc269870bfd60676bdba7355f1ad2cd167c9c6659c7ce3"
+  },
+  "environment": "Windows in-app Chromium 156; synthetic four-core relation fixture",
+  "beforeFix": {
+    "version": "0.9.2",
+    "groupEnterFocus": {
+      "group": null,
+      "id": "",
+      "tag": "BODY"
+    }
+  },
+  "confirmed": {
+    "groupCollapsed": {
+      "expanded": "false",
+      "focus": "group:core:1:CORE0"
+    },
+    "groupExpanded": {
+      "expanded": "true",
+      "focus": "group:core:1:CORE0"
+    },
+    "command": {
+      "active": "command-option-13",
+      "dialogName": "指令選單",
+      "focus": "command-input",
+      "selectedCount": 1,
+      "visible": true
+    },
+    "helpTabSequence": [
+      "help",
+      "help",
+      "help",
+      "help",
+      "help",
+      "help",
+      "help",
+      "help"
+    ],
+    "small": {
+      "active": "command-option-13",
+      "dark": true,
+      "dialogBottom": 536.5,
+      "dialogTop": 63.5,
+      "focus": "command-input",
+      "height": 600,
+      "optionVisible": true,
+      "scrollWidth": 800,
+      "themePressed": "true",
+      "width": 800
+    },
+    "interactions": [
+      {
+        "case": "track-height-enter",
+        "value": "true",
+        "focus": "height:0"
+      },
+      {
+        "case": "track-height-space",
+        "value": "false"
+      },
+      {
+        "case": "double-click-final",
+        "expanded": "true"
+      },
+      {
+        "case": "enter-first-visible-event",
+        "heading": "Buffer 16",
+        "focus": "tracks-scroll",
+        "status": "已選取 Buffer 16，持續 500.0 µs，CORE0_COMPUTE。"
+      },
+      {
+        "case": "close-details",
+        "focus": "tracks-scroll",
+        "expanded": "false"
+      },
+      {
+        "case": "search-result-navigation",
+        "focus": "tracks-scroll",
+        "selection": "Selected producer"
+      },
+      {
+        "case": "pin-track",
+        "focus": "pin:0",
+        "pressed": "true"
+      },
+      {
+        "case": "q-from-detail",
+        "focus": "tracks-scroll",
+        "expanded": "false"
+      },
+      {
+        "case": "escape-selection",
+        "focus": "tracks-scroll",
+        "status": "已清除事件選取。"
+      },
+      {
+        "case": "palette-escape",
+        "focus": "tracks-scroll",
+        "expanded": "false"
+      },
+      {
+        "case": "help-modal-close",
+        "focus": "shortcuts"
+      },
+      {
+        "case": "skip-link",
+        "focus": "main-content"
+      }
+    ]
+  },
+  "duringRepair": {
+    "commandBeforeScrollFix": {
+      "active": "command-option-13",
+      "dialog": {
+        "bottom": 701,
+        "height": 682,
+        "left": 390,
+        "right": 890,
+        "top": 19,
+        "width": 500,
+        "x": 390,
+        "y": 19
+      },
+      "list": {
+        "bottom": 896,
+        "height": 735,
+        "left": 421,
+        "right": 844,
+        "top": 161,
+        "width": 423,
+        "x": 421,
+        "y": 161
+      },
+      "option": {
+        "bottom": 847,
+        "height": 49,
+        "left": 421,
+        "right": 844,
+        "top": 798,
+        "width": 423,
+        "x": 421,
+        "y": 798
+      }
+    },
+    "commandAfterScrollFix": {
+      "active": "command-option-13",
+      "focus": "command-input",
+      "inside": true,
+      "listBottom": 595.5,
+      "listTop": 235.5,
+      "optionBottom": 595.5,
+      "optionTop": 546.5,
+      "scroll": 326
+    }
+  },
+  "nativeBrowserAttempt": {
+    "installedEdgeVersion": "156.0.4314.50",
+    "installedChromeVersion": "156.0.8078.48",
+    "edgeLaunchedVia": "CUA launch_app",
+    "result": "Window-open notification handler failed; Windows inventory re-read showed no Edge window. Standalone browser acceptance not passed."
+  },
+  "limits": [
+    "DOM/AX semantics and actual keyboard actions checked; not NVDA speech validation or full WCAG certification",
+    "Some observations collected during repair iteration; final entry-point test and public smoke are recorded separately"
+  ]
+}

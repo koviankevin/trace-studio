@@ -90,7 +90,8 @@ export default {
 | `dist/runtime-metrics.js` | 預設關閉的有界本機時間記錄；以 intent／sent／received／frame 對應最新狀態，不得把舊回覆算成已完成，不收集事件內容或檔名。 |
 | `dist/event-labels.js` | 缺名事件的短 TID 顯示規則；不改原始 JSON。 |
 | `dist/event-summary.js` | 內建硬體欄位對照；只顯示來源提供的資料。 |
-| `dist/event-colors.js` | 內建依名稱規則分類的淡色配色。 |
+| `dist/event-colors.js` | 內建分類配色與依填色選擇黑／白文字；自訂有效十六進位填色亦使用可讀文字色。 |
+| `dist/focus.js` | 虛擬化控制項依穩定 data-focus-key 恢復焦點；模態視窗的 Tab 邊界處理，不攔截瀏覽器 Ctrl／Meta 組合鍵。 |
 | `dist/track-layout.js` | 程序／核心／數值曲線分組、篩選、釘選與列高。 |
 | `dist/worker.js` | 索引生命週期、通訊及分析取消。 |
 | `dist/session-store.js` | OPFS 快取摘要、同源 session lease 與安全清理。擴充不應直接修改快取檔或繞過鎖定。 |

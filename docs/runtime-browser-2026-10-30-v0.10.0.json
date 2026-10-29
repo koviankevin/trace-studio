@@ -1,0 +1,182 @@
+{
+  "version": "0.10.0",
+  "recordedAt": "2026-10-29T16:35:36.318Z",
+  "environment": "Windows in-app Chromium 156, browser-reported visible, 1280x720, pre-existing synthetic 3 GB OPFS index restored; no new File parse",
+  "sourceHashes": {
+    "core.js": "ba932ad7ee25e1d2ee0bf8afbcc6759cbca6deebbafc0f625a549b10b9e773a1",
+    "relations.js": "e799fd13f3273e3d69fc9b628f970a4bc08a4951d153aaeaf3edbff23540c23d",
+    "worker.js": "bc5bded96d885022f82ba5da8af207b6429819b4b3bdaceb2388ad18d313d100",
+    "app.js": "0cbc244bad60b7dc3eea06b4a271cbfb37ab682b247fbf6ad3ebe2692a3dd88a",
+    "focus.js": "d3b61f93f195d0791f78a00b6c7bf75e7db0cd971773c35b0201d9994884f282",
+    "event-colors.js": "ea6540d4fea81bef7f760b64f43178344466f97e9fc07d9eefd516e915b22ff5",
+    "style.css": "1f47eece119fbed19ea99b70afe6c3325607b46f3209af97f30ec071d7385170",
+    "workspace.css": "7151674bbb70cf8af3f1a611664c9185a72b5b783630fb686bd6ba24d6f9ff72",
+    "index.html": "3ddc2d280ad75d44f5dc269870bfd60676bdba7355f1ad2cd167c9c6659c7ce3"
+  },
+  "procedure": "Start capture in info, return to timeline, five zoom-in/zoom-out pairs; observe current timeline, stop and read visible JSON report.",
+  "report": {
+    "version": 1,
+    "enabled": false,
+    "windowLimit": 512,
+    "elapsedMs": 12865.200000017881,
+    "intents": 10,
+    "coalescedIntents": 0,
+    "hiddenOmitted": 0,
+    "completedFrames": 10,
+    "completedQueries": 11,
+    "canvas": {
+      "samples": 10,
+      "medianMs": 60,
+      "p95Ms": 68.5,
+      "maxMs": 81.5
+    },
+    "roundTrip": {
+      "samples": 11,
+      "medianMs": 13.299999982118607,
+      "p95Ms": 21.100000023841858,
+      "maxMs": 23.69999998807907
+    },
+    "worker": {
+      "samples": 11,
+      "medianMs": 4.300000011920929,
+      "p95Ms": 7.4000000059604645,
+      "maxMs": 8.900000005960464
+    },
+    "longTasks": {
+      "supported": true,
+      "count": 0,
+      "totalMs": 0,
+      "maxMs": 0
+    },
+    "heap": {
+      "lastBytes": 16806328,
+      "maxSampledBytes": 25611038
+    },
+    "observations": {
+      "frames": [
+        {
+          "canvasMs": 81.5,
+          "roundTripMs": 21.100000023841858,
+          "workerMs": 7.4000000059604645
+        },
+        {
+          "canvasMs": 50.5,
+          "roundTripMs": 13.5,
+          "workerMs": 4.300000011920929
+        },
+        {
+          "canvasMs": 58.69999998807907,
+          "roundTripMs": 12.199999988079071,
+          "workerMs": 3.0999999940395355
+        },
+        {
+          "canvasMs": 57.79999998211861,
+          "roundTripMs": 16.900000005960464,
+          "workerMs": 6.4000000059604645
+        },
+        {
+          "canvasMs": 60,
+          "roundTripMs": 12.800000011920929,
+          "workerMs": 3.5999999940395355
+        },
+        {
+          "canvasMs": 63.89999997615814,
+          "roundTripMs": 13.299999982118607,
+          "workerMs": 4.5
+        },
+        {
+          "canvasMs": 58.79999998211861,
+          "roundTripMs": 12.5,
+          "workerMs": 2.9000000059604645
+        },
+        {
+          "canvasMs": 68.5,
+          "roundTripMs": 18.700000017881393,
+          "workerMs": 5.899999976158142
+        },
+        {
+          "canvasMs": 60.20000001788139,
+          "roundTripMs": 12.900000005960464,
+          "workerMs": 4.199999988079071
+        },
+        {
+          "canvasMs": 65.5,
+          "roundTripMs": 12.699999988079071,
+          "workerMs": 4
+        }
+      ],
+      "queries": [
+        {
+          "roundTripMs": 23.69999998807907,
+          "workerMs": 8.900000005960464
+        },
+        {
+          "roundTripMs": 21.100000023841858,
+          "workerMs": 7.4000000059604645
+        },
+        {
+          "roundTripMs": 13.5,
+          "workerMs": 4.300000011920929
+        },
+        {
+          "roundTripMs": 12.199999988079071,
+          "workerMs": 3.0999999940395355
+        },
+        {
+          "roundTripMs": 16.900000005960464,
+          "workerMs": 6.4000000059604645
+        },
+        {
+          "roundTripMs": 12.800000011920929,
+          "workerMs": 3.5999999940395355
+        },
+        {
+          "roundTripMs": 13.299999982118607,
+          "workerMs": 4.5
+        },
+        {
+          "roundTripMs": 12.5,
+          "workerMs": 2.9000000059604645
+        },
+        {
+          "roundTripMs": 18.700000017881393,
+          "workerMs": 5.899999976158142
+        },
+        {
+          "roundTripMs": 12.900000005960464,
+          "workerMs": 4.199999988079071
+        },
+        {
+          "roundTripMs": 12.699999988079071,
+          "workerMs": 4
+        }
+      ]
+    },
+    "notes": [
+      "Canvas latency ends when the matching query result is submitted by drawTimeline; it includes debounce/queue time, not compositor presentation or FPS.",
+      "Only completed latest-state updates are sampled; coalesced intents and hidden-page observations are counted separately. Quantiles use floor((n-1)*p) over the bounded recent window.",
+      "JS heap is an optional browser-provided approximation, may exclude Worker heaps or include shared heaps, and is not total browser peak memory."
+    ],
+    "trace": {
+      "events": 2932637,
+      "tracks": 8,
+      "inputBytes": 3000583032,
+      "cacheBytes": 3185339146
+    },
+    "viewport": {
+      "width": 1280,
+      "height": 720,
+      "pixelRatio": 1
+    },
+    "visibility": "visible",
+    "browser": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36"
+  },
+  "independentlyRecomputed": {
+    "samples": 10,
+    "p95Ms": 68.5
+  },
+  "limits": [
+    "Ten completed frames are a smoke observation, not a stable latency bound or comparative speed claim",
+    "Canvas submission is not compositor presentation/FPS; optional heap samples do not include all browser/Worker memory"
+  ]
+}

@@ -4,7 +4,7 @@
 
 **[開啟時跡](https://koviankevin.github.io/trace-studio/)** · [操作參考](https://perfetto.dev/docs/visualization/perfetto-ui) · [效能測試](docs/PERFORMANCE.md)
 
-目前為 v0.9.2。已有自動化測試，以及 Windows Chromium 瀏覽器的實際 File／OPFS、三版本比較與 3 GB 合成資料驗收；詳細範圍與未完成項目見[驗證紀錄](docs/VERIFICATION.md)。尚未證實比 Chrome tracing 或 Perfetto 更快；本專案的目標是在熟悉的操作上提供更清楚的資訊與大檔路徑。
+目前為 v0.10.0。已有自動化測試，以及 Windows Chromium 瀏覽器的實際 File／OPFS、三版本比較與 3 GB 合成資料驗收；詳細範圍與未完成項目見[驗證紀錄](docs/VERIFICATION.md)。尚未證實比 Chrome tracing 或 Perfetto 更快；本專案的目標是在熟悉的操作上提供更清楚的資訊與大檔路徑。
 
 ## 使用
 
@@ -67,6 +67,8 @@
 收合概覽僅合併既有索引摘要，**不讀取整份原始事件，也不代表精確事件數、利用率或瓶頸**。自訂名稱若不含可辨識核心前綴，仍會保留在原 PID 程序內，不從工作單元編號猜測核心。
 
 左上角選單可載入四核心、每核心 28 軌道的 **合成 CORE 示範**。所有時間、shape、流量及 address 都是示意值，並非量測結果。底部欄位表只整理原始 args 明確提供的值；「來源標示瓶頸／來源建議」也是 trace 自帶的文字，不是工具推論。
+
+鍵盤可用 Enter／Space 調整軌道高度，時間軸取得焦點後按 Enter 選取第一個可見事件，再用逗號／句號瀏覽相鄰事件。搜尋／分析跳轉與關閉詳情會保留適當焦點；指令選單與模態視窗支援方向鍵、Tab 循環與 Esc。完整範圍與限制見[鍵盤及無障礙紀錄](docs/ACCESSIBILITY.md)。
 
 緊湊模式保留約 13 px 軌道名稱、12 px 時間軸事件字體，移除逐列重複的 PID／TID／事件數留白；這些資料可在 tooltip／詳情查看。巢狀事件會按需要增加列高，雙擊軌道仍可展開。事件詳情面板頂部可拖曳調高，或聚焦分隔線以方向鍵調整；Q 可切換顯示。
 

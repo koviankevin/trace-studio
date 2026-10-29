@@ -8,18 +8,19 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {Worker as NodeWorker} from 'node:worker_threads';
 import {setTimeout as delay} from 'node:timers/promises';
+import {eventColor,readableEventText} from '../dist/event-colors.js';
 
 test('application startup and file selection reach the loaded timeline',async()=>{
   const root=await mkdtemp(join(tmpdir(),'trace-app-')),workers=[],errors=[],frames=[];
   const html=await readFile(new URL('../dist/index.html',import.meta.url),'utf8');
   const classList=()=>{const values=new Set();return {contains:x=>values.has(x),add:x=>values.add(x),toggle(x,on){if(on??!values.has(x))values.add(x);else values.delete(x);}};};
-  const canvasCurves=[],canvasBoxes=[],canvasLabels=[],canvas=new Proxy({measureText:text=>({width:String(text).length*7}),fillText:text=>canvasLabels.push(text),bezierCurveTo:(...args)=>canvasCurves.push(args),roundRect:(...args)=>canvasBoxes.push(args)},{get:(o,k)=>o[k]||(()=>{})});
-  function element(id){return {id,style:{setProperty(){}},classList:classList(),dataset:{},value:'',textContent:'',innerHTML:'',hidden:false,open:false,scrollTop:0,clientWidth:1100,clientHeight:400,parentElement:{clientHeight:30},handlers:{},addEventListener(type,fn){const previous=this.handlers[type];this.handlers[type]=previous?event=>{previous(event);fn(event);}:fn;},setAttribute(){},setPointerCapture(){},getBoundingClientRect:()=>({width:1100,height:400,left:0,top:0}),getContext:()=>canvas,showModal(){this.open=true;},close(){this.open=false;},click(){this.onclick?.();},focus(){}};}
+  const canvasLabelPaint=[],canvasCurves=[],canvasBoxes=[],canvasLabels=[],canvas=new Proxy({measureText:text=>({width:String(text).length*7}),fillText:text=>{canvasLabels.push(text);canvasLabelPaint.push({text,color:canvas.fillStyle});},bezierCurveTo:(...args)=>canvasCurves.push(args),roundRect:(...args)=>canvasBoxes.push(args)},{get:(o,k)=>o[k]||(()=>{})});
+  function element(id){return {id,tagName:'DIV',attributes:{},style:{setProperty(){}},classList:classList(),dataset:{},value:'',textContent:'',innerHTML:'',hidden:false,open:false,scrollTop:0,clientWidth:1100,clientHeight:400,parentElement:{clientHeight:30},handlers:{},contains(node){return this===node||this.id==='details'&&['copy','close-details','focus-selection','details-resize'].includes(node?.id);},addEventListener(type,fn){const previous=this.handlers[type];this.handlers[type]=previous?event=>{previous(event);fn(event);}:fn;},setAttribute(name,value){this.attributes[name]=String(value);},removeAttribute(name){delete this.attributes[name];},getAttribute(name){return this.attributes[name]??null;},setPointerCapture(){},getBoundingClientRect:()=>({width:1100,height:400,left:0,top:0}),getContext:()=>canvas,showModal(){this.open=true;},close(){this.open=false;},click(){this.onclick?.();},focus(){document.activeElement=this;},blur(){document.activeElement=document.body;}};}
   const elements=new Map([...html.matchAll(/id="([^"]+)"/g)].map(m=>[m[1],element(m[1])]));
   elements.get('analysis-threshold').value='1';elements.get('analysis-scope').value='all';elements.get('analysis-group').value='all';elements.get('include-arguments').checked=true;
   const storage=new Map();
   Object.assign(globalThis,{
-    document:{getElementById:id=>elements.get(id),querySelectorAll:()=>[],querySelector:()=>null,addEventListener(){},body:{classList:classList()},documentElement:{}},
+    document:{activeElement:null,handlers:{},getElementById:id=>elements.get(id),querySelectorAll:()=>[],querySelector:()=>null,addEventListener(type,fn){const previous=this.handlers[type];this.handlers[type]=previous?event=>{previous(event);fn(event);}:fn;},body:{classList:classList()},documentElement:{}},
     window:{handlers:{},addEventListener(type,fn){this.handlers[type]=fn;}},localStorage:{getItem:key=>storage.get(key)||null,setItem:(key,value)=>storage.set(key,value),removeItem:key=>storage.delete(key)},
     innerWidth:1280,innerHeight:800,devicePixelRatio:1,
     getComputedStyle:()=>({getPropertyValue:()=>250}),
@@ -49,14 +50,14 @@ test('application startup and file selection reach the loaded timeline',async()=
     await until(()=>elements.get('file-name').textContent==='input.json');draw();
     assert.equal(elements.get('loading').open,false);
     assert.equal(elements.get('events-count').textContent,'1');
-    assert.match(elements.get('track-labels').innerHTML,/>2<\/span>/);
+    assert.match(elements.get('track-labels').innerHTML,/data-track-toggle="0"[^>]*>2<\/button>/);
     assert(!elements.get('track-labels').innerHTML.includes('#2'));
     assert.equal(input.value,'');
     input.files=[new File([JSON.stringify({traceEvents:[{ph:'X',pid:1,tid:2,ts:0,dur:50},{ph:'M',pid:1,tid:2,name:'thread_name',args:{name:'CORE0_COMPUTE'}}]})],'unnamed.json')];
     input.onchange({target:input});await until(()=>elements.get('file-name').textContent==='unnamed.json');draw();
     elements.get('insights-list').handlers.click({target:{closest:()=>({dataset:{source:'top',result:'0'}})}});
     await until(()=>elements.get('details-content').innerHTML.includes('完整原始 JSON'));
-    assert.equal(elements.get('selection-heading').textContent,'2');
+    assert.equal(elements.get('selection-heading').textContent,'2');assert.equal(document.activeElement,elements.get('tracks-scroll'),'search/result navigation must return keyboard focus to the timeline');
     elements.get('track-filter').value='CORE';elements.get('track-filter').handlers.input({target:elements.get('track-filter')});
     elements.get('runtime-toggle').click();elements.get('zoom-in').click();await until(()=>{draw();return Number(elements.get('runtime-count').textContent)>0;});elements.get('runtime-refresh').click();assert(elements.get('runtime-results').innerHTML.includes('Canvas 更新 P50 / P95'));const captured=JSON.parse(elements.get('runtime-json').value);assert(captured.completedFrames>0);assert.equal(captured.trace.events,2);assert(!elements.get('runtime-json').value.includes('unnamed.json'));assert(!('source'in captured));elements.get('runtime-toggle').click();draw();const beforePan=elements.get('window-time').textContent;
     elements.get('timeline').handlers.pointerdown({button:0,clientX:500,clientY:104,pointerId:2,shiftKey:true});elements.get('timeline').handlers.pointermove({clientX:400,clientY:104});elements.get('timeline').handlers.pointerup({clientX:400,clientY:104});draw();
@@ -137,7 +138,7 @@ test('application startup and file selection reach the loaded timeline',async()=
     await until(()=>elements.get('file-name').textContent==='before.json'&&elements.get('selection-heading').textContent==='compute');assert(workers.at(-1).lastReady.memoryRestored);
     elements.get('track-filter').value='1';elements.get('track-filter').handlers.input({target:elements.get('track-filter')});elements.get('zoom-in').click();draw();const savedWindow=elements.get('window-time').textContent;window.handlers.pagehide();
     for(const active of workers)await active.terminate();elements.get('file-name').textContent='Reloading';
-    await import('../dist/app.js?workspace-reload=1');await until(()=>elements.get('file-name').textContent==='before.json'&&elements.get('trace-tabs').innerHTML.includes('after.json'));
+    document.handlers={};window.handlers={};for(const element of elements.values())element.handlers={};frames.length=0;document.body.classList=classList();document.activeElement=null;storage.set('trace-studio-theme','dark');await import('../dist/app.js?workspace-reload=1');assert.equal(elements.get('theme').getAttribute('aria-pressed'),'true','the restored dark theme must expose its current state');elements.get('theme').click();await until(()=>elements.get('file-name').textContent==='before.json'&&elements.get('trace-tabs').innerHTML.includes('after.json'));
     assert(!workers.at(-1).lastReady.memoryRestored);draw();assert.equal(elements.get('track-filter').value,'1');assert.equal(elements.get('window-time').textContent,savedWindow);
     elements.get('trace-tabs').onclick({target:{closest:()=>({dataset:{traceOpen:second}})}});await until(()=>elements.get('file-name').textContent==='after.json');
     elements.get('trace-tabs').onclick({target:{closest:()=>({dataset:{traceOpen:first}})}});await until(()=>elements.get('file-name').textContent==='before.json');assert(workers.at(-1).lastReady.memoryRestored);
@@ -146,5 +147,14 @@ test('application startup and file selection reach the loaded timeline',async()=
     assert.equal(canvasCurves.length,1,'address-only candidates must not add an automatic line');assert(canvasCurves[0][5]>canvasCurves[0][1],'the consumer occupies a nested lane below the producer');assert(canvasBoxes.some(box=>Math.abs(box[1]+8.5-canvasCurves[0][5])<.01),'line endpoint must match the rendered consumer lane');
     elements.get('details-content').handlers.change({target:{matches:selector=>selector==='[data-relation-key]',value:JSON.stringify(['address','0x1000'])}});assert(elements.get('details-content').innerHTML.includes('consumer'));assert(elements.get('details-content').innerHTML.includes('same address only'));canvasCurves.length=0;draw();assert.equal(canvasCurves.length,0,'an address key filter must not masquerade as an explicit dependency');
     elements.get('details-content').handlers.click({target:{closest:selector=>selector==='[data-relation-preview]'?{dataset:{relationPreview:'1'}}:null}});canvasCurves.length=0;draw();assert.equal(canvasCurves.length,1,'an explicit candidate preview draws just one line');
+    elements.get('track-labels').handlers.mousedown({detail:1});elements.get('track-labels').handlers.click({detail:1,target:{closest:selector=>selector==='[data-track-toggle]'?{dataset:{trackToggle:'0'}}:null}});assert(/data-track-toggle="0"[^>]*aria-expanded="true"/.test(elements.get('track-labels').innerHTML));
+    elements.get('track-labels').handlers.dblclick({target:{closest:selector=>selector==='[data-track]'?{dataset:{track:'0'}}:null}});assert(/data-track-toggle="0"[^>]*aria-expanded="true"/.test(elements.get('track-labels').innerHTML),'the second click landing on the resized row must not toggle twice');
+    elements.get('track-labels').handlers.mousedown({detail:1});elements.get('track-labels').handlers.dblclick({target:{closest:selector=>selector==='[data-track]'?{dataset:{track:'0'}}:null}});assert(/data-track-toggle="0"[^>]*aria-expanded="false"/.test(elements.get('track-labels').innerHTML));
+    for(const dark of [true,false]){canvasLabelPaint.length=0;elements.get('theme').click();draw();const painted=canvasLabelPaint.find(label=>label.text==='producer');assert(painted,'producer label must be rendered');assert.equal(painted.color,readableEventText(eventColor({label:'producer'},dark).fill),'Canvas must use the readable ink for the actual event fill');}
+    elements.get('copy').focus();elements.get('close-details').click();assert.equal(document.activeElement,elements.get('tracks-scroll'));assert.equal(elements.get('toggle-details').getAttribute('aria-expanded'),'false');
+    elements.get('toggle-details').click();assert.equal(elements.get('details').hidden,false);assert.equal(elements.get('toggle-details').getAttribute('aria-expanded'),'true');
+    elements.get('copy').focus();document.handlers.keydown({key:'Escape',code:'Escape',target:elements.get('copy'),preventDefault(){}});assert.equal(document.activeElement,elements.get('tracks-scroll'));assert.equal(elements.get('selection-status').textContent,'已清除事件選取。');
+    document.handlers.keydown({key:'P',code:'KeyP',ctrlKey:true,shiftKey:true,target:elements.get('tracks-scroll'),preventDefault(){}});assert(elements.get('commands').open);assert.equal(elements.get('command-input').getAttribute('aria-expanded'),'true');assert.equal(elements.get('command-input').getAttribute('aria-activedescendant'),'command-option-0');
+    elements.get('command-input').onkeydown({key:'ArrowDown',preventDefault(){}});assert.equal(elements.get('command-input').getAttribute('aria-activedescendant'),'command-option-1');elements.get('command-input').value='no-matching-command';elements.get('command-input').oninput();assert.equal(elements.get('command-input').getAttribute('aria-activedescendant'),null);assert.equal(elements.get('command-status').textContent,'0 個符合的指令');elements.get('commands').close();elements.get('commands').handlers.close();assert.equal(elements.get('command-input').getAttribute('aria-expanded'),'false');
   }finally{await Promise.all(workers.map(w=>w.stopped||w.terminate()));await removeTestRoot(root);}
 });
