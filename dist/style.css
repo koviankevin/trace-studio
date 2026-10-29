@@ -17,3 +17,5 @@ body.dark{--bg:#17231e;--panel:#203028;--panel-alt:#25372d;--text:#d4e1cf;--mute
 
 /* Bounded relation exploration keeps candidate groups readable in a narrow drawer. */
 .relation-filters{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}.relation-filters label{display:flex;align-items:center;gap:6px;min-width:0;font-size:12px}.relation-filters select{max-width:240px;min-width:0;padding:4px;font:inherit}.relation-group{border-top:1px solid var(--line);padding:5px 0}.relation-group>summary{cursor:pointer;font-size:13px;padding:4px 0}.relation-candidate{display:flex;align-items:center;gap:6px}.relation-candidate .relation-item{min-width:0;flex:1}.relation-preview{flex:none;font-size:12px}.relation-preview[aria-pressed="true"]{background:#b49b5833}.relation-help,.relation-empty{font-size:12px;color:var(--muted);line-height:1.6}.relation-help{margin-bottom:0}
+
+.relation-group[open]{flex-basis:100%;width:100%;min-width:0}.relation-members{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,270px),1fr));gap:4px 12px}.relation-members .relation-candidate{width:100%;min-width:0}
