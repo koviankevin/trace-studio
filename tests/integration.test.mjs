@@ -27,11 +27,20 @@ test('worker streams gzip and reports malformed input without a successful impor
     reply=next(worker,'cleared');worker.postMessage({type:'clear'});await reply;
   }finally{await worker.terminate();await rm(root,{recursive:true});}
 });
+test('hardware demo worker supplies grouped summaries and keeps selected event hardware fields',async()=>{
+  const root=await mkdtemp(join(tmpdir(),'trace-studio-test-')),worker=new Worker(new URL('./worker-harness.mjs',import.meta.url),{workerData:{root}});
+  try{
+    await next(worker,'initialized');let reply=next(worker,'ready');worker.postMessage({type:'hardwareDemo'});const {info}=await reply;assert.equal(Object.keys(info.processes).length,4);assert.equal(info.tracks.filter(t=>t.count).length,112);assert.equal(info.source.demo,true);
+    const ids=info.tracks.filter(t=>t.pid===100).map(t=>t.id);reply=next(worker,'query',7);worker.postMessage({type:'query',requestId:7,start:info.start,end:info.end,trackIds:[],groups:[{id:'process:100',trackIds:ids}],width:1000});
+    const grouped=await reply;assert.deepEqual(grouped.rows,[]);assert.equal(grouped.groups[0].id,'process:100');assert(grouped.groups[0].bins.some(n=>n>0));assert(grouped.groups[0].bins.length<=240);
+    reply=next(worker,'detail',8);worker.postMessage({type:'detail',requestId:8,record:info.top[0]});const detail=await reply;assert.deepEqual(detail.event.args.input_shape,[12,12,64]);assert.equal(detail.event.args.demo,true);assert(detail.links.matches.length>0);
+  }finally{await worker.terminate();await rm(root,{recursive:true});}
+});
 test('application element references and local assets exist; engine benchmark hashes match',async()=>{
   const base=new URL('../dist/',import.meta.url),html=await readFile(new URL('index.html',base),'utf8'),app=await readFile(new URL('app.js',base),'utf8');
   const ids=new Set([...html.matchAll(/id="([^"]+)"/g)].map(m=>m[1]));const dynamic=new Set(['area-focus','show-relations']);
   for(const m of app.matchAll(/\$\('([^']+)'\)/g))assert(ids.has(m[1])||dynamic.has(m[1]),`Missing #${m[1]}`);
-  for(const asset of ['style.css','app.js','worker.js','core.js','relations.js','navigation.js','icon.svg'])assert((await readFile(new URL(asset,base))).length>0);
+  for(const asset of ['style.css','workspace.css','app.js','worker.js','core.js','relations.js','navigation.js','track-layout.js','event-summary.js','hardware-demo.js','icon.svg'])assert((await readFile(new URL(asset,base))).length>0);
   const benchmark=JSON.parse(await readFile(new URL('../docs/benchmark-2026-10-29.json',import.meta.url),'utf8'));
   for(const [file,expected]of Object.entries(benchmark.sourceHashes))assert.equal(createHash('sha256').update(await readFile(new URL(file,base))).digest('hex'),expected,`Rerun benchmark after changing ${file}`);
 });

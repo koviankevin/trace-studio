@@ -1,0 +1,131 @@
+/* Investigation workspace: keep text readable and give the viewport to tracks. */
+.topbar-left{display:flex;align-items:center;gap:10px;min-width:0}
+.sidebar-close{display:none}
+.topbar{gap:14px}
+.topbar .file-pill{flex:1;min-width:0;max-width:500px;margin-right:auto;padding:4px 8px;background:transparent;border:0}
+.topbar .file-pill>span,.topbar .file-pill small{display:none}
+.topbar .file-pill>div{min-width:0}.topbar .file-pill b{max-width:100%;font-size:13px}
+.sidebar-collapsed .sidebar{width:56px;padding:12px 6px}
+.sidebar-collapsed main{margin-left:56px}
+.sidebar-collapsed .brand{margin:0 4px 16px;gap:0}
+.sidebar-collapsed .brand>span:last-child,.sidebar-collapsed .open kbd,.sidebar-collapsed .side-label,.sidebar-collapsed .session,.sidebar-collapsed .demo,.sidebar-collapsed .local-card,.sidebar-collapsed .side-bottom span,.sidebar-collapsed .side-bottom kbd,.sidebar-collapsed .nav-count{display:none}
+.sidebar-collapsed .open{font-size:0;padding:8px;justify-content:center;margin-bottom:12px;min-height:34px}
+.sidebar-collapsed .open>span{font-size:22px}
+.sidebar-collapsed .nav{font-size:0;justify-content:center;min-height:36px;padding:8px 0}
+.sidebar-collapsed .nav>span:first-child{font-size:20px}
+.sidebar-collapsed .side-bottom button{font-size:20px;justify-content:center}
+.sidebar-collapsed .side-bottom a{font-size:0;justify-content:center}
+.sidebar-collapsed .side-bottom a::before{content:'↗';font-size:20px}
+body.timeline-workspace{overflow:hidden}
+.timeline-workspace main{height:100dvh;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+.timeline-workspace .topbar{height:40px;flex:0 0 40px;padding:0 12px}
+.timeline-workspace .workspace{max-width:none;width:100%;margin:0;flex:1;min-height:0;display:flex;flex-direction:column;gap:6px;padding:8px 10px}
+.timeline-workspace .page-heading,.timeline-workspace .page-footer,.timeline-workspace .keyboard-hint{display:none}
+.timeline-workspace .metrics{flex:0 0 auto;margin:0;padding:3px 0;border-radius:5px;box-shadow:none;grid-template-columns:repeat(4,minmax(0,1fr));row-gap:0}
+.timeline-workspace .metrics>div{display:flex;align-items:center;gap:8px;padding:2px 12px;min-width:0}
+.timeline-workspace .metrics span{font-size:12px;letter-spacing:0;white-space:nowrap}
+.timeline-workspace .metrics strong{font-size:15px;letter-spacing:0;line-height:20px;margin:0;white-space:nowrap}
+.timeline-workspace .metrics strong em{font-size:12px}
+.timeline-workspace .metrics small{display:none}
+.timeline-workspace #timeline-view.active{display:flex;flex-direction:column;flex:1;min-height:0;gap:6px}
+.timeline-workspace .overview-card{flex:0 0 38px;height:38px;min-height:0;margin:0;padding:4px 10px;border-radius:5px}
+.timeline-workspace .overview-heading,.timeline-workspace .overview-labels{display:none}
+.timeline-workspace #overview-wrap{height:28px}
+.timeline-workspace #overview{height:28px}
+.timeline-workspace .timeline-card{flex:1;min-height:0;display:flex;flex-direction:column;border-radius:5px}
+.timeline-workspace .timeline-toolbar{flex:0 0 auto;min-height:38px;padding:3px 8px;gap:8px;flex-wrap:nowrap}
+.timeline-workspace .tabs{gap:7px;min-width:0;white-space:nowrap}
+.timeline-workspace .tab-active{font-size:14px}
+.timeline-workspace .soft-button,.timeline-workspace .text-button{min-height:28px;padding:4px 7px;font-size:13px}
+.timeline-workspace .icon-button{width:28px;height:28px}
+.timeline-workspace .timeline-actions{flex-wrap:nowrap;gap:4px}
+.timeline-workspace .timeline-actions>span{font-size:12px;margin-right:6px;white-space:nowrap}
+.timeline-workspace .track-filter{flex:0 0 auto;min-height:34px;padding:3px 8px;gap:10px;flex-wrap:nowrap}
+.timeline-workspace .track-filter label{padding:3px 7px;height:28px;max-width:420px;min-width:0}
+.timeline-workspace .track-filter input{font-size:13px}
+.timeline-workspace .track-filter>span{font-size:12px}
+.timeline-workspace .ruler{height:30px;flex:0 0 30px}
+.timeline-workspace .ruler>div{font-size:11px;padding:0 10px}
+.timeline-workspace .tracks-scroll{flex:1 1 0;height:auto;min-height:70px}
+.timeline-workspace .timeline-footer{flex:0 0 24px;height:24px;align-items:center;padding:3px 10px;font-size:11px;overflow:hidden;white-space:nowrap}
+.timeline-workspace .details-card{display:flex;flex-direction:column;flex:0 0 var(--drawer-height,clamp(140px,26vh,280px));height:var(--drawer-height,clamp(140px,26vh,280px));max-height:60vh;min-height:0;margin:0;border-radius:5px}
+.timeline-workspace .details-toolbar{flex:0 0 auto;min-height:34px;padding:3px 10px;gap:8px;flex-wrap:nowrap}
+.timeline-workspace .details-toolbar b{font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.timeline-workspace .details-toolbar>div:first-child{min-width:0}
+.timeline-workspace .details-toolbar #selection-badge{font-size:10px;letter-spacing:0;white-space:nowrap}
+.timeline-workspace .details-body{flex:1;min-height:0;overflow:auto;padding:8px 12px;gap:10px 20px;grid-template-columns:minmax(180px,240px) minmax(0,1fr);align-content:start;line-height:1.5}
+.timeline-workspace .event-summary h3{font-size:15px;margin-bottom:6px}
+.timeline-workspace .event-summary dl{font-size:13px;margin:8px 0 0;row-gap:5px;grid-template-columns:86px minmax(0,1fr)}
+.timeline-workspace .category-badge{font-size:11px;padding:2px 5px}
+.timeline-workspace .json-tree{max-height:none}
+.timeline-workspace .relation-section{padding-top:8px}
+.timeline-workspace .relation-keys{margin:6px 0}
+.timeline-workspace .relation-item{padding:5px 8px;min-width:180px}
+.timeline-workspace .relation-list{max-height:none}
+.density-compact .track-label:not(.group-label){display:flex;align-items:center;padding-top:0;padding-bottom:0}
+.density-compact .track-label-top{width:100%;gap:5px;min-width:0}
+.density-compact .track-title{font-size:13px;max-width:none;line-height:1.2}
+.density-compact .track-meta{display:none}
+.density-compact .pin{min-height:24px;min-width:22px;font-size:13px}
+.group-label{padding-top:0;padding-bottom:0;background:var(--panel-alt)}
+.group-label.process{background:var(--hover)}
+.group-toggle{display:flex;align-items:center;gap:6px;width:100%;height:100%;text-align:left;padding:0 7px 0 0;font-size:13px;min-width:0}
+.group-toggle>span{flex-shrink:0;width:12px}
+.group-toggle b{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.group-toggle small{margin-left:auto;font:12px ui-monospace,Consolas,monospace;color:var(--muted)}
+.event-fields{border-collapse:collapse;width:100%;font:13px/1.5 ui-monospace,Consolas,monospace;margin-bottom:8px}
+.event-fields caption{text-align:left;font:600 12px/1.5 "Segoe UI","Microsoft JhengHei",sans-serif;color:var(--muted);padding-bottom:3px}
+.event-fields th,.event-fields td{text-align:left;vertical-align:top;padding:3px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere}
+.event-fields th{font-weight:400;color:var(--muted);width:158px}
+.event-fields td{white-space:pre-wrap}
+.arguments-section>summary{font-size:13px;color:var(--muted);cursor:pointer;padding:3px 0}
+#details-resize{flex:0 0 6px;cursor:ns-resize;touch-action:none;background:var(--line)}
+#details-resize::after{content:'';display:block;width:38px;height:2px;border-radius:2px;background:var(--muted);opacity:.5;margin:2px auto}
+@media(max-width:1000px){
+  .timeline-workspace .metrics{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .timeline-workspace .metrics>div:last-child{display:none}
+  .timeline-workspace .timeline-actions>span,.timeline-workspace .engine-state{display:none}
+  .timeline-workspace .details-toolbar #selection-badge{display:none}
+}
+@media(max-width:900px){
+  body:not(.sidebar-collapsed) .sidebar-close{display:grid;position:absolute;right:8px;top:8px;width:24px;height:24px}
+  body:not(.sidebar-collapsed) .sidebar{width:232px;padding:20px 12px;box-shadow:8px 0 35px #173c3320}
+  body:not(.sidebar-collapsed) main{margin-left:56px}
+  body:not(.sidebar-collapsed) .brand{margin-bottom:22px;gap:9px}
+  body:not(.sidebar-collapsed) .brand>span:last-child{display:block}
+  body:not(.sidebar-collapsed) .side-label,body:not(.sidebar-collapsed) .local-card{display:block}
+  body:not(.sidebar-collapsed) .session{display:flex}
+  body:not(.sidebar-collapsed) .demo{display:block}
+  body:not(.sidebar-collapsed) .open{font-size:15px;justify-content:flex-start}
+  body:not(.sidebar-collapsed) .open kbd{display:inline-block}
+  body:not(.sidebar-collapsed) .nav{font-size:15px;justify-content:flex-start;padding:12px}
+  body:not(.sidebar-collapsed) .nav-count{display:inline-block}
+  body:not(.sidebar-collapsed) .side-bottom span,body:not(.sidebar-collapsed) .side-bottom kbd{display:inline-block}
+  body:not(.sidebar-collapsed) .side-bottom button,body:not(.sidebar-collapsed) .side-bottom a{font-size:14px;justify-content:flex-start}
+  body:not(.sidebar-collapsed) .side-bottom a::before{display:none}
+}
+@media(max-width:650px){
+  .timeline-workspace .workspace{padding:4px;gap:4px}
+  .timeline-workspace .topbar{padding:0 6px;gap:8px}
+  .timeline-workspace .breadcrumb{gap:6px;font-size:12px}
+  .timeline-workspace .topbar .file-pill{display:flex;padding:0}
+  .timeline-workspace .topbar .file-pill b{font-size:12px}
+  .timeline-workspace .top-right{gap:0}
+  .timeline-workspace .metrics>div{gap:4px;padding:2px 6px;flex-wrap:wrap}
+  .timeline-workspace .metrics span{font-size:11px}
+  .timeline-workspace .metrics strong{font-size:13px}
+  .timeline-workspace .timeline-toolbar{flex-wrap:wrap;gap:3px}
+  .timeline-workspace .tabs{flex:1;gap:4px}
+  .timeline-workspace .soft-button,.timeline-workspace .text-button{font-size:12px;padding:4px}
+  .timeline-workspace .track-filter{gap:5px}
+  .timeline-workspace .details-body{grid-template-columns:1fr}
+  .timeline-workspace .details-toolbar button{font-size:11px}
+  .timeline-workspace .details-toolbar #focus-selection{display:none}
+  .timeline-workspace .details-toolbar b{max-width:150px}
+  .event-fields th{width:130px}
+}
+@media(max-height:600px){
+  .timeline-workspace .overview-card{display:none}
+  .timeline-workspace .metrics{display:none}
+  .timeline-workspace .details-card{flex-basis:var(--drawer-height,140px);height:var(--drawer-height,140px)}
+}
