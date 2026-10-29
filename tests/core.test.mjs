@@ -131,3 +131,7 @@ test('address links to counter events resolve to a visible numeric track',()=>{
   const match=links.find(events[1],record).matches[0].record;assert(manifest.tracks[match.trackId].count>0);assert.equal(manifest.tracks[match.trackId].kind,'counter');assert.equal(db.detail(match).event.args.watts,42);
 });
 test('demo includes actual linkable addresses and a selected long event',()=>{const {db,links,manifest}=build(demoTrace().traceEvents);const top=manifest.top[0];assert.equal(db.detail(top).event.name,'Checkout interaction');assert.equal(links.find(db.detail(top).event,top).matches.length,3);});
+
+test('explicit define/use candidates are not crowded out by frequently reused addresses',()=>{
+  const events=[...Array.from({length:80},(_,i)=>({name:i===79?'Consumer':'reused',ph:'X',pid:1,tid:1,ts:i*10,dur:5,args:{address:'0x1000',...(i===79?{uses:'tensor'}:{})}})),{name:'Selected',ph:'X',pid:1,tid:1,ts:1000,dur:10,args:{address:'0x1000',defines:'tensor'}}];const {db,links,manifest}=build(events),selected=manifest.top.find(record=>db.detail(record).event.name==='Selected'),result=links.find(events.at(-1),selected);assert.equal(result.matches.length,64);assert.equal(result.keys[0].type,'symbol');assert(result.matches.some(match=>match.record.label==='Consumer'&&match.relation.type==='symbol'&&match.otherRole==='use'));
+});

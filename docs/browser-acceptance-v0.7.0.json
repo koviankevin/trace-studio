@@ -1,0 +1,85 @@
+{
+  "version": "0.7.0",
+  "recordedAt": "2026-10-29T13:17:50.297Z",
+  "startedAt": "2026-10-29T11:26:47.798Z",
+  "environment": "ChatGPT in-app browser on Windows; viewport 1024 × 768",
+  "largeInputBytes": 3000583032,
+  "largeEvents": 2932637,
+  "largeJson": {
+    "file": "synthetic-3gb.json",
+    "events": "2,932,637",
+    "importTime": "41.21 s",
+    "query": "8.5 ms · 5,808 節點",
+    "notice": "已完成索引：2,932,637 筆事件，41.21 秒。"
+  },
+  "largeRestore": {
+    "file": "synthetic-3gb.json",
+    "window": "129.44957 s — 129.44974 s",
+    "notice": "已從本機快取還原，不需重新解析。",
+    "query": "3.4 ms · 2 節點"
+  },
+  "largeTar": {
+    "file": "synthetic-3gb.tar.gz › synthetic-3gb.json",
+    "events": "2,932,637",
+    "importTime": "45.94 s",
+    "query": "9.8 ms · 5,808 節點",
+    "notice": "封裝已保存 1 份 Trace；0 份略過、0 份失敗。",
+    "compressedBytes": 59310386,
+    "expandedJsonBytes": 3000583032
+  },
+  "largeAnalysisCancellation": {
+    "status": "分析已取消，trace 保留。",
+    "file": "synthetic-3gb.tar.gz › synthetic-3gb.json",
+    "events": "2,932,637"
+  },
+  "runtime": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+  "smallCacheSwitch": "已直接切換至小檔索引快取。",
+  "cancelLargeImport": {
+    "file": "無法還原上一份 Trace",
+    "notice": "這份 Trace 正由其他分頁使用。請關閉該分頁後重試，或開啟另一份原始檔。",
+    "events": "58"
+  },
+  "cancelLargeImportRetest": {
+    "file": "three-versions.tar.gz › runs/baseline.json",
+    "notice": "已取消開檔。 已返回上一份 Trace。",
+    "cancelAt": "2.40 GB / 3.00 GB",
+    "sameWorkerGracefulCleanup": true
+  },
+  "finalLargeTar": {
+    "file": "synthetic-3gb.tar.gz › synthetic-3gb.json",
+    "events": "2,932,637",
+    "importTime": "47.67 s",
+    "query": "10.2 ms · 5,808 節點",
+    "notice": "封裝已保存 1 份 Trace；0 份略過、0 份失敗。"
+  },
+  "multiIdComparison": {
+    "selection": "7,8",
+    "versions": 3,
+    "matchedEach": 12,
+    "totalUs": [
+      18000,
+      13500,
+      9000
+    ],
+    "baseline": "baseline.json",
+    "exportDownload": true
+  },
+  "sourceHashes": {
+    "core.js": "2d37a38c14c8039b13a7cf8bd5b4a3785ccc0d1ff08d98349c2e5398af733adc",
+    "relations.js": "16931959a5aae00fe3282d4e318c4caf1a697a61f689d2f0363e15b8f32011f4",
+    "worker.js": "c83ecafa60fb1594cc739257475efae85193dfa5afb46a5458c7a3963b1e0465",
+    "tar-stream.js": "813e0d1c7ebc9529993a26ebc172d1bf4917377f8c697f0e0795ec758d06b592",
+    "relation-view.js": "b6da7291bd5541b4f1dbd992f31de308448faab2886819946c3a732b7b404e65",
+    "trace-selection.js": "12c455e90c29607f6826a689727b452f2348de1e9b45c8edd2f59bdc3327d4e5",
+    "trace-comparison.js": "7b93ce083b74794726af44ea1a1977967af2a6736a6189e128d10aeccdc52221",
+    "time-format.js": "6343b647e85c77e38ba7762b38b0d1ddd037df2ed88df01274e4fc1b9a880f0b"
+  },
+  "provenance": "Synthetic fixtures only. largeJson/largeTar are earlier observations before the cancellation fix; finalLargeTar tests the recorded worker/tar source. This is UI observation, not a browser memory, FPS or interaction percentile benchmark.",
+  "remaining": [
+    "Standalone Chrome and Edge",
+    "Full pointer/keyboard and accessibility acceptance",
+    "Actual multi-tab OPFS conflicts and quota exhaustion",
+    "Browser peak memory and interaction p95",
+    "Real hardware trace semantic validation"
+  ]
+}

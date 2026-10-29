@@ -1,0 +1,4 @@
+import {gzipSync} from 'node:zlib';
+export function tarFixture(entries,{gzip=false}={}){
+  const blocks=[];for(const entry of entries){const data=Buffer.from(entry.data||''),header=Buffer.alloc(512);header.write(entry.name,0,100,'utf8');header.write('0000644\0',100);header.write('0000000\0',108);header.write('0000000\0',116);header.write(data.length.toString(8).padStart(11,'0')+'\0',124);header.write('00000000000\0',136);header.fill(32,148,156);header[156]=(entry.type||'0').charCodeAt(0);header.write('ustar\0',257);header.write('00',263);const sum=header.reduce((sum,byte)=>sum+byte,0);header.write(sum.toString(8).padStart(6,'0')+'\0 ',148);blocks.push(header,data,Buffer.alloc((512-data.length%512)%512));}blocks.push(Buffer.alloc(1024));const bytes=Buffer.concat(blocks);return gzip?gzipSync(bytes):bytes;
+}

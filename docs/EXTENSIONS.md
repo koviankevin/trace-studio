@@ -83,6 +83,10 @@ export default {
 | `dist/trace-cache.js` | 閒置索引的資料量／份數限制；淘汰回傳的 context 由 Worker 關閉 handle 與 lease。 |
 | `dist/trace-comparison.js` | `compareTraces(ids, tfliteId, {openTrace,cancelled,onProgress})`，依序掃描並保留各檔案結果／錯誤。 |
 | `dist/comparison-view.js` | 比較報表的純 HTML 呈現，呼叫端提供 escaping 與格式化；不接觸磁碟。 |
+| `dist/trace-selection.js` | 多 TfliteID 清單／範圍的有界解析；空值代表所有帶 ID 的事件。 |
+| `dist/relation-view.js` | 純函式選擇畫面連線，區分明確關聯與位址候選，不刪除原始候選。 |
+| `dist/tar-stream.js` | 有界串流封裝讀取，回呼接收成員 stream；不解到使用者檔案系統，支援取消。 |
+| `dist/time-format.js` | 依時間窗精度格式化刻度，放大後避免晚期時間戳顯示成相同數字。 |
 | `dist/event-labels.js` | 缺名事件的短 TID 顯示規則；不改原始 JSON。 |
 | `dist/event-summary.js` | 內建硬體欄位對照；只顯示來源提供的資料。 |
 | `dist/event-colors.js` | 內建依名稱規則分類的淡色配色。 |
@@ -125,10 +129,10 @@ const facts = extractArgumentFacts(event, {
 // compareMemory(a, b) 回傳交集／bytes／角色方向，沒有交集則 null。
 ```
 
-內建 `analyzeArguments(trace, options)` 使用 `scanTraceIndex` 按需讀取原始事件。選項包含 `start/end/trackIds`、`focus`、`memberOffset`、`cancelled`、`onProgress`；這是引擎層入口，UI 擴充優先透過既有 `scanIndex/readEvent` 使用純解析函式，避免依賴 Worker 的生命週期。`focus` 支援 `{kind:'tflite'|'flow',value}` 與記憶體條件；每頁 100 筆，換頁重新掃描，Worker 保留最近 8 份完成結果。
+內建 `analyzeArguments(trace, options)` 使用 `scanTraceIndex` 按需讀取原始事件。選項包含 `start/end/trackIds`、`focus`、`memberOffset`、`cancelled`、`onProgress`；這是引擎層入口，UI 擴充優先透過既有 `scanIndex/readEvent` 使用純解析函式，避免依賴 Worker 的生命週期。`focus` 支援 `{kind:'tflite'|'flow',value}`、`{kind:'tflite-set',values:['7','8']}`（最多 256 個值）、`{kind:'tflite-all'}` 與記憶體條件；每頁 100 筆，換頁重新掃描，Worker 保留最近 8 份完成結果。
 
 `summary.arguments` 可讀取本次已完成的內建 Args 分析（使用者未勾選時不存在）。它是傳給擴充的獨立副本，不可假設每次分析都有。單事件預設上限為 4,096 欄位／8 層／32 個 memory，群組每類最多 16,384、回傳前 100 組；限制與衝突必須保留在呈現中。基礎 ID 可能跨推論重用，memory overlap 沒有 allocation 生命週期，不得直接標成已證明的 producer/consumer 或關鍵路徑。
 
 Args 專項測試：`node --test tests/argument-facts.test.mjs tests/argument-analysis.test.mjs`。新增 schema 時請用合成資料驗證欄位優先順序、零值、ID 重用、跨核心、端點與 unsafe integer；不要將內部 trace 或使用者截圖提交到公開庫。
 
-比較入口最多接受三份 Trace，`tfliteId` 留空使用 `{kind:'tflite-all'}` 掃描帶 ID 的事件；指定值則精確比對。可傳 `scopes:{[sessionId]:{start,end}}` 限定各檔案時間範圍，以及 `sourceNames` 保留失敗來源的可讀名稱。結果包含全體符合事件的 `matchedSummary`、每 ID 群組、有限明細與截斷計數。只有帶 ID 的事件納入圖版本統計，不代表端到端延遲、self time、相同圖結構驗證或輸出數值正確性；若優化後 ID 重編，需要內部提供明確對照才能匹配。
+比較入口最多接受三份 Trace，`tfliteId` 留空使用 `{kind:'tflite-all'}` 掃描帶 ID 的事件；也接受單值與清單／範圍字串（`7,8,12-15`）。結果回報 `mode`、`tfliteIds`，單值保留原 `tfliteId` 欄位。可傳 `scopes:{[sessionId]:{start,end}}` 限定各檔案時間範圍，以及 `sourceNames` 保留失敗來源的可讀名稱。結果包含全體符合事件的 `matchedSummary`、每 ID 群組、有限明細與截斷計數。只有帶 ID 的事件納入圖版本統計，不代表端到端延遲、self time、相同圖結構驗證或輸出數值正確性；若優化後 ID 重編，需要內部提供明確對照才能匹配。
