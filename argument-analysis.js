@@ -1,4 +1,4 @@
-import {scanTraceIndex} from './analysis.js?v=0.4.0';
+import {scanTraceIndex} from './analysis.js?v=0.9.0';
 import {extractRecordFacts,compareMemory} from './argument-facts.js?v=0.4.0';
 
 // On-demand raw-argument analysis. It never runs on import or viewport queries.
@@ -6,7 +6,7 @@ export async function analyzeArguments(trace,{start=trace.start,end=trace.end,tr
   if(!Number.isFinite(start)||!Number.isFinite(end)||end<=start)throw Error('請選擇有效的事件欄位分析範圍');
   if(!Number.isInteger(memberOffset)||memberOffset<0||!Number.isInteger(maxGroups)||maxGroups<1||maxGroups>65536)throw Error('事件欄位分析的頁次或群組上限無效');
   if(!Number.isFinite(timeBudgetMs)||timeBudgetMs<0||timeBudgetMs>50)throw Error('事件欄位分析的執行時間預算無效');
-  const groups={tflite:new Map(),flow:new Map()},locations=new Map(),names=new Map(),members=[],selected=new Set(trackIds),counterOwners=new Map();let omittedNameEvents=0;
+  const groups={tflite:new Map(),flow:new Map()},locations=new Map(),names=new Map(),members=[],selected=new Set(trackIds),counterOwners=new Map();let omittedNameEvents=0,nameBytes=0;
   for(const track of trace.tracks)if(selected.has(track.id)&&track.kind==='counter'&&track.counterSource!==undefined){const key=JSON.stringify([track.pid,track.tid,track.counterSource]);if(!counterOwners.has(key))counterOwners.set(key,new Map());counterOwners.get(key).set(track.counterKey,track.id);}
   let scanned=0,events=0,withIds=0,memoryRanges=0,matched=0,truncatedFacts=0,conflicts=0,warnings=0,omittedGroupEvents=0,omittedLocationRanges=0,lastYield=performance.now(),lastProgress=0;
   const matchedSummary={start:Infinity,end:-Infinity,totalUs:0,cores:new Set(),pids:new Set(),contextsTruncated:false};
@@ -32,7 +32,7 @@ export async function analyzeArguments(trace,{start=trace.start,end=trace.end,tr
       if(focus.crossProcess||sameProcess&&sameCore)for(const target of focus.memories||[])for(const memory of facts.memories){const match=compareMemory(target,memory);if(match&&matches.length<16)matches.push({...match,location:memory.location,path:memory.path,basis:memory.basis,order:focus.ts===undefined?'unknown':record.ts+record.dur<=focus.ts?'before':record.ts>=focus.ts+(focus.dur||0)?'after':'overlap-time'});}
     }
     if(!focus||matches.length){
-    if(focus){if(!names.has(record.label)&&names.size<4096)names.set(record.label,{label:record.label,count:0,totalUs:0,maxUs:0});const entry=names.get(record.label),duration=Math.max(0,Math.min(end,record.ts+record.dur)-Math.max(start,record.ts));if(entry){entry.count++;entry.totalUs+=duration;entry.maxUs=Math.max(entry.maxUs,duration);}else omittedNameEvents++;}
+    if(focus){const full=trace.sourceName?trace.sourceName(source,source.trackId,detail.event):record.label;if(!names.has(full)&&names.size<4096&&full.length<=4096&&nameBytes+full.length*2<=8*1024*1024){names.set(full,{label:full,count:0,totalUs:0,maxUs:0});nameBytes+=full.length*2;}const entry=names.get(full),duration=Math.max(0,Math.min(end,record.ts+record.dur)-Math.max(start,record.ts));if(entry){entry.count++;entry.totalUs+=duration;entry.maxUs=Math.max(entry.maxUs,duration);}else omittedNameEvents++;}
     for(const kind of ['tflite','flow'])if(facts.ids[kind]!==undefined)add(stat(groups[kind],facts.ids[kind]),record,facts);
     for(const memory of facts.memories){memoryRanges++;const key=JSON.stringify([track.pid,facts.ids.core??'',memory.space]);if(!locations.has(key)&&locations.size<4096)locations.set(key,{pid:track.pid,core:facts.ids.core??'',space:memory.space,count:0,inputs:0,outputs:0,declaredBytes:0n,sizeMismatches:0});const entry=locations.get(key);if(entry){entry.count++;if(memory.role==='input')entry.inputs++;if(memory.role==='output')entry.outputs++;if(memory.declaredBytes!==null)entry.declaredBytes+=BigInt(memory.declaredBytes);if(memory.sizeMatches===false)entry.sizeMismatches++;}else omittedLocationRanges++;}
     }

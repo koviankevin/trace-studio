@@ -1,4 +1,4 @@
-import {analyzeArguments} from './argument-analysis.js?v=0.7.0';
+import {analyzeArguments} from './argument-analysis.js?v=0.9.0';
 import {parseTfliteSelection} from './trace-selection.js?v=0.7.0';
 
 // openTrace returns {trace,source,release}; the active timeline is never replaced.

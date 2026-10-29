@@ -1,5 +1,5 @@
 // Equality links are candidates, never proof of memory ownership or causality.
-import {hash} from './core.js?v=0.7.1';
+import {hash} from './core.js?v=0.9.0';
 import {fallbackEventName,missingEventName} from './event-labels.js?v=0.4.0';
 export function normalizeAddress(value){
   if(typeof value==='number'){if(!Number.isSafeInteger(value)||value<0)return null;value=String(value);}
@@ -67,8 +67,9 @@ export class RelationIndex{
           let record={offset,length:v.getUint32(o+16,true),trackId:v.getUint32(o+20,true),ts:v.getFloat64(o+24,true),dur:v.getFloat64(o+32,true)};
           let detail=this.trace.detail(record);const resolved=this.trace.resolveRecord(record,detail.event.ph);
           if(resolved!==record){record=resolved;if(record.offset===ref.offset||seen.has(record.offset)){seen.add(offset);continue;}detail=this.trace.detail(record);}
-          const other=detail.event,verified=spanRelations(other,detail.endEvent).find(r=>r.identity===key.identity);if(!verified)continue;
-          seen.add(offset);seen.add(record.offset);matches.push({record:{...record,label:record.kind===2?this.trace.displayName(record,record.trackId,other):missingEventName(other)?fallbackEventName(other,this.trace.tracks[record.trackId],this.trace.processes):other.name},relation:key,otherRole:verified.role,phase:other.ph});
+          const other=detail.event,otherKeys=spanRelations(other,detail.endEvent),verified=otherKeys.find(r=>r.identity===key.identity);if(!verified)continue;
+          const associations=keys.flatMap(relation=>{const target=otherKeys.find(candidate=>candidate.identity===relation.identity);return target?[{relation,otherRole:target.role}]:[];});
+          seen.add(offset);seen.add(record.offset);matches.push({record:{...record,label:record.kind===2?this.trace.displayName(record,record.trackId,other):missingEventName(other)?fallbackEventName(other,this.trace.tracks[record.trackId],this.trace.processes):other.name},relation:key,otherRole:verified.role,associations,phase:other.ph});
         }
       }
     }
