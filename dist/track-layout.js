@@ -7,7 +7,7 @@ function compareTracks(a,b){
   const base=s=>s.replace(/(?:[\s_-]+work)$/i,'');
   return natural.compare(base(a.name),base(b.name))||Number(/(?:[\s_-]+work)$/i.test(a.name))-Number(/(?:[\s_-]+work)$/i.test(b.name))||natural.compare(a.name,b.name)||a.id-b.id;
 }
-export function trackName(track){return track.name===`Thread ${track.tid}`?`#${track.tid}`:track.name;}
+export function trackName(track){return track.name===`Thread ${track.tid}`?String(track.tid):track.name;}
 function groupProcesses(tracks,processes={},prefix=''){
   const processesById=new Map();
   for(const track of tracks){if(!track.count)continue;const key=String(track.pid);if(!processesById.has(key))processesById.set(key,[]);processesById.get(key).push(track);}

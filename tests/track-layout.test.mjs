@@ -46,5 +46,5 @@ test('counter curves are grouped together across processes without losing source
   const tracks=[track(0,1,'CORE0_COMPUTE'),{...track(1,1,'Power'),kind:'counter'},{...track(2,2,'Memory'),kind:'counter'},track(3,2,'CORE1_COMPUTE')],groups=groupTracks(tracks,{1:'CORE0',2:'CORE1'});
   const curves=groups.at(-1);assert.equal(curves.label,'數值曲線');assert.equal(curves.children.length,2);assert.deepEqual(curves.tracks.map(t=>t.pid),[1,2]);assert(groups.slice(0,-1).every(g=>g.tracks.every(t=>t.kind!=='counter')));
   const rows=makeTrackLayout(groups,{collapsed:defaultCollapsed(groups),pins:new Set([2]),filter:'CORE1'}).rows;assert.equal(rows[0].track.id,2);assert.equal(rows.filter(r=>r.type==='track'&&r.track.id===2).length,1);
-  assert.equal(trackName({...track(4,1,'Thread 5'),tid:5}),'#5');assert.equal(trackName(track(5,1,'Chrome_IOThread')),'Chrome_IOThread');
+  assert.equal(trackName({...track(4,1,'Thread 5'),tid:5}),'5');assert.equal(trackName(track(5,1,'Chrome_IOThread')),'Chrome_IOThread');
 });
