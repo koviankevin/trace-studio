@@ -7,4 +7,5 @@ export function shortTid(tid,pid,processName){
   return result||original;
 }
 export function missingEventName(event){return event.name===null||event.name===undefined||!String(event.name).trim();}
-export function fallbackEventName(event,track={},processes={}){return shortTid(event.tid??track.tid,event.pid??track.pid,processes[event.pid??track.pid]);}
+export function processName(processes,pid){return Object.hasOwn(processes||{},pid)?String(processes[pid]??''):'';}
+export function fallbackEventName(event,track={},processes={}){return shortTid(event.tid??track.tid,event.pid??track.pid,processName(processes,event.pid??track.pid));}

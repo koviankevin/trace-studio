@@ -1,6 +1,6 @@
 // Equality links are candidates, never proof of memory ownership or causality.
 import {hash} from './core.js?v=0.9.0';
-import {fallbackEventName,missingEventName} from './event-labels.js?v=0.4.0';
+import {fallbackEventName,missingEventName} from './event-labels.js?v=0.13.0';
 export function normalizeAddress(value){
   if(typeof value==='number'){if(!Number.isSafeInteger(value)||value<0)return null;value=String(value);}
   if(typeof value!=='string')return null;
