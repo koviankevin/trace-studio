@@ -29,7 +29,7 @@ function number(n){return n.toLocaleString('en-US');}
 function toast(message){$('toast').textContent=message;$('toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').hidden=true,6500);}
 function send(type,data={}){if(['import','restore','demo','hardwareDemo'].includes(type))data={requestId:loadRequestId,...data};if(['query','detail','neighbor','search','analysis'].includes(type))data={traceId:state.info?.id,...data};worker.postMessage({type,...data});}
 function forgetCaches(ids){try{if(ids.includes(localStorage.getItem('trace-studio-session'))){if(state.info&&!ids.includes(state.info.id))localStorage.setItem('trace-studio-session',state.info.id);else localStorage.removeItem('trace-studio-session');}}catch{}}
-function startWorker(){worker?.terminate();queryBusy=false;queryDirty=false;clearTimeout(queryTimer);queryTimer=null;const active=new Worker(new URL('./worker.js?v=0.7.0',import.meta.url),{type:'module'});worker=active;active.onmessage=event=>{if(worker===active)handleMessage(event);};active.postMessage({type:'cachePolicy',limitMB:cacheLimit});active.onerror=e=>{if(worker!==active)return;finishLoading();toast(`背景引擎錯誤：${e.message}`);};}
+function startWorker(){worker?.terminate();queryBusy=false;queryDirty=false;clearTimeout(queryTimer);queryTimer=null;const active=new Worker(new URL('./worker.js?v=0.7.1',import.meta.url),{type:'module'});worker=active;active.onmessage=event=>{if(worker===active)handleMessage(event);};active.postMessage({type:'cachePolicy',limitMB:cacheLimit});active.onerror=e=>{if(worker!==active)return;finishLoading();toast(`背景引擎錯誤：${e.message}`);};}
 function finishLoading(){importing=false;importCancelling=false;if($('loading').open)$('loading').close();}
 function beginLoading(title='正在讀取 Trace',remember=true){
   saveTraceView();loadRequestId++;state.query++;state.detailId++;state.searchId++;setComparisonBusy(false);
@@ -162,7 +162,7 @@ function updateLayout(){
   $('track-visible').textContent=`${state.layout.filter(r=>r.type==='track').length} / ${state.tracks.length} 軌道`;
   measure();renderLabels();requestQuery();
 }
-function measure(){if(state.view!=='timeline')return;labelWidth=parseInt(getComputedStyle(document.documentElement).getPropertyValue('--label-width'))||250;const rect=$('tracks-scroll').getBoundingClientRect();plotWidth=Math.max(80,rect.width-labelWidth);plotHeight=rect.height;paint();drawOverview();}
+function measure(){if(state.view!=='timeline')return;labelWidth=parseInt(getComputedStyle(document.documentElement).getPropertyValue('--label-width'))||250;const rect=$('tracks-scroll').getBoundingClientRect();plotWidth=Math.max(80,rect.width-labelWidth);plotHeight=rect.height;describeDrawer();paint();drawOverview();}
 function visibleLayout(){const top=$('tracks-scroll').scrollTop;return state.layout.filter(r=>r.y+r.h>=top&&r.y<=top+plotHeight);}
 function renderLabels(){
   $('track-labels').innerHTML=visibleLayout().map(row=>{
@@ -250,7 +250,7 @@ function renderDetail(){
   const d=state.detail;if(!d||!state.selected)return;const e=d.event,r=state.selected,t=state.info.tracks[r.trackId],name=missingEventName(e)?fallbackEventName(e,t,state.info.processes):e.name;$('selection-heading').textContent=name;$('selection-badge').textContent=r.n>1?`聚合 ${r.n} 筆 · 顯示代表事件`:'EVENT DETAILS';
   const extras=Object.fromEntries(Object.entries(e).filter(([key])=>!['name','ph','pid','tid','ts','dur','cat','args'].includes(key)));
   const links=d.links,linkType={address:'位址',symbol:'符號',flow:'Flow'};
-  const linkHTML=links?.keys.length?`<section class="relation-section"><div class="relation-top"><b>⌁ 位址與事件關聯 <small>${links.capped?'前 64 筆 / ':''}${number(links.total)} 筆候選</small></b>
+  const linkHTML=links?.keys.length?`<section class="relation-section"><div class="relation-top"><b>⌁ 位址與事件關聯 <small>${number(links.matches.length)} 筆候選${links.capped?'（已達顯示上限）':''}</small></b>
     <label class="relation-mode">連線<select data-relation-mode aria-label="關聯連線顯示"><option value="compact" ${relationMode==='compact'?'selected':''}>精簡（最多 4）</option><option value="more" ${relationMode==='more'?'selected':''}>更多（最多 16）</option></select></label><button class="text-button" id="show-relations">${state.showLinks?'隱藏連線':'顯示連線'}</button></div>
     <div class="relation-keys">${links.keys.map(k=>`<span class="relation-key">${linkType[k.type]} ${esc(k.key)} <span style="opacity:.6">${esc(k.path)}</span></span>`).join('')}</div>
     <div class="relation-list">${links.matches.map((m,i)=>`<button class="relation-item" data-relation="${i}"><span>${esc(m.record.label)}<small>${m.relation.type==='address'?'相同位址':`${esc(m.relation.role)} → ${esc(m.otherRole)}`} · TID ${esc(state.info.tracks[m.record.trackId]?.tid)}</small></span><span class="relation-time">${formatTime(m.record.ts-state.info.start,true)} ↗</span></button>`).join('')||'<span style="font-size:14px;color:var(--muted)">此 Trace 沒有其他具有相同鍵的事件。</span>'}</div>
@@ -349,7 +349,8 @@ $('zoom-in').onclick=()=>zoom(.65);$('zoom-out').onclick=()=>zoom(1/.65);$('fit'
 $('toggle-details').onclick=()=>$('details').hidden=!$('details').hidden;
 $('close-details').onclick=()=>$('details').hidden=true;
 let drawerDrag=null;
-function resizeDrawer(height){$('timeline-view').style.setProperty('--drawer-height',`${Math.max(100,Math.min(innerHeight*.6,height))}px`);}
+function describeDrawer(){if($('details').hidden)return;const height=Math.round($('details').getBoundingClientRect().height),handle=$('details-resize');handle.setAttribute('aria-valuemin','100');handle.setAttribute('aria-valuemax',String(Math.max(100,Math.round(innerHeight*.6))));handle.setAttribute('aria-valuenow',String(height));handle.setAttribute('aria-valuetext',`${height} 像素高`);}
+function resizeDrawer(height){$('timeline-view').style.setProperty('--drawer-height',`${Math.max(100,Math.min(innerHeight*.6,height))}px`);describeDrawer();}
 $('details-resize').addEventListener('pointerdown',e=>{drawerDrag={y:e.clientY,height:$('details').getBoundingClientRect().height};e.currentTarget.setPointerCapture(e.pointerId);e.preventDefault();});
 $('details-resize').addEventListener('pointermove',e=>{if(drawerDrag)resizeDrawer(drawerDrag.height+drawerDrag.y-e.clientY);});
 for(const event of ['pointerup','pointercancel'])$('details-resize').addEventListener(event,()=>drawerDrag=null);

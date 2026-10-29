@@ -336,6 +336,19 @@ export class TraceIndex {
     const label=record=>record?{...record,label:this.displayName(record,track.id),trackId:track.id,lane:0}:null;
     return {rows:[...bins.values()].flatMap(bucket=>counterPoints(bucket).map(record=>({...label(record),n:bucket.coarse?1:bucket.count,aggregated:!!bucket.coarse||bucket.count>4}))).sort((a,b)=>a.ts-b.ts||a.offset-b.offset),before:label(before),after:label(after)};
   }
+  resolveRecord(record,phase){
+    if(!['B','E','C'].includes(phase)||phase==='B'&&record.endLength||phase==='C'&&record.kind===2)return record;
+    const track=this.tracks[record.trackId];if(!track)return record;
+    // Relation files store raw endpoints without paired-span/counter fields.
+    // Resolve against the existing index; no reparsing or whole-file offset map.
+    for(const bi of track.blocks){const block=this.blocks[bi];
+      if(block.start>record.ts||block.end<record.ts||phase!=='E'&&block.last<record.ts)continue;
+      const view=this.readBlock(block);for(let i=0;i<block.count;i++){const at=i*RECORD;
+        if(phase==='E'?view.getUint32(at+40,true)>0&&view.getFloat64(at+32,true)===record.offset:view.getFloat64(at+16,true)===record.offset)return {...readRecord(view,at),trackId:track.id};
+      }
+    }
+    return record;
+  }
   detail(r) {
     this.raw.flush();const read=(at,length)=>{
       const bytes=new Uint8Array(length);let n=0;while(n<length){const got=this.raw.handle.read(bytes.subarray(n),{at:at+n});if(!got)throw Error('事件讀取失敗');n+=got;}return decoder.decode(bytes);};
