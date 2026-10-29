@@ -171,3 +171,18 @@ v0.4.0 已發布來源 historical-revision，Pages historical-revision 確認 bu
 - 同 ID 數值、首事件對齊、同名事件完整彙整、無符合值、單檔失敗隔離、release、取消與輸出 escaping。
 
 解析與固定寬度索引來源 SHA-256 未變，沿用 v0.4.0 兩份引擎基準；不重跑相同 3 GB 測試。發布腳本另保留完整測試關卡及正式資產雜湊核對。本次仍是 Node 磁碟／DOM／Canvas 替身驗證；真實瀏覽器的快取切換延遲、記憶體、持久化策略與比較排版待後續驗收。
+
+v0.5.0 正式來源 historical-revision、Pages historical-revision，發布檢查通過；27 份資產與本機 SHA-256 相符。
+
+## v0.6.0：同圖三版本比較與切換穩定性
+
+依使用者澄清，比較上限改為三份，支援同一張圖在不同優化下的結果。ID 留空彙整所有帶 TfliteID 的事件，顯示各 ID 累計時間及相對基準百分比、事件數變化、跨度與核心；點選 ID 再進入個別比較。各檔案可選用自己保存的時間窗，裁切跨界區段，畫面與匯出保留範圍。無 ID 的背景工作排除；ID 重編、推論次數、self time、圖結構與輸出數值均不從時間資料猜測。
+
+先以可失敗的測試重現兩項切換錯誤，再修正：
+
+- 四份小檔輪流開啟，切回最早的閒置索引時，原本先放回目前檔案會淘汰目標，造成不必要的磁碟重載。現在先保留所選索引，再讓 outgoing context 進入 LRU；實際 Worker 的 memoryRestored 必須為 true。
+- 舊 Trace 搜尋錯誤原本會關閉新匯入的 loading dialog。現在 DB 操作 request／response 帶來源 traceId，UI 同時核對請求號，背景錯誤不呼叫 finishLoading；新載入會重設可見查詢等待狀態。入口測試注入舊錯誤時，載入視窗必須仍開啟。
+
+受影響範圍選測 `app-import`、`argument-analysis`、`integration`、`trace-comparison`，21 項通過。新增案例核對：三個優化版本的各 ID 累計、整圖總量、排除無 ID 事件、120 筆資料的完整統計與 100 筆明細界線、獨立時間窗／跨界裁切、四份比較拒絕、無效範圍的單檔隔離、UI 整圖→ID→原事件，以及真實 Worker 的 traceId 錯誤與正確回應。核心及關聯來源未變，既有兩份基準沿用。
+
+本回合重新取得可用 UI 表面，瀏覽器清單仍為空，明確回報「Local browser use is disabled in Work settings」。依既有指示繼續發布，不繞過設定；實際畫面、小螢幕、瀏覽器 OPFS／多分頁與 3 GB 互動驗收尚未完成，商品等級目標仍未達成。

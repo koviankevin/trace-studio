@@ -11,3 +11,12 @@ test('comparison aligns matching IDs, aggregates all same-name events, and relea
   const esc=value=>String(value).replaceAll('<','&lt;').replaceAll('>','&gt;'),html=comparisonHTML(broken,{esc,time:String,bytes:String,number:String});assert(!html.includes('<script>'));assert(html.includes('&lt;script&gt;'));
   await assert.rejects(compareTraces(['a','b'],'7',{cancelled:()=>true,openTrace:async()=>assert.fail('must not open')}),{name:'AbortError'});
 });
+
+test('graph comparisons support three optimization variants, per-operator deltas and independent clipped ranges',async()=>{
+  const traces={a:trace(1000,10),b:trace(9000,20),c:trace(20000,5)},openTrace=async id=>({trace:traces[id],source:{name:id},release:async()=>{}});
+  const graph=await compareTraces(['a','b','c'],'',{openTrace});assert.equal(graph.mode,'graph');assert.deepEqual(graph.traces.map(trace=>[trace.matched,trace.spanUs,trace.totalUs]),[[3,150,70],[3,150,90],[3,150,60]]);assert.deepEqual(graph.traces.map(trace=>trace.tfliteGroups.find(group=>group.id==='7').totalUs),[20,40,10]);
+  await assert.rejects(compareTraces(['a','b','c','d'],'',{openTrace}),/2–3/);
+  const scoped=await compareTraces(['a','b'],'',{openTrace,scopes:{a:{start:1005,end:1008},b:{start:9005,end:9008}}});assert.deepEqual(scoped.traces.map(trace=>[trace.matched,trace.spanUs,trace.totalUs]),[[2,3,6],[2,3,6]]);assert(scoped.traces.every(trace=>trace.tfliteGroups.length===1));
+  const html=comparisonHTML(scoped,{esc:String,time:String,bytes:String,number:String});assert(html.includes('width:100%'));assert(html.includes('data-compare-id="7"'));assert(!html.includes('data-compare-id="8"'));
+  const invalid=await compareTraces(['a','b'],'7',{openTrace,scopes:{a:{start:1008,end:1005}}});assert.equal(invalid.traces[0].status,'error');assert.equal(invalid.traces[1].status,'ok');
+});

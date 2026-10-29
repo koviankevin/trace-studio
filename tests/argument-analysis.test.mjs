@@ -18,3 +18,8 @@ test('counter metrics count their original event once, including the final sampl
   assert.equal((await analyzeArguments(db)).events,2);const metric=db.tracks.find(t=>t.counterKey==='bytes');assert.equal((await analyzeArguments(db,{trackIds:[metric.id]})).events,2);
   const variable=trace([{ph:'C',pid:1,tid:1,ts:0,args:{watts:1,bytes:2}},{ph:'C',pid:1,tid:1,ts:10,args:{bytes:4}},{ph:'C',pid:1,tid:1,ts:20,args:{watts:5}}]);assert.equal((await analyzeArguments(variable)).events,3);
 });
+
+test('whole graph summaries exclude untagged work and retain all matching totals beyond returned detail pages',async()=>{
+  const db=trace([{ph:'X',name:'unrelated',pid:9,tid:1,ts:-10000,dur:100000,args:{CoreId:9,MemoryRanges:mem('0x1000',4096,'OUTPUT')}},...Array.from({length:120},(_,i)=>({ph:'X',name:'compute',pid:1,tid:1,ts:i*10,dur:5,args:{TfliteID:i%2,CoreId:0}}))]);
+  const result=await analyzeArguments(db,{focus:{kind:'tflite-all'}});assert.equal(result.matched,120);assert.equal(result.members.length,100);assert.equal(result.matchedSummary.start,0);assert.equal(result.matchedSummary.end,1195);assert.equal(result.matchedSummary.totalUs,600);assert.deepEqual(result.matchedSummary.cores,['0']);assert.equal(result.locations.length,0);assert.equal(result.tfliteGroupCount,2);
+});

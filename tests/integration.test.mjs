@@ -141,6 +141,12 @@ test('raw Args analysis groups hardware fields, remains queryable, cancels, cach
     reply=next(worker,'analysis',204);worker.postMessage({...request,requestId:204,memberOffset:100});const page=(await reply).result.arguments;assert.equal(page.matched,3333);assert.notEqual(page.members[0].record.offset,result.members[0].record.offset);
   }finally{await worker.terminate();await removeTestRoot(root);}
 });
+test('switching to the oldest retained small trace does not evict the requested target',async()=>{
+  const root=await mkdtemp(join(tmpdir(),'trace-studio-test-')),worker=new Worker(new URL('./worker-harness.mjs',import.meta.url),{workerData:{root}});
+  try{await next(worker,'initialized');const ids=[];for(let i=0;i<4;i++){const ready=next(worker,'ready');worker.postMessage({type:'import',file:new File([JSON.stringify([{name:'work',ph:'X',pid:1,tid:1,ts:0,dur:10}])],`trace-${i}.json`)});ids.push((await ready).info.id);}const ready=next(worker,'ready');worker.postMessage({type:'restore',id:ids[0]});assert.equal((await ready).memoryRestored,true,'reserve the requested cached index before retaining the outgoing one');}
+  finally{await worker.terminate();await removeTestRoot(root);}
+});
+
 test('multiple trace indexes switch from memory or disk and comparisons preserve the active timeline',async()=>{
   const root=await mkdtemp(join(tmpdir(),'trace-studio-test-'));let worker,other;
   try{
@@ -150,6 +156,8 @@ test('multiple trace indexes switch from memory or disk and comparisons preserve
     let ready=next(worker,'ready');worker.postMessage({type:'restore',id:first.id});assert((await ready).memoryRestored);
     let reply=next(worker,'comparison',100);worker.postMessage({type:'compare',requestId:100,ids:[first.id,second.id],tfliteId:'7'});assert.deepEqual((await reply).result.traces.map(trace=>trace.spanUs),[10,20]);
     reply=next(worker,'detail',101);worker.postMessage({type:'detail',requestId:101,record:first.top[0]});assert.equal((await reply).event.ts,1000);
+    reply=next(worker,'error',107);worker.postMessage({type:'query',requestId:107,traceId:second.id,start:0,end:100,trackIds:[0],width:500});assert.equal((await reply).traceId,second.id);
+    reply=next(worker,'query',108);worker.postMessage({type:'query',requestId:108,traceId:first.id,start:first.start,end:first.end,trackIds:[0],width:500});assert.equal((await reply).traceId,first.id);
     reply=next(worker,'cachePolicy',102);worker.postMessage({type:'cachePolicy',requestId:102,limitMB:0});await reply;
     ready=next(worker,'ready');worker.postMessage({type:'restore',id:second.id});assert.equal((await ready).memoryRestored,false);
     await worker.terminate();worker=new Worker(new URL('./worker-harness.mjs',import.meta.url),{workerData:{root}});await next(worker,'initialized');

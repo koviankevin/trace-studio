@@ -44,6 +44,8 @@ test('application startup and file selection reach the loaded timeline',async()=
     assert.equal(elements.get('loading').open,false);
     const input=elements.get('file');input.files=[new File(['{"traceEvents":[{"name":"Actual file","ph":"X","ts":10,"dur":50,"pid":1,"tid":2}]}'],'input.json')];
     input.onchange({target:input});
+    workers.at(-1).onmessage({data:{type:'error',operation:'search',requestId:-1,traceId:'previous-trace',message:'stale search failure'}});
+    assert.equal(elements.get('loading').open,true,'a retired search error must not dismiss the current import');
     await until(()=>elements.get('file-name').textContent==='input.json');draw();
     assert.equal(elements.get('loading').open,false);
     assert.equal(elements.get('events-count').textContent,'1');
@@ -120,7 +122,9 @@ test('application startup and file selection reach the loaded timeline',async()=
     elements.get('comparison-id').value='7';elements.get('comparison-form').onsubmit({preventDefault(){}});
     await until(()=>elements.get('comparison-status').textContent.startsWith('比較完成'));
     assert(elements.get('comparison-results').innerHTML.includes('before.json'));assert(elements.get('comparison-results').innerHTML.includes('after.json'));assert(elements.get('comparison-results').innerHTML.includes('100.0%'));
-    elements.get('comparison-results').onclick({target:{closest:()=>({dataset:{compareMember:'0:0'}})}});
+    elements.get('comparison-id').value='';elements.get('comparison-form').onsubmit({preventDefault(){}});await until(()=>elements.get('comparison-status').textContent.startsWith('比較完成'));assert(elements.get('comparison-results').innerHTML.includes('圖版本比較'));assert(elements.get('comparison-results').innerHTML.includes('data-compare-id="7"'));
+    elements.get('comparison-results').onclick({target:{closest:selector=>selector==='[data-compare-id]'?{dataset:{compareId:'7'}}:null}});await until(()=>elements.get('comparison-status').textContent.startsWith('比較完成'));assert(elements.get('comparison-results').innerHTML.includes('TfliteID 7'));
+    elements.get('comparison-results').onclick({target:{closest:selector=>selector==='[data-compare-member]'?{dataset:{compareMember:'0:0'}}:null}});
     await until(()=>elements.get('file-name').textContent==='before.json'&&elements.get('selection-heading').textContent==='compute');assert(workers.at(-1).lastReady.memoryRestored);
     elements.get('track-filter').value='1';elements.get('track-filter').handlers.input({target:elements.get('track-filter')});elements.get('zoom-in').click();draw();const savedWindow=elements.get('window-time').textContent;window.handlers.pagehide();
     for(const active of workers)await active.terminate();elements.get('file-name').textContent='Reloading';

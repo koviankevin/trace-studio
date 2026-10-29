@@ -6,9 +6,9 @@ import {analyzeTrace,scanTraceIndex} from './analysis.js?v=0.4.0';
 import {loadExtensionHost} from './extensions/runtime.js';
 import {createSessionStore} from './session-store.js?v=0.3.1';
 import {extractRecordFacts} from './argument-facts.js?v=0.4.0';
-import {analyzeArguments} from './argument-analysis.js?v=0.5.0';
+import {analyzeArguments} from './argument-analysis.js?v=0.6.0';
 import {TraceCache} from './trace-cache.js?v=0.5.0';
-import {compareTraces} from './trace-comparison.js?v=0.5.0';
+import {compareTraces} from './trace-comparison.js?v=0.6.0';
 // Register onmessage synchronously. A top-level await here drops messages
 // delivered while custom.js is loading, including the UI's first import.
 const extensionHostReady=loadExtensionHost();
@@ -25,7 +25,8 @@ async function drainCache(){for(const value of traceCache.drain())await dispose(
 async function close({retain=false}={}){analysisToken++;argumentCache.clear();const previous=context();rawHandle=indexHandle=relationHandle=sessionLease=activeManifest=null;db=null;if(retain&&previous.db&&previous.activeManifest){for(const value of traceCache.put(previous))await dispose(value);}else await dispose(previous);}
 async function root(){if(!navigator.storage?.getDirectory)throw Error('這個瀏覽器無法使用磁碟索引，請用最新版桌面 Chrome 或 Edge，並以 HTTPS 開啟。');return (await navigator.storage.getDirectory()).getDirectoryHandle('trace-studio-v1',{create:true});}
 async function open(id,create){
-  await close({retain:true});const cached=!create&&traceCache.take(id);if(cached){activate(cached);return true;}sessionLease=await sessions.lease(id);
+  // Reserve the requested index before parking the current one can evict it.
+  let cached=!create&&traceCache.take(id);try{await close({retain:true});}catch(error){await dispose(cached);throw error;}cached||=!create&&traceCache.take(id);if(cached){activate(cached);return true;}sessionLease=await sessions.lease(id);
   try{
     folder=await(await root()).getDirectoryHandle(id,{create});sessionId=id;
     rawHandle=await(await folder.getFileHandle('events.bin',{create})).createSyncAccessHandle();
@@ -79,8 +80,11 @@ async function importFile(file,isDemo=false,requestId){
 }
 onmessage=async({data})=>{
   const {type,requestId}=data;
+  // Keep the originating trace identity even if an async response finishes later.
+  const send=(type,payload={})=>postMessage({type,...(data.traceId?{traceId:data.traceId}:{}),...payload});
   try{
     const extensionHost=await extensionHostReady;
+    if(data.traceId&&data.traceId!==sessionId)throw Error('請求所屬 Trace 已切換。');
     if(type==='import')await importFile(data.file,false,requestId);
     else if(type==='demo'){
       const file=new File([JSON.stringify(demoTrace())],'checkout-flow.demo.json',{type:'application/json'});await importFile(file,true,requestId);
@@ -107,7 +111,7 @@ onmessage=async({data})=>{
       if(data.includeArguments){const key=JSON.stringify([result.scope.start,result.scope.end,result.scope.trackIds,data.argumentFocus||null,data.memberOffset||0]);if(argumentCache.has(key))result.arguments={...argumentCache.get(key),reused:true};else{result.arguments=await analyzeArguments(current,{...result.scope,focus:data.argumentFocus,memberOffset:data.memberOffset||0,cancelled,onProgress:progress=>send('analysisProgress',{requestId,...progress})});argumentCache.set(key,result.arguments);if(argumentCache.size>8)argumentCache.delete(argumentCache.keys().next().value);}}
       result.extensions=await extensionHost.analyze({summary:result,scope:result.scope,cancelled,scanIndex:()=>scanTraceIndex(current,{...result.scope,cancelled}),readEvent:record=>current.detail(record).event});result.extensionErrors=extensionHost.startupErrors||[];
       if(cancelled()){const error=new Error('分析已取消');error.name='AbortError';throw error;}result.analysisSeconds=(performance.now()-started)/1000;send('analysis',{requestId,result});}
-    else if(type==='compare'){const token=++analysisToken,cancelled=()=>analysisToken!==token;const result=await compareTraces(data.ids,data.tfliteId,{openTrace:comparisonTrace,cancelled,onProgress:progress=>send('comparisonProgress',{requestId,...progress})});send('comparison',{requestId,result});}
+    else if(type==='compare'){const token=++analysisToken,cancelled=()=>analysisToken!==token;const result=await compareTraces(data.ids,data.tfliteId,{openTrace:comparisonTrace,scopes:data.scopes,sourceNames:data.sourceNames,cancelled,onProgress:progress=>send('comparisonProgress',{requestId,...progress})});send('comparison',{requestId,result});}
     else if(type==='cancelAnalysis'){analysisToken++;}
     else if(type==='detail'&&db){const detail=db.detail(data.record);send('detail',{requestId,...detail,facts:extractRecordFacts(detail),links:relations.find(detail.event,data.record)});}
     else if(type==='search'&&db){const result=await db.search(data.term,100,scanned=>send('searchProgress',{requestId,scanned}));send('search',{requestId,...result});}

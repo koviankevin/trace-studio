@@ -130,3 +130,5 @@ const facts = extractArgumentFacts(event, {
 `summary.arguments` 可讀取本次已完成的內建 Args 分析（使用者未勾選時不存在）。它是傳給擴充的獨立副本，不可假設每次分析都有。單事件預設上限為 4,096 欄位／8 層／32 個 memory，群組每類最多 16,384、回傳前 100 組；限制與衝突必須保留在呈現中。基礎 ID 可能跨推論重用，memory overlap 沒有 allocation 生命週期，不得直接標成已證明的 producer/consumer 或關鍵路徑。
 
 Args 專項測試：`node --test tests/argument-facts.test.mjs tests/argument-analysis.test.mjs`。新增 schema 時請用合成資料驗證欄位優先順序、零值、ID 重用、跨核心、端點與 unsafe integer；不要將內部 trace 或使用者截圖提交到公開庫。
+
+比較入口最多接受三份 Trace，`tfliteId` 留空使用 `{kind:'tflite-all'}` 掃描帶 ID 的事件；指定值則精確比對。可傳 `scopes:{[sessionId]:{start,end}}` 限定各檔案時間範圍，以及 `sourceNames` 保留失敗來源的可讀名稱。結果包含全體符合事件的 `matchedSummary`、每 ID 群組、有限明細與截斷計數。只有帶 ID 的事件納入圖版本統計，不代表端到端延遲、self time、相同圖結構驗證或輸出數值正確性；若優化後 ID 重編，需要內部提供明確對照才能匹配。
