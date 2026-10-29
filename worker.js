@@ -1,5 +1,7 @@
 import {TraceJSONReader,TraceIndex,demoTrace,LIMITS} from './core.js';
 import {RelationIndex} from './relations.js';
+import {summarizeGroups} from './track-layout.js';
+import {hardwareDemo} from './hardware-demo.js';
 let db,folder,rawHandle,indexHandle,relationHandle,relations,sessionId,source;
 const send=(type,data={})=>postMessage({type,...data});
 async function close(){for(const h of [rawHandle,indexHandle,relationHandle]){try{h?.close();}catch{}}rawHandle=indexHandle=relationHandle=null;db=null;}
@@ -45,13 +47,15 @@ onmessage=async({data})=>{
     if(type==='import')await importFile(data.file);
     else if(type==='demo'){
       const file=new File([JSON.stringify(demoTrace())],'checkout-flow.demo.json',{type:'application/json'});await importFile(file,true);
+    }else if(type==='hardwareDemo'){
+      const file=new File([JSON.stringify(hardwareDemo())],'core-four-core.demo.json',{type:'application/json'});await importFile(file,true);
     }else if(type==='restore'){
       await open(data.id,false);const m=JSON.parse(await(await(await folder.getFileHandle('manifest.json')).getFile()).text());
       if(m.version!==1)throw Error('快取版本不相容，請重新開啟原始 trace。');
       db.restore(m);if(!m.relations)throw Error('關聯索引版本已更新，請重新匯入 trace。');relations.restore(m.relations);source=m.source;send('ready',{info:publicInfo(m),restored:true});
     }else if(type==='clear'){
       await close();const r=await root();for await(const name of r.keys())await r.removeEntry(name,{recursive:true});send('cleared');
-    }else if(type==='query'&&db){const start=performance.now();send('query',{requestId,rows:db.query(data),ms:performance.now()-start});}
+    }else if(type==='query'&&db){const start=performance.now();send('query',{requestId,rows:db.query(data),groups:summarizeGroups(db,data.groups||[],data.start,data.end,data.width||1000),ms:performance.now()-start});}
     else if(type==='detail'&&db){const detail=db.detail(data.record);send('detail',{requestId,...detail,links:relations.find(detail.event,data.record)});}
     else if(type==='search'&&db){const result=await db.search(data.term,100,scanned=>send('searchProgress',{requestId,scanned}));send('search',{requestId,...result});}
     else if(type==='neighbor'&&db){

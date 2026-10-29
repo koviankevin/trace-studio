@@ -4,41 +4,42 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="時跡 Trace Studio：純網頁 Chrome JSON trace 分析工具。磁碟索引、大檔時間軸與 address 關聯探索。">
 <meta name="theme-color" content="#163b32"><title>時跡 Trace Studio — 把時間，看清楚</title>
-<link rel="icon" href="./icon.svg" type="image/svg+xml"><link rel="stylesheet" href="./style.css">
+<link rel="icon" href="./icon.svg" type="image/svg+xml"><link rel="stylesheet" href="./style.css"><link rel="stylesheet" href="./workspace.css">
 </head>
-<body>
+<body class="timeline-workspace sidebar-collapsed density-compact">
 <aside class="sidebar">
+  <button id="close-sidebar" class="icon-button sidebar-close" title="收合側欄" aria-label="收合側欄">×</button>
   <a class="brand" href="./" aria-label="時跡 Trace Studio 首頁"><span class="brand-icon">▥</span><span>時跡<span class="brand-light" style="font-size:10px;letter-spacing:0;margin-left:6px">Trace Studio</span><small>PERFORMANCE WORKSPACE</small></span></a>
   <button class="open primary" id="open"><span>＋</span> 開啟 Trace <kbd>O</kbd></button>
   <input type="file" id="file" accept=".json,.gz" hidden>
   <div class="side-label">工作空間</div>
   <nav aria-label="主選單">
-    <button class="nav active" data-view="timeline"><span>▤</span> 時間軸 <span class="nav-count" id="track-count">—</span></button>
-    <button class="nav" data-view="events"><span>⌕</span> 事件搜尋</button>
-    <button class="nav" data-view="insights"><span>◷</span> 耗時分析</button>
-    <button class="nav" data-view="info"><span>ⓘ</span> Trace 資訊</button>
+    <button class="nav active" data-view="timeline" title="時間軸"><span>▤</span> 時間軸 <span class="nav-count" id="track-count">—</span></button>
+    <button class="nav" data-view="events" title="事件搜尋"><span>⌕</span> 事件搜尋</button>
+    <button class="nav" data-view="insights" title="耗時分析"><span>◷</span> 耗時分析</button>
+    <button class="nav" data-view="info" title="Trace 資訊"><span>ⓘ</span> Trace 資訊</button>
   </nav>
   <div class="side-label sessions-label">目前檔案</div>
   <div class="session"><span class="file-symbol">{ }</span><div><b id="side-file">尚未開啟</b><small id="side-size">JSON Trace</small></div></div>
-  <button class="text-button demo" id="demo">↗ 載入示範 Trace</button>
+  <button class="text-button demo" id="demo">↗ 載入多核心示範</button>
   <div class="local-card"><span class="local-icon">⌁</span><strong>你的 trace，留在你的電腦</strong><p>背景解析・本機磁碟索引<br>檔案不會上傳到伺服器</p><span class="local-badge"><i></i> Browser local</span></div>
   <div class="side-bottom"><button id="shortcuts">⌨ <span>操作與快捷鍵</span><kbd>?</kbd></button><button id="storage">▧ <span>清除 Trace 快取</span></button><a href="https://github.com/koviankevin/trace-studio" target="_blank" rel="noreferrer">↗ GitHub <span>v0.1.0</span></a></div>
 </aside>
 <main>
-  <header class="topbar"><div class="breadcrumb">工作空間 <span>/</span> <b id="breadcrumb">時間軸</b></div><div class="top-right"><span class="engine-state"><i></i> 純網頁引擎</span><button id="theme" class="icon-button" title="切換深色模式" aria-label="切換深色模式">◐</button></div></header>
+  <header class="topbar"><div class="topbar-left"><button id="toggle-sidebar" class="icon-button" title="展開側欄" aria-label="展開側欄" aria-expanded="false">☰</button><div class="breadcrumb">時跡 <span>/</span> <b id="breadcrumb">時間軸</b></div></div><div class="file-pill"><span>{ }</span><div><b id="file-name">載入中…</b><small id="file-subtitle">Chrome Trace JSON</small></div><span class="pill-dot"></span></div><div class="top-right"><span class="engine-state"><i></i> 純網頁引擎</span><button id="theme" class="icon-button" title="切換深色模式" aria-label="切換深色模式">◐</button></div></header>
   <div class="workspace">
-    <section class="page-heading"><div><div class="eyebrow">EVERY MICROSECOND TELLS A STORY</div><h1>把時間，看清楚<span>.</span></h1><p>從全局到細節，找到每一次等待的原因。</p></div><div class="file-pill"><span>{ }</span><div><b id="file-name">載入中…</b><small id="file-subtitle">Chrome Trace JSON</small></div><span class="pill-dot"></span></div></section>
+    <section class="page-heading"><div><div class="eyebrow">EVERY MICROSECOND TELLS A STORY</div><h1>把時間，看清楚<span>.</span></h1><p>從全局到細節，找到每一次等待的原因。</p></div></section>
     <section class="metrics" aria-label="Trace 摘要"><div><span>TRACE 時長</span><strong id="duration">—</strong><small>完整擷取範圍</small></div><div><span>事件數量</span><strong id="events-count">—</strong><small>保留原始事件欄位</small></div><div><span>處理程序 / 軌道</span><strong id="process-count">—</strong><small id="threads-sub">依 process 與 thread 分組</small></div><div><span>本次解析時間</span><strong id="import-time">—</strong><small id="cache-sub">Worker 背景執行</small></div></section>
     <section id="timeline-view" class="view active">
       <div class="overview-card"><div class="overview-heading"><b>Trace 全覽</b><span id="overview-sub">拖曳以移動目前視窗</span><span class="tiny-label">EVENT DENSITY</span></div><div id="overview-wrap"><canvas id="overview" aria-label="Trace 事件密度與目前範圍"></canvas><div id="overview-window"><i></i><i></i></div></div><div class="overview-labels"><span>0</span><span id="overview-end">—</span></div></div>
       <section class="timeline-card">
-        <div class="timeline-toolbar"><div class="tabs"><span class="tab-active">時間軸</span><span class="live-label"><i></i> LIVE VIEW</span></div><div class="timeline-actions"><span id="window-time">—</span><button class="icon-button" id="zoom-out" title="縮小 (S)" aria-label="縮小">−</button><button class="icon-button" id="zoom-in" title="放大 (W)" aria-label="放大">＋</button><button id="fit" class="soft-button" title="顯示完整 Trace">⤢ 全覽</button><button class="icon-button" id="toggle-details" title="切換詳情面板 (Q)" aria-label="切換詳情面板">▣</button></div></div>
+        <div class="timeline-toolbar"><div class="tabs"><span class="tab-active">時間軸</span><button id="density-toggle" class="soft-button" title="切換緊湊／舒適列高" aria-pressed="true">緊湊</button><button id="expand-groups" class="text-button" title="展開全部程序與核心分組">展開全部</button><button id="collapse-groups" class="text-button" title="收合全部程序與核心分組">收合全部</button></div><div class="timeline-actions"><span id="window-time">—</span><button class="icon-button" id="zoom-out" title="縮小 (S)" aria-label="縮小">−</button><button class="icon-button" id="zoom-in" title="放大 (W)" aria-label="放大">＋</button><button id="fit" class="soft-button" title="顯示完整 Trace">⤢ 全覽</button><button class="icon-button" id="toggle-details" title="切換詳情面板 (Q)" aria-label="切換詳情面板">▣</button></div></div>
         <div class="track-filter"><label><span>⌕</span><input id="track-filter" placeholder="篩選軌道、process 或 thread…" aria-label="篩選軌道"><kbd>Ctrl P</kbd></label><span id="track-visible">— 條軌道</span><button id="reset-filter" class="text-button">清除</button></div>
         <div class="ruler"><div>PROCESS / THREAD</div><canvas id="ruler" aria-label="時間刻度"></canvas></div>
         <div class="tracks-scroll" id="tracks-scroll" tabindex="0" aria-label="時間軸；W S 縮放，A D 平移，拖曳選取範圍，Shift 拖曳平移"><div id="tracks-space"><div id="track-labels"></div><canvas id="timeline"></canvas><div id="area-overlay" hidden></div></div></div>
         <div class="timeline-footer"><span><i class="legend mint"></i> Rendering <i class="legend blue"></i> Script <i class="legend amber"></i> Network <i class="legend purple"></i> Other</span><span id="render-info">準備索引…</span></div>
       </section>
-      <section class="details-card" id="details"><div class="details-toolbar"><div><span class="selection-dot"></span><b id="selection-heading">目前選取</b><span id="selection-badge">EVENT DETAILS</span></div><div><button id="focus-selection" class="text-button">⤢ 聚焦 <kbd>F</kbd></button><button id="copy" class="text-button">⧉ 複製 JSON</button></div></div><div id="details-content" class="details-body"><div class="selection-empty">↖ 點選時間軸上的事件，查看所有原始欄位、args 與呼叫堆疊。</div></div></section>
+      <section class="details-card" id="details" hidden><div id="details-resize" role="separator" aria-label="調整事件詳情面板高度" aria-orientation="horizontal" tabindex="0"></div><div class="details-toolbar"><div><span class="selection-dot"></span><b id="selection-heading">目前選取</b><span id="selection-badge">EVENT DETAILS</span></div><div><button id="focus-selection" class="text-button">⤢ 聚焦 <kbd>F</kbd></button><button id="copy" class="text-button">⧉ 複製 JSON</button><button id="close-details" class="icon-button" title="關閉事件詳情 (Q)" aria-label="關閉事件詳情">×</button></div></div><div id="details-content" class="details-body"><div class="selection-empty">↖ 點選時間軸上的事件，查看所有原始欄位、args 與呼叫堆疊。</div></div></section>
       <p class="keyboard-hint"><kbd>W</kbd><kbd>S</kbd> 縮放 <span>·</span> <kbd>A</kbd><kbd>D</kbd> 平移 <span>·</span> 拖曳選取範圍 <span>·</span> <kbd>Shift</kbd>＋拖曳平移 <span>·</span> <button id="help-link">所有快捷鍵 ↗</button></p>
     </section>
     <section id="events-view" class="view"><div class="panel-heading"><div><h2>事件搜尋</h2><p>在磁碟索引中尋找事件名稱，點選結果即可跳回時間軸。</p></div></div><form class="search-form" id="search-form"><span>⌕</span><input id="search-input" placeholder="搜尋事件名稱，例如 Layout、RunTask…" aria-label="搜尋事件名稱" autocomplete="off"><button class="primary">搜尋</button></form><div id="search-results" class="results-card"><p class="empty-state">輸入關鍵字開始搜尋。每次最多顯示 100 筆。</p></div></section>
