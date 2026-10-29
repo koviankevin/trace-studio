@@ -26,6 +26,7 @@ test('application startup and file selection reach the loaded timeline',async()=
     Worker:class{
       constructor(){workers.push(this);this.native=new NodeWorker(new URL('./worker-harness.mjs',import.meta.url),{workerData:{root}});this.ready=false;this.pending=[];this.native.on('error',error=>errors.push(error));this.native.on('message',data=>{
         if(data.type==='initialized'){this.ready=true;for(const data of this.pending)this.native.postMessage(data);this.pending=[];return;}
+        if(data.type==='ready')this.lastReady=data;
         try{this.onmessage?.({data});}catch(error){errors.push(error);}
       });}
       postMessage(data){if(this.ready)this.native.postMessage(data);else this.pending.push(data);}
@@ -51,6 +52,26 @@ test('application startup and file selection reach the loaded timeline',async()=
     elements.get('insights-list').handlers.click({target:{closest:()=>({dataset:{source:'top',result:'0'}})}});
     await until(()=>elements.get('details-content').innerHTML.includes('完整原始 JSON'));
     assert.equal(elements.get('selection-heading').textContent,'CORE0_COMPUTE');
+    elements.get('track-filter').value='CORE';elements.get('track-filter').handlers.input({target:elements.get('track-filter')});
+    elements.get('zoom-in').click();draw();const priorWindow=elements.get('window-time').textContent;
+    // Cancel before a new worker can finish the next import, including Esc.
+    input.files=[new File(['[]'],'cancelled.json')];input.onchange({target:input});
+    let prevented=false;elements.get('loading').handlers.cancel({preventDefault(){prevented=true;}});
+    assert(prevented);await until(()=>elements.get('toast').textContent.includes('已返回上一份 Trace'));
+    assert.equal(elements.get('file-name').textContent,'unnamed.json');
+    assert.equal(elements.get('loading').open,false);
+    assert.equal(elements.get('selection-heading').textContent,'CORE0_COMPUTE');
+    draw();assert.equal(elements.get('track-filter').value,'CORE');assert.equal(elements.get('window-time').textContent,priorWindow);
     assert.match(elements.get('details-content').innerHTML,/<h3>CORE0_COMPUTE<\/h3>/);
+    const retired=workers.at(-1);
+    input.files=[new File(['{"traceEvents":[{'],'broken.json')];input.onchange({target:input});
+    // A late ready from the retired worker must not clear the recovery state.
+    retired.onmessage({data:retired.lastReady});
+    await until(()=>elements.get('toast').textContent.includes('不完整'));
+    await until(()=>elements.get('file-name').textContent==='unnamed.json'&&!elements.get('loading').open);
+    assert.equal(elements.get('events-count').textContent,'2');
+    elements.get('insights-list').handlers.click({target:{closest:()=>({dataset:{source:'top',result:'0'}})}});
+    await until(()=>elements.get('details-content').innerHTML.includes('完整原始 JSON'));
+    assert.equal(elements.get('selection-heading').textContent,'CORE0_COMPUTE');
   }finally{await Promise.all(workers.map(w=>w.stopped||w.terminate()));await rm(root,{recursive:true});}
 });

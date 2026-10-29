@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {Worker} from 'node:worker_threads';
-import {mkdtemp,rm,readFile} from 'node:fs/promises';
+import {mkdtemp,rm,readFile,readdir} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {gzipSync} from 'node:zlib';
@@ -25,6 +25,28 @@ test('worker streams gzip and reports malformed input without a successful impor
     await next(worker,'initialized');let reply=next(worker,'ready');worker.postMessage({type:'import',file:new File([gzipSync('[{"name":"gzip 測試","ph":"X","ts":0,"dur":10}]')],'test.json.gz')});const ready=await reply;assert.equal(ready.info.count,1);
     reply=next(worker,'error');worker.postMessage({type:'import',file:new File(['[{"name":'],'bad.json')});assert.match((await reply).message,/不完整/);
     reply=next(worker,'cleared');worker.postMessage({type:'clear'});await reply;
+  }finally{await worker.terminate();await rm(root,{recursive:true});}
+});
+
+test('gzip is detected by header and missing quota estimates do not reject valid files',async()=>{
+  const root=await mkdtemp(join(tmpdir(),'trace-studio-test-')),worker=new Worker(new URL('./worker-harness.mjs',import.meta.url),{workerData:{root,storageEstimate:{}}});
+  const json='[{"name":"Header detected","ph":"X","ts":0,"dur":10}]';
+  try{
+    await next(worker,'initialized');
+    for(const [content,name]of [[json,'plain.json'],[gzipSync(json),'TRACE.JSON.GZ'],[gzipSync(json),'compressed.json']]){
+      const reply=next(worker,'ready');worker.postMessage({type:'import',file:new File([content],name)});assert.equal((await reply).info.count,1);
+    }
+    const reply=next(worker,'error');worker.postMessage({type:'import',file:new File([json],'not-gzip.json.gz')});assert.match((await reply).message,/gzip/);
+  }finally{await worker.terminate();await rm(root,{recursive:true});}
+});
+
+test('disk initialization failures release handles and remove the incomplete session',async()=>{
+  const root=await mkdtemp(join(tmpdir(),'trace-studio-test-')),worker=new Worker(new URL('./worker-harness.mjs',import.meta.url),{workerData:{root,failOpenOnce:['relations.bin']}});
+  const file=new File(['[{"ph":"X","name":"Recovered","ts":0,"dur":10}]'],'disk.json');
+  try{
+    await next(worker,'initialized');let reply=next(worker,'error');worker.postMessage({type:'import',file});assert.match((await reply).message,/disk open failure/);
+    assert.deepEqual(await readdir(join(root,'trace-studio-v1')),[]);
+    reply=next(worker,'ready');worker.postMessage({type:'import',file});assert.equal((await reply).info.count,1);
   }finally{await worker.terminate();await rm(root,{recursive:true});}
 });
 test('hardware demo worker supplies grouped summaries and keeps selected event hardware fields',async()=>{

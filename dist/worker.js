@@ -14,12 +14,13 @@ async function close(){analysisToken++;for(const h of [rawHandle,indexHandle,rel
 async function root(){if(!navigator.storage?.getDirectory)throw Error('這個瀏覽器無法使用磁碟索引，請用最新版桌面 Chrome 或 Edge，並以 HTTPS 開啟。');return (await navigator.storage.getDirectory()).getDirectoryHandle('trace-studio-v1',{create:true});}
 async function open(id,create){
   await close();folder=await(await root()).getDirectoryHandle(id,{create});sessionId=id;
-  rawHandle=await(await folder.getFileHandle('events.bin',{create})).createSyncAccessHandle();
-  try{indexHandle=await(await folder.getFileHandle('index.bin',{create})).createSyncAccessHandle();}
-  catch(error){rawHandle.close();rawHandle=null;throw error;}
-  db=new TraceIndex(rawHandle,indexHandle);
-  relationHandle=await(await folder.getFileHandle('relations.bin',{create})).createSyncAccessHandle();
-  relations=new RelationIndex(relationHandle,db);db.onEvent=(event,ref)=>relations.add(event,ref);
+  try{
+    rawHandle=await(await folder.getFileHandle('events.bin',{create})).createSyncAccessHandle();
+    indexHandle=await(await folder.getFileHandle('index.bin',{create})).createSyncAccessHandle();
+    db=new TraceIndex(rawHandle,indexHandle);
+    relationHandle=await(await folder.getFileHandle('relations.bin',{create})).createSyncAccessHandle();
+    relations=new RelationIndex(relationHandle,db);db.onEvent=(event,ref)=>relations.add(event,ref);
+  }catch(error){await close();throw error;}
 }
 function publicInfo(m){
   const overview=Array(180).fill(0),duration=m.end-m.start;
@@ -28,24 +29,27 @@ function publicInfo(m){
 }
 async function importFile(file,isDemo=false){
   const started=performance.now();
-  const quota=await navigator.storage.estimate();
-  const available=(quota.quota||0)-(quota.usage||0);
-  if(!isDemo && !file.name.endsWith('.gz') && available<file.size*1.3)throw Error('瀏覽器剩餘儲存空間不足。請先清除舊快取或釋出磁碟空間後再匯入。');
-  const id=crypto.randomUUID();await open(id,true);source={name:file.name,size:file.size,demo:isDemo};
-  let read=0,lastReport=0,uncompressed=0;
-  const reader=new TraceJSONReader((event,text)=>db.ingest(event,text),(key,value)=>db.addMetadata(key,value));
-  let stream=file.stream().pipeThrough(new TransformStream({transform(chunk,controller){read+=chunk.byteLength;controller.enqueue(chunk);}}));
-  if(file.name.endsWith('.gz'))stream=stream.pipeThrough(new DecompressionStream('gzip'));
-  const chunks=stream.pipeThrough(new TextDecoderStream('utf-8',{fatal:true})).getReader();
+  const header=new Uint8Array(await file.slice(0,2).arrayBuffer()),gzip=header[0]===0x1f&&header[1]===0x8b;
+  if(/\.gz$/i.test(file.name)&&!gzip)throw Error('檔名標示為 .gz，但內容不是 gzip。請確認檔案格式或重新匯出 JSON。');
+  const quota=await navigator.storage?.estimate?.().catch(()=>({}))||{};
+  const available=Number.isFinite(quota.quota)&&Number.isFinite(quota.usage)?Math.max(0,quota.quota-quota.usage):Infinity;
+  if(!isDemo && !gzip && available<file.size*1.3)throw Error('瀏覽器剩餘儲存空間不足。請先清除舊快取或釋出磁碟空間後再匯入。');
+  const id=crypto.randomUUID();let chunks;
   try{
-    for(;;){const {value,done}=await chunks.read();if(done)break;uncompressed+=value.length;reader.feed(value);
+    await open(id,true);source={name:file.name,size:file.size,demo:isDemo};
+    let read=0,lastReport=0;
+    const reader=new TraceJSONReader((event,text)=>db.ingest(event,text),(key,value)=>db.addMetadata(key,value));
+    let stream=file.stream().pipeThrough(new TransformStream({transform(chunk,controller){read+=chunk.byteLength;controller.enqueue(chunk);}}));
+    if(gzip)stream=stream.pipeThrough(new DecompressionStream('gzip'));
+    chunks=stream.pipeThrough(new TextDecoderStream('utf-8',{fatal:true})).getReader();
+    for(;;){const {value,done}=await chunks.read();if(done)break;reader.feed(value);
       const now=performance.now();if(now-lastReport>100){lastReport=now;send('progress',{bytes:read,total:file.size,events:db.count,elapsed:(now-started)/1000,diskBytes:db.raw.offset+db.index.offset});}
     }
     reader.end();const manifest=db.finish();manifest.relations=relations.finish();manifest.source=source;manifest.importSeconds=(performance.now()-started)/1000;
     const writable=await(await folder.getFileHandle('manifest.json',{create:true})).createWritable();
     await writable.write(JSON.stringify(manifest));await writable.close();
     send('ready',{info:publicInfo(manifest)});
-  }catch(error){await chunks.cancel().catch(()=>{});await close();await(await root()).removeEntry(id,{recursive:true}).catch(()=>{});throw error;}
+  }catch(error){await chunks?.cancel().catch(()=>{});await close();try{await(await root()).removeEntry(id,{recursive:true});}catch{}throw error;}
 }
 onmessage=async({data})=>{
   const {type,requestId}=data;
