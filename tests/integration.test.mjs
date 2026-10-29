@@ -36,11 +36,20 @@ test('hardware demo worker supplies grouped summaries and keeps selected event h
     reply=next(worker,'detail',8);worker.postMessage({type:'detail',requestId:8,record:info.top[0]});const detail=await reply;assert.deepEqual(detail.event.args.input_shape,[12,12,64]);assert.equal(detail.event.args.demo,true);assert(detail.links.matches.length>0);
   }finally{await worker.terminate();await rm(root,{recursive:true});}
 });
+test('worker analysis remains queryable, cancels and returns accurate index-only summaries',async()=>{
+  const root=await mkdtemp(join(tmpdir(),'trace-studio-test-')),worker=new Worker(new URL('./worker-harness.mjs',import.meta.url),{workerData:{root}});
+  try{
+    await next(worker,'initialized');let reply=next(worker,'ready');worker.postMessage({type:'hardwareDemo'});const {info}=await reply,trackIds=info.tracks.map(t=>t.id);
+    const progress=next(worker,'analysisProgress',20);worker.postMessage({type:'analysis',requestId:20,start:info.start,end:info.end,trackIds,thresholdUs:1000});await progress;
+    const cancelled=next(worker,'analysisCancelled',20),viewport=next(worker,'query',21);worker.postMessage({type:'query',requestId:21,start:info.start,end:info.end,trackIds:[trackIds[0]],width:1000});worker.postMessage({type:'cancelAnalysis'});assert((await viewport).rows[0].rows.length>0);await cancelled;
+    reply=next(worker,'analysis',22);worker.postMessage({type:'analysis',requestId:22,start:info.start,end:info.end,trackIds,thresholdUs:1000});const result=(await reply).result;assert.equal(result.complete,8960);assert.equal(result.tracks.length,112);assert.deepEqual(result.extensions,[]);assert(result.longEvents>0);assert(result.longest.length<=50);
+  }finally{await worker.terminate();await rm(root,{recursive:true});}
+});
 test('application element references and local assets exist; engine benchmark hashes match',async()=>{
   const base=new URL('../dist/',import.meta.url),html=await readFile(new URL('index.html',base),'utf8'),app=await readFile(new URL('app.js',base),'utf8');
   const ids=new Set([...html.matchAll(/id="([^"]+)"/g)].map(m=>m[1]));const dynamic=new Set(['area-focus','show-relations']);
   for(const m of app.matchAll(/\$\('([^']+)'\)/g))assert(ids.has(m[1])||dynamic.has(m[1]),`Missing #${m[1]}`);
-  for(const asset of ['style.css','workspace.css','app.js','worker.js','core.js','relations.js','navigation.js','track-layout.js','event-summary.js','hardware-demo.js','icon.svg'])assert((await readFile(new URL(asset,base))).length>0);
+  for(const asset of ['style.css','workspace.css','app.js','worker.js','core.js','relations.js','navigation.js','track-layout.js','event-summary.js','event-colors.js','analysis.js','extensions/runtime.js','extensions/custom.js','extensions/example.js','hardware-demo.js','icon.svg'])assert((await readFile(new URL(asset,base))).length>0);
   const benchmark=JSON.parse(await readFile(new URL('../docs/benchmark-2026-10-29.json',import.meta.url),'utf8'));
   for(const [file,expected]of Object.entries(benchmark.sourceHashes))assert.equal(createHash('sha256').update(await readFile(new URL(file,base))).digest('hex'),expected,`Rerun benchmark after changing ${file}`);
 });
