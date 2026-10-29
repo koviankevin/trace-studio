@@ -8,6 +8,7 @@ const $=id=>document.getElementById(id), esc=x=>String(x??'').replace(/[&<>"']/g
 const state={info:null,start:0,end:1,tracks:[],layout:[],rows:new Map(),groups:[],collapsed:new Set(),groupRows:new Map(),lanes:new Map(),density:'compact',pins:new Set(),expanded:new Set(),selected:null,detail:null,links:[],area:null,filter:'',view:'timeline',query:0,detailId:0,searchId:0,analysisId:0,analysis:null,analysisBusy:false,showLinks:true};
 let worker,queryTimer,paintFrame,toastTimer,searchResults=[],commandIndex=0,filteredCommands=[],importing=false,queryBusy=false,queryDirty=false;
 let importRecovery=null,restoringRecovery=null;
+let cacheRequest=0,cacheEntries=[],cacheBusy=false,cachePage=0;
 let labelWidth=250,plotWidth=700,plotHeight=420,hitboxes=[],pointer=null,overviewPointer=null;
 const palette=['#a8c995','#aac4d9','#e3c489','#bcb2d2','#b4d7cd','#d9b7a8'];
 function formatTime(us,short=false){const n=Math.abs(us);if(n>=1e6)return `${(us/1e6).toFixed(short?2:3)} s`;if(n>=1000)return `${(us/1000).toFixed(short?1:3)} ms`;return `${us.toFixed(n<1?2:1)} µs`;}
@@ -15,7 +16,8 @@ function bytes(n){return n>=1e9?`${(n/1e9).toFixed(2)} GB`:n>=1e6?`${(n/1e6).toF
 function number(n){return n.toLocaleString('en-US');}
 function toast(message){$('toast').textContent=message;$('toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').hidden=true,6500);}
 function send(type,data={}){worker.postMessage({type,...data});}
-function startWorker(){worker?.terminate();queryBusy=false;queryDirty=false;clearTimeout(queryTimer);queryTimer=null;const active=new Worker(new URL('./worker.js?v=0.2.2',import.meta.url),{type:'module'});worker=active;active.onmessage=event=>{if(worker===active)handleMessage(event);};active.onerror=e=>{if(worker!==active)return;finishLoading();toast(`背景引擎錯誤：${e.message}`);};}
+function forgetCaches(ids){try{if(ids.includes(localStorage.getItem('trace-studio-session'))){if(state.info&&!ids.includes(state.info.id))localStorage.setItem('trace-studio-session',state.info.id);else localStorage.removeItem('trace-studio-session');}}catch{}}
+function startWorker(){worker?.terminate();queryBusy=false;queryDirty=false;clearTimeout(queryTimer);queryTimer=null;const active=new Worker(new URL('./worker.js?v=0.3.0',import.meta.url),{type:'module'});worker=active;active.onmessage=event=>{if(worker===active)handleMessage(event);};active.onerror=e=>{if(worker!==active)return;finishLoading();toast(`背景引擎錯誤：${e.message}`);};}
 function finishLoading(){importing=false;if($('loading').open)$('loading').close();}
 function beginLoading(title='正在讀取 Trace',remember=true){
   if(remember&&state.info)importRecovery={id:state.info.id,start:state.start,end:state.end,filter:state.filter,view:state.view,pins:new Set(state.pins),expanded:new Set(state.expanded),collapsed:new Set(state.collapsed),lanes:new Map(state.lanes),selected:state.selected,detail:state.detail,links:state.links,area:state.area,analysis:state.analysis,detailsHidden:$('details').hidden,scrollTop:$('tracks-scroll').scrollTop};
@@ -60,12 +62,16 @@ function handleMessage({data}){
     case 'analysisProgress':if(data.requestId===state.analysisId)$('analysis-status').textContent=`背景分析中：${number(data.scanned)} / ${number(data.total)} 筆索引，已找到 ${number(data.complete)} 個區段，${data.elapsed.toFixed(1)} 秒。時間軸仍可操作。`;break;
     case 'analysis':if(data.requestId===state.analysisId){state.analysis=data.result;setAnalysisBusy(false);renderAnalysis();}break;
     case 'analysisCancelled':if(data.requestId===state.analysisId){setAnalysisBusy(false);$('analysis-status').textContent='分析已取消，trace 保留。';}break;
-    case 'cleared':try{localStorage.removeItem('trace-studio-session');}catch{}state.info=null;importRecovery=null;restoringRecovery=null;$('cache-dialog').close();toast('Trace 快取已清除。');loadDemo();break;
+    case 'sessions':if(data.requestId===cacheRequest){cacheBusy=false;cacheEntries=data.sessions;renderCaches();$('cache-status').textContent=`${cacheEntries.length} 份快取，共 ${bytes(cacheEntries.reduce((n,s)=>n+s.bytes,0))}。`; }break;
+    case 'sessionRemoved':if(data.requestId===cacheRequest){if(data.removed)forgetCaches([data.id]);cacheBusy=false;cacheEntries=data.sessions;renderCaches();$('cache-status').textContent=data.removed?'已清除這份快取。':data.reason==='busy'?'這份快取正在其他分頁使用，已保留。':data.reason==='unsupported'?'此瀏覽器無法安全清理未完成快取，請改用桌面 Chrome／Edge。':`無法清除：${data.message||'請稍後重試'}`;}break;
+    case 'unusedCleared':if(data.requestId===cacheRequest){forgetCaches(data.removed);cacheBusy=false;cacheEntries=data.sessions;renderCaches();$('cache-status').textContent=`已清除 ${data.removed.length} 份；保留目前及使用中／無法清理的 ${data.skipped.length} 份。`;}break;
+    case 'cleared':try{if(data.removed?.includes(localStorage.getItem('trace-studio-session')))localStorage.removeItem('trace-studio-session');}catch{}state.info=null;importRecovery=null;restoringRecovery=null;cacheBusy=false;$('cache-dialog').close();toast(`已清除 ${data.removed?.length||0} 份快取，保留 ${data.skipped?.length||0} 份使用中／無法清理的快取。`);loadDemo();break;
     case 'error':{
       finishLoading();toast(data.message);
       if(data.operation==='query'){queryBusy=false;queryDirty=false;}
+      if(['sessions','removeSession','clearUnused','clear'].includes(data.operation)){cacheBusy=false;renderCaches();$('cache-status').textContent=data.message;}
       if(data.operation==='analysis'&&data.requestId===state.analysisId){setAnalysisBusy(false);$('analysis-status').textContent=data.message;}
-      if(data.operation==='restore'){if(restoringRecovery){restoringRecovery=null;importRecovery=null;$('file-name').textContent='無法還原上一份 Trace';$('file-subtitle').textContent='可重新選擇原始檔案';}else{try{localStorage.removeItem('trace-studio-session');}catch{}loadDemo();}}
+      if(data.operation==='restore'){if(restoringRecovery){restoringRecovery=null;importRecovery=null;$('file-name').textContent='無法還原上一份 Trace';$('file-subtitle').textContent='可重新選擇原始檔案';}else if(!recoverImport(data.message)){try{if(!['SessionBusyError','NoModificationAllowedError'].includes(data.code))localStorage.removeItem('trace-studio-session');}catch{}loadDemo();}}
       else if(data.operation==='import'||data.operation==='demo'||data.operation==='hardwareDemo'){if(recoverImport(data.message))break;state.info=null;state.rows.clear();$('file-name').textContent='無法開啟 Trace';$('file-subtitle').textContent='請選擇另一個 JSON 檔案';$('details-content').innerHTML=`<div class="selection-empty">${esc(data.message)}</div>`;paint();}
       break;
     }
@@ -266,8 +272,19 @@ $('search-form').onsubmit=e=>{e.preventDefault();search();};
 function openHelp(){if(!$('help').open)$('help').showModal();}
 $('shortcuts').onclick=openHelp;$('help-link').onclick=openHelp;
 document.querySelectorAll('[data-close]').forEach(e=>e.onclick=()=>$(e.dataset.close).close());
-$('storage').onclick=async()=>{const q=await navigator.storage.estimate().catch(()=>({}));$('storage-usage').textContent=q.usage!==undefined?`本站已用 ${bytes(q.usage)} / 額度 ${bytes(q.quota||0)}`:'無法讀取儲存額度。';$('cache-dialog').showModal();};
-$('clear-cache').onclick=()=>{startWorker();send('clear');};
+function renderCaches(){
+  const pages=Math.max(1,Math.ceil(cacheEntries.length/25));cachePage=Math.min(cachePage,pages-1);
+  $('cache-list').innerHTML=cacheEntries.slice(cachePage*25,(cachePage+1)*25).map(item=>`<div class="cache-entry"><div class="cache-description"><b title="${esc(item.name)}">${esc(item.name)}</b><small>${bytes(item.bytes)} · ${item.current?'目前開啟':item.busy?'其他分頁使用中':item.complete?'可還原':'未完成'}${item.demo?' · 示範':''}${item.createdAt?` · ${esc(new Date(item.createdAt).toLocaleString())}`:''}</small></div><div class="cache-entry-actions"><button class="soft-button" data-cache-open="${item.id}" ${cacheBusy||item.current||item.busy||!item.complete?'disabled':''}>開啟</button><button class="soft-button" data-cache-remove="${item.id}" ${cacheBusy||item.current||item.busy?'disabled':''}>清除</button></div></div>`).join('')||'<p class="empty-state">目前沒有 Trace 快取。</p>';
+  $('cache-page').textContent=`${cachePage+1} / ${pages}`;$('cache-prev').disabled=cacheBusy||cachePage===0;$('cache-next').disabled=cacheBusy||cachePage===pages-1;
+  for(const id of ['clear-cache','clear-unused','refresh-cache'])$(id).disabled=cacheBusy;
+}
+async function refreshCaches(){cacheBusy=true;renderCaches();$('cache-status').textContent='正在讀取快取清單…';send('sessions',{requestId:++cacheRequest});const q=await navigator.storage?.estimate?.().catch(()=>({}))||{};$('storage-usage').textContent=Number.isFinite(q.usage)?`本站已用 ${bytes(q.usage)}${Number.isFinite(q.quota)?` / 額度 ${bytes(q.quota)}`:''}`:'瀏覽器未提供儲存額度。';}
+$('storage').onclick=()=>{$('cache-dialog').showModal();cachePage=0;refreshCaches();};
+$('refresh-cache').onclick=refreshCaches;
+$('cache-prev').onclick=()=>{cachePage=Math.max(0,cachePage-1);renderCaches();};$('cache-next').onclick=()=>{cachePage++;renderCaches();};
+$('cache-list').addEventListener('click',e=>{if(cacheBusy)return;const open=e.target.closest('[data-cache-open]'),remove=e.target.closest('[data-cache-remove]');if(open){$('cache-dialog').close();startWorker();beginLoading('正在開啟本機快取');send('restore',{id:open.dataset.cacheOpen});}else if(remove){cacheBusy=true;renderCaches();send('removeSession',{requestId:++cacheRequest,id:remove.dataset.cacheRemove});}});
+$('clear-unused').onclick=()=>{cacheBusy=true;renderCaches();send('clearUnused',{requestId:++cacheRequest});};
+$('clear-cache').onclick=()=>{cacheBusy=true;renderCaches();startWorker();send('clear');};
 function cancelImport(){startWorker();finishLoading();if(recoverImport('已取消開檔。'))return;toast('已取消。未完成的快取可從左側「清除 Trace 快取」移除。');let last;try{last=localStorage.getItem('trace-studio-session');}catch{}if(last){beginLoading('正在還原上一份 Trace',false);send('restore',{id:last});}else loadDemo();}
 $('cancel').onclick=cancelImport;
 $('loading').addEventListener('cancel',e=>{e.preventDefault();cancelImport();});
