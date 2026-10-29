@@ -106,6 +106,37 @@ function writeRecord(v,o,r) {
   v.setUint32(o+48,r.color,true);v.setUint32(o+52,r.kind,true);v.setFloat64(o+56,r.value||0,true);
 }
 function readRecord(v,o) {return {ts:v.getFloat64(o,true),dur:v.getFloat64(o+8,true),offset:v.getFloat64(o+16,true),length:v.getUint32(o+24,true),name:v.getUint32(o+28,true),endOffset:v.getFloat64(o+32,true),endLength:v.getUint32(o+40,true),depth:v.getUint32(o+44,true),color:v.getUint32(o+48,true),kind:v.getUint32(o+52,true),value:v.getFloat64(o+56,true)};}
+function counterEnvelope(){return {first:null,last:null,min:null,max:null,count:0};}
+const counterOrder=(a,b)=>a.ts-b.ts||a.offset-b.offset;
+function counterAdd(bucket,record){
+  if(!bucket.first||counterOrder(record,bucket.first)<0)bucket.first=record;
+  if(!bucket.last||counterOrder(record,bucket.last)>0)bucket.last=record;
+  if(!bucket.min||record.value<bucket.min.value)bucket.min=record;
+  if(!bucket.max||record.value>bucket.max.value)bucket.max=record;
+  bucket.count++;
+}
+function counterAddCopy(bucket,record){
+  if(!bucket.first||counterOrder(record,bucket.first)<0)bucket.first={...record};
+  if(!bucket.last||counterOrder(record,bucket.last)>0)bucket.last={...record};
+  if(!bucket.min||record.value<bucket.min.value)bucket.min={...record};
+  if(!bucket.max||record.value>bucket.max.value)bucket.max={...record};
+  bucket.count++;
+}
+function counterCopy(target,view,at,ts,value,offset){
+  target??={ts:0,value:0,offset:0,length:0,name:0,color:0,dur:0,kind:2,depth:0};
+  target.ts=ts;target.value=value;target.offset=offset;target.length=view.getUint32(at+24,true);target.name=view.getUint32(at+28,true);target.color=view.getUint32(at+48,true);return target;
+}
+function counterAddRaw(bucket,view,at,ts){
+  const value=view.getFloat64(at+56,true),offset=view.getFloat64(at+16,true);
+  if(!bucket.first||ts<bucket.first.ts||ts===bucket.first.ts&&offset<bucket.first.offset)bucket.first=counterCopy(bucket.first,view,at,ts,value,offset);
+  if(!bucket.last||ts>bucket.last.ts||ts===bucket.last.ts&&offset>bucket.last.offset)bucket.last=counterCopy(bucket.last,view,at,ts,value,offset);
+  if(!bucket.min||value<bucket.min.value)bucket.min=counterCopy(bucket.min,view,at,ts,value,offset);
+  if(!bucket.max||value>bucket.max.value)bucket.max=counterCopy(bucket.max,view,at,ts,value,offset);
+  bucket.count++;
+}
+function counterPoints(bucket){return [...new Map([bucket.first,bucket.last,bucket.min,bucket.max].filter(Boolean).map(r=>[r.offset,r])).values()].sort((a,b)=>a.ts-b.ts||a.offset-b.offset);}
+const packCounter=r=>[r.ts,r.value,r.offset,r.length,r.name,r.color];
+const unpackCounter=p=>({ts:p[0],value:p[1],offset:p[2],length:p[3],name:p[4],color:p[5],dur:0,kind:2,depth:0});
 
 export class TraceIndex {
   constructor(rawHandle,indexHandle) {
@@ -153,7 +184,7 @@ export class TraceIndex {
     const category=String(e.cat||'uncategorized');
     if(this.categories.size<1024 || this.categories.has(category))this.categories.set(category,(this.categories.get(category)||0)+1);
     const r={ts,dur:phase==='X'&&Number.isFinite(e.dur)&&e.dur>=0?e.dur:0,offset,length,name:this.eventName(e,t),color:hash(category),kind:0,depth:0};
-    this.onEvent?.(e,{...r,trackId:t.id});
+    if(phase!=='C')this.onEvent?.(e,{...r,trackId:t.id});
     if(phase==='B') {
       if(this.openSpans>=LIMITS.maxOpenSpans)throw Error('未結束的 B 事件超過 100,000 筆');
       r.depth=t.stack.length;t.stack.push(r);this.openSpans++;return;
@@ -168,9 +199,11 @@ export class TraceIndex {
       r.dur=e.dur;this.add(t,r);
     } else if(phase==='i'||phase==='I'||phase==='R') {r.kind=1;this.add(t,r);}
     else if(phase==='C') {
+      let linked=false;
       for(const [key,value] of Object.entries(e.args||{}))if(Number.isFinite(value)){
         const ct=this.track(e,`${String(e.name??'').trim()||'未命名事件'} · ${key}`,'counter');const name=this.eventName(e,t,key);
         if(!String(e.name??'').trim())ct.fallbackName=name;
+        if(!linked){this.onEvent?.(e,{...r,name,trackId:ct.id,kind:2,value});linked=true;}
         this.add(ct,{...r,name,kind:2,value});
       }
     } else {r.kind=3;this.add(t,r);}
@@ -189,14 +222,17 @@ export class TraceIndex {
     let end=-Infinity;
     rows.forEach((r,i)=>{writeRecord(v,i*RECORD,r);end=Math.max(end,r.ts+r.dur);});
     const start=rows[0].ts,last=rows[rows.length-1].ts;
-    const summary=new Map();
+    const summary=new Map(),counters=t.kind==='counter'?new Map():null;
     for(let i=0;i<rows.length;i++){
       const r=rows[i],bin=Math.min(31,Math.floor((r.ts-start)/Math.max(1,last-start)*32));
       const prior=summary.get(bin);
       if(!prior)summary.set(bin,{...r,n:1});
       else {const n=prior.n+1;if(r.dur>prior.dur)summary.set(bin,{...r,n});else prior.n=n;}
+      if(counters){if(!counters.has(bin))counters.set(bin,{...counterEnvelope(),from:i,to:i});const bucket=counters.get(bin);bucket.to=i;counterAdd(bucket,r);}
     }
     const block={at:this.index.append(data),count:rows.length,start,last,end,summary:[...summary.values()]};
+    // At most 32 buckets x 4 compact tuples; full records stay on disk.
+    if(counters)block.counterSummary=[...counters.values()].map(bucket=>[bucket.from,bucket.to,counterPoints(bucket).map(packCounter)]);
     t.blocks.push(this.blocks.length);this.blocks.push(block);this.buffered-=rows.length;t.buffer=[];
   }
   finish() {
@@ -212,7 +248,7 @@ export class TraceIndex {
     this.nameMap.clear();this.trackMap.clear();return this.manifest();
   }
   manifest() {
-    return {version:1,start:this.start,end:this.end,count:this.count,slices:this.slices,phases:this.phases,
+    return {version:1,counterSummaryVersion:1,start:this.start,end:this.end,count:this.count,slices:this.slices,phases:this.phases,
       tracks:this.tracks.map(({buffer,stack,lastTs,...t})=>t),blocks:this.blocks,names:this.names,
       processes:this.processes,metadata:this.metadata,categories:[...this.categories],top:this.top,
       skipped:this.skipped,unmatched:this.unmatched,outOfOrder:this.outOfOrder,nameLimit:this.nameLimit,
@@ -229,6 +265,7 @@ export class TraceIndex {
   query({start,end,trackIds,width=1000}) {
     const result=[];const pixel=Math.max(0.001,(end-start)/width);
     for(const id of trackIds){const t=this.tracks[id];if(!t)continue;
+      if(t.kind==='counter'){result.push({id,...this.queryCounter(t,start,end,width)});continue;}
       const bins=new Map();
       for(const bi of t.blocks){const b=this.blocks[bi];if(b.start>end||b.end<start)continue;
         let rows;
@@ -254,6 +291,30 @@ export class TraceIndex {
       result.push({id,rows});
     }
     return result;
+  }
+  queryCounter(track,start,end,width){
+    const pixel=Math.max(.001,(end-start)/Math.max(1,width)),bins=new Map();let before,after,beforeBlock,afterBlock;
+    const bin=ts=>{const key=Math.floor((ts-start)/pixel);if(!bins.has(key))bins.set(key,counterEnvelope());return bins.get(key);};
+    const context=(record)=>{if(record.ts<start&&(!before||record.ts>before.ts||record.ts===before.ts&&record.offset>before.offset))before=record;if(record.ts>end&&(!after||record.ts<after.ts||record.ts===after.ts&&record.offset<after.offset))after=record;};
+    const add=(record,coarse=false)=>{
+      if(record.ts<start||record.ts>end)return;
+      const bucket=bin(record.ts);counterAddCopy(bucket,record);if(coarse)bucket.coarse=true;
+    };
+    for(const bi of track.blocks){const block=this.blocks[bi];if(block.last<start){if(!beforeBlock||block.last>beforeBlock.last||block.last===beforeBlock.last&&block.at>beforeBlock.at)beforeBlock=block;continue;}if(block.start>end){if(!afterBlock||block.start<afterBlock.start||block.start===afterBlock.start&&block.at<afterBlock.at)afterBlock=block;continue;}let view;
+      const raw=(from,to)=>{view??=this.readBlock(block);for(let i=from;i<=to;i++){const at=i*RECORD,ts=view.getFloat64(at,true);if(ts<start)context(readRecord(view,at));else if(ts>end){context(readRecord(view,at));break;}else counterAddRaw(bin(ts),view,at,ts);}};
+      if(!block.counterSummary){raw(0,block.count-1);continue;}
+      for(const [from,to,points]of block.counterSummary){
+        const left=points[0][0],right=points.at(-1)[0];if(left>end){context(unpackCounter(points[0]));continue;}if(right<start){context(unpackCounter(points.at(-1)));continue;}
+        // Partially visible buckets are read exactly, so an offscreen extreme
+        // cannot hide a smaller but visible spike. Finer zoom also uses disk.
+        if(left>=start&&right<=end&&right-left<=pixel){for(const point of points)add(unpackCounter(point),points.length<to-from+1);}
+        else raw(from,to);
+      }
+    }
+    if(beforeBlock)context(beforeBlock.counterSummary?unpackCounter(beforeBlock.counterSummary.at(-1)[2].at(-1)):readRecord(this.readBlock(beforeBlock),(beforeBlock.count-1)*RECORD));
+    if(afterBlock)context(afterBlock.counterSummary?unpackCounter(afterBlock.counterSummary[0][2][0]):readRecord(this.readBlock(afterBlock),0));
+    const label=record=>record?{...record,label:this.names[record.name],trackId:track.id,lane:0}:null;
+    return {rows:[...bins.values()].flatMap(bucket=>counterPoints(bucket).map(record=>({...label(record),n:bucket.coarse?1:bucket.count,aggregated:!!bucket.coarse||bucket.count>4}))).sort((a,b)=>a.ts-b.ts||a.offset-b.offset),before:label(before),after:label(after)};
   }
   detail(r) {
     this.raw.flush();const read=(at,length)=>{

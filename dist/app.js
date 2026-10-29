@@ -3,12 +3,14 @@ import {groupTracks,allGroups,defaultCollapsed,makeTrackLayout,revealTrack,track
 import {eventSummary} from './event-summary.js';
 import {eventColor} from './event-colors.js';
 import {loadExtensionHost} from './extensions/runtime.js';
+import {counterPlot,formatCounterValue} from './counter-plot.js?v=0.3.2';
 const extensionHost=await loadExtensionHost();
 const $=id=>document.getElementById(id), esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const state={info:null,start:0,end:1,tracks:[],layout:[],rows:new Map(),groups:[],collapsed:new Set(),groupRows:new Map(),lanes:new Map(),density:'compact',pins:new Set(),expanded:new Set(),selected:null,detail:null,links:[],area:null,filter:'',view:'timeline',query:0,detailId:0,searchId:0,analysisId:0,analysis:null,analysisBusy:false,showLinks:true};
 let worker,queryTimer,paintFrame,toastTimer,searchResults=[],commandIndex=0,filteredCommands=[],importing=false,queryBusy=false,queryDirty=false;
 let importRecovery=null,restoringRecovery=null;
 let cacheRequest=0,cacheEntries=[],cacheBusy=false,cachePage=0;
+const counterEdges=new Map();
 let labelWidth=250,plotWidth=700,plotHeight=420,hitboxes=[],pointer=null,overviewPointer=null;
 const palette=['#a8c995','#aac4d9','#e3c489','#bcb2d2','#b4d7cd','#d9b7a8'];
 function formatTime(us,short=false){const n=Math.abs(us);if(n>=1e6)return `${(us/1e6).toFixed(short?2:3)} s`;if(n>=1000)return `${(us/1000).toFixed(short?1:3)} ms`;return `${us.toFixed(n<1?2:1)} µs`;}
@@ -17,11 +19,12 @@ function number(n){return n.toLocaleString('en-US');}
 function toast(message){$('toast').textContent=message;$('toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').hidden=true,6500);}
 function send(type,data={}){worker.postMessage({type,...data});}
 function forgetCaches(ids){try{if(ids.includes(localStorage.getItem('trace-studio-session'))){if(state.info&&!ids.includes(state.info.id))localStorage.setItem('trace-studio-session',state.info.id);else localStorage.removeItem('trace-studio-session');}}catch{}}
-function startWorker(){worker?.terminate();queryBusy=false;queryDirty=false;clearTimeout(queryTimer);queryTimer=null;const active=new Worker(new URL('./worker.js?v=0.3.1',import.meta.url),{type:'module'});worker=active;active.onmessage=event=>{if(worker===active)handleMessage(event);};active.onerror=e=>{if(worker!==active)return;finishLoading();toast(`背景引擎錯誤：${e.message}`);};}
+function startWorker(){worker?.terminate();queryBusy=false;queryDirty=false;clearTimeout(queryTimer);queryTimer=null;const active=new Worker(new URL('./worker.js?v=0.3.2',import.meta.url),{type:'module'});worker=active;active.onmessage=event=>{if(worker===active)handleMessage(event);};active.onerror=e=>{if(worker!==active)return;finishLoading();toast(`背景引擎錯誤：${e.message}`);};}
 function finishLoading(){importing=false;if($('loading').open)$('loading').close();}
 function beginLoading(title='正在讀取 Trace',remember=true){
   if(remember&&state.info)importRecovery={id:state.info.id,start:state.start,end:state.end,filter:state.filter,view:state.view,pins:new Set(state.pins),expanded:new Set(state.expanded),collapsed:new Set(state.collapsed),lanes:new Map(state.lanes),selected:state.selected,detail:state.detail,links:state.links,area:state.area,analysis:state.analysis,detailsHidden:$('details').hidden,scrollTop:$('tracks-scroll').scrollTop};
   importing=true;state.info=null;state.rows.clear();state.selected=null;state.links=[];state.area=null;state.detail=null;
+  counterEdges.clear();
   state.analysis=null;state.analysisId++;setAnalysisBusy(false);$('analysis-results').innerHTML='';$('export-analysis').disabled=true;
   $('loading-title').textContent=title;$('progress-bar').style.width='0%';$('progress-percent').textContent='0%';$('progress-bytes').textContent='準備磁碟索引…';$('progress-events').textContent='0';$('progress-rate').textContent='— MB/s';
   if(!$('loading').open)$('loading').showModal();
@@ -50,6 +53,7 @@ function handleMessage({data}){
     }
     case 'query':{
       queryBusy=false;if(data.requestId===state.query){state.rows=new Map(data.rows.map(r=>[r.id,r.rows]));state.groupRows=new Map((data.groups||[]).map(r=>[r.id,r.bins]));
+        counterEdges.clear();for(const row of data.rows)counterEdges.set(row.id,{before:row.before,after:row.after});
         let changed=false;for(const item of data.rows){const lanes=Math.min(4,item.rows.reduce((max,r)=>Math.max(max,1+(r.lane||0)),1));if(lanes>(state.lanes.get(item.id)||1)){state.lanes.set(item.id,lanes);changed=true;}}
         $('render-info').textContent=`${data.ms.toFixed(1)} ms · ${number(data.rows.reduce((n,r)=>n+r.rows.length,0))} 節點`;
         if(changed&&state.density==='compact')updateLayout();paint();
@@ -150,8 +154,15 @@ function drawTimeline(){
     }
     const rows=state.rows.get(row.track.id)||[];
     if(row.track.kind==='counter'){
-      let min=Infinity,max=-Infinity;for(const r of rows){min=Math.min(min,r.value);max=Math.max(max,r.value);}const range=Math.max(1,max-min);
-      if(rows.length){ctx.beginPath();rows.forEach((r,i)=>{const x=xTime(r.ts),py=y+row.h-13-(r.value-min)/range*(row.h-34);if(i===0)ctx.moveTo(x,py);else ctx.lineTo(x,py);hitboxes.push({x:x-4,y:py-7,w:8,h:14,record:r});});ctx.strokeStyle=eventColor({label:row.track.name},true).fill;ctx.lineWidth=1.3;ctx.stroke();ctx.lineWidth=1;ctx.lineTo(xTime(rows.at(-1).ts),y+row.h-10);ctx.lineTo(xTime(rows[0].ts),y+row.h-10);ctx.closePath();ctx.fillStyle=eventColor({label:row.track.name},dark).fill+'28';ctx.fill();ctx.fillStyle=dark?'#b8c9ab':'#697b60';ctx.font='12px Consolas,monospace';ctx.fillText(max.toFixed(1),8,y+17);}
+      const plot=counterPlot({rows,...counterEdges.get(row.track.id),start:state.start,end:state.end});
+      if(plot.points.length){
+        const xy=point=>({x:point.x*plotWidth,y:y+row.h-8-point.y*(row.h-16)});
+        ctx.beginPath();plot.points.forEach((point,i)=>{const p=xy(point);if(i===0)ctx.moveTo(p.x,p.y);else ctx.lineTo(p.x,p.y);if(point.record)hitboxes.push({x:p.x-4,y:p.y-7,w:8,h:14,record:point.record});});
+        ctx.strokeStyle=eventColor({label:row.track.name},true).fill;ctx.lineWidth=1.3;ctx.stroke();ctx.lineWidth=1;
+        ctx.lineTo(plot.points.at(-1).x*plotWidth,y+row.h-8);ctx.lineTo(plot.points[0].x*plotWidth,y+row.h-8);ctx.closePath();ctx.fillStyle=eventColor({label:row.track.name},dark).fill+'28';ctx.fill();
+        for(const point of plot.points)if(point.record){const selected=state.selected?.offset===point.record.offset&&state.selected.trackId===row.track.id;if(selected||plot.points.length<64){const p=xy(point);ctx.beginPath();ctx.arc(p.x,p.y,selected?4:2,0,Math.PI*2);ctx.fillStyle=selected?(dark?'#eef3df':'#244d35'):eventColor({label:row.track.name},true).fill;ctx.fill();}}
+        ctx.fillStyle=dark?'#b8c9ab':'#697b60';ctx.font='12px Consolas,monospace';ctx.fillText(formatCounterValue(plot.max),8,y+13);if(plot.min!==plot.max)ctx.fillText(formatCounterValue(plot.min),8,y+row.h-2);
+      }
       continue;
     }
     const maxLane=state.expanded.has(row.track.id)?8:4,laneHeight=state.density==='compact'?17:state.expanded.has(row.track.id)?22:19;
@@ -180,7 +191,7 @@ function renderDetail(){
   const linkHTML=links?.keys.length?`<section class="relation-section"><div class="relation-top"><b>⌁ 位址與事件關聯 <small>${links.capped?'前 64 筆 / ':''}${number(links.total)} 筆候選</small></b><button class="text-button" id="show-relations">${state.showLinks?'隱藏連線':'顯示連線'}</button></div><div class="relation-keys">${links.keys.map(k=>`<span class="relation-key">${linkType[k.type]} ${esc(k.key)} <span style="opacity:.6">${esc(k.path)}</span></span>`).join('')}</div><div class="relation-list">${links.matches.map((m,i)=>`<button class="relation-item" data-relation="${i}"><span>${esc(m.record.label)}<small>${m.relation.type==='address'?'相同位址':`${esc(m.relation.role)} → ${esc(m.otherRole)}`} · TID ${esc(state.info.tracks[m.record.trackId]?.tid)}</small></span><span class="relation-time">${formatTime(m.record.ts-state.info.start,true)} ↗</span></button>`).join('')||'<span style="font-size:14px;color:var(--muted)">此 Trace 沒有其他具有相同鍵的事件。</span>'}</div><p style="font-size:12px;color:var(--muted);margin-bottom:0">相同位址是比對線索，未證明因果或同一記憶體生命週期。連線最多繪製 16 筆。</p></section>`:'<section class="relation-section"><span style="font-size:14px;color:var(--muted)">此事件未找到可辨識的 address / ptr、defines / uses 或標準 flow ID。</span></section>';
   const custom=extensionHost.eventFields(e,{record:r,track:t}),extensionErrors=[...(extensionHost.startupErrors||[]),...custom.errors];
   const summary=[...eventSummary(e),...custom.fields],summaryHTML=summary.length?`<table class="event-fields"><caption>Trace 欄位摘要</caption><tbody>${summary.map(field=>`<tr title="${esc(field.path)}"><th scope="row">${esc(field.label)}</th><td>${esc(field.value)}</td></tr>`).join('')}</tbody></table>`:'';
-  $('details-content').innerHTML=`<div class="event-summary"><h3>${esc(name)}</h3><span class="category-badge">${esc(e.cat||'uncategorized')} · ph=${esc(e.ph||'?')}</span><dl><dt>持續時間</dt><dd>${formatTime(r.dur||0)}</dd><dt>相對起點</dt><dd>${formatTime(r.ts-state.info.start)}</dd><dt>原始時間戳</dt><dd>${esc(e.ts)} µs</dd><dt>Process</dt><dd>${esc(state.info.processes[e.pid]||e.pid)}</dd><dt>軌道</dt><dd>${esc(t?trackName(t):e.tid)} · ${esc(e.tid)}</dd></dl></div><div>${summaryHTML}${extensionErrors.map(error=>`<p class="warning">${esc(error.title)}：${esc(error.message)}</p>`).join('')}<details class="arguments-section" open><summary>原始 Arguments · ${Object.keys(e.args||{}).length} 欄位</summary><div class="json-tree">${Object.keys(e.args||{}).length?tree(e.args):'<span class="json-key">此事件沒有 args。</span>'}${Object.keys(extras).length?`<details open><summary>其他原始欄位</summary>${tree(extras)}</details>`:''}${d.endEvent?`<details open><summary>配對的 E 事件</summary>${tree(d.endEvent)}</details>`:''}</div></details><details class="raw-details" open><summary>完整原始 JSON</summary><pre>${esc(d.rawText)}</pre></details></div>${linkHTML}`;
+  $('details-content').innerHTML=`<div class="event-summary"><h3>${esc(name)}</h3><span class="category-badge">${esc(e.cat||'uncategorized')} · ph=${esc(e.ph||'?')}</span><dl>${r.kind===2?`<dt>數值</dt><dd>${esc(formatCounterValue(r.value))}</dd>`:`<dt>持續時間</dt><dd>${formatTime(r.dur||0)}</dd>`}<dt>相對起點</dt><dd>${formatTime(r.ts-state.info.start)}</dd><dt>原始時間戳</dt><dd>${esc(e.ts)} µs</dd><dt>Process</dt><dd>${esc(state.info.processes[e.pid]||e.pid)}</dd><dt>軌道</dt><dd>${esc(t?trackName(t):e.tid)} · ${esc(e.tid)}</dd></dl></div><div>${summaryHTML}${extensionErrors.map(error=>`<p class="warning">${esc(error.title)}：${esc(error.message)}</p>`).join('')}<details class="arguments-section" open><summary>原始 Arguments · ${Object.keys(e.args||{}).length} 欄位</summary><div class="json-tree">${Object.keys(e.args||{}).length?tree(e.args):'<span class="json-key">此事件沒有 args。</span>'}${Object.keys(extras).length?`<details open><summary>其他原始欄位</summary>${tree(extras)}</details>`:''}${d.endEvent?`<details open><summary>配對的 E 事件</summary>${tree(d.endEvent)}</details>`:''}</div></details><details class="raw-details" open><summary>完整原始 JSON</summary><pre>${esc(d.rawText)}</pre></details></div>${linkHTML}`;
 }
 function showArea(start,end,trackIds){state.selected=null;state.detail=null;state.links=[];state.area={start:Math.min(start,end),end:Math.max(start,end),trackIds};$('details').hidden=false;$('selection-heading').textContent='時間範圍';$('selection-badge').textContent='AREA SELECTION';$('details-content').innerHTML=`<div class="event-summary"><h3>${formatTime(state.area.end-state.area.start)}</h3><span class="category-badge">${trackIds.length} 條軌道</span><dl><dt>起點</dt><dd>${formatTime(state.area.start-state.info.start)}</dd><dt>終點</dt><dd>${formatTime(state.area.end-state.info.start)}</dd></dl></div><div><div class="args-header"><b>範圍選取</b></div><p style="font-size:14px;color:var(--muted);line-height:2">按 F 聚焦這段時間。拖曳兩側邊界可以調整範圍。範圍時間是牆鐘時間，不等同於 CPU 耗時。</p><button class="soft-button" id="area-focus">⤢ 聚焦範圍 <kbd>F</kbd></button></div>`;paint();}
 function renderEventRows(element,rows,note,search){
@@ -233,7 +244,7 @@ $('timeline').addEventListener('pointermove',e=>{
     }return;
   }
   const hit=hitboxes.findLast(h=>p.x>=h.x&&p.x<=h.x+h.w&&p.y>=h.y&&p.y<=h.y+h.h);
-  if(hit){$('tooltip').innerHTML=hit.groupId?`${esc(hit.label)}<small>${hit.count} 條軌道的摘要概覽；點選展開，非精確事件數或使用率。</small>`:`${esc(hit.record.label)}<small>${formatTime(hit.record.dur||0)}${hit.record.kind===2?` · value ${hit.record.value.toFixed(2)}`:''}${hit.record.n>1?` · 聚合 ${hit.record.n} 筆，放大可展開`:''}</small>`;$('tooltip').hidden=false;$('tooltip').style.left=`${Math.max(8,Math.min(innerWidth-350,e.clientX+14))}px`;$('tooltip').style.top=`${Math.min(innerHeight-80,e.clientY+15)}px`;}else $('tooltip').hidden=true;
+  if(hit){$('tooltip').innerHTML=hit.groupId?`${esc(hit.label)}<small>${hit.count} 條軌道的摘要概覽；點選展開，非精確事件數或使用率。</small>`:`${esc(hit.record.label)}<small>${formatTime(hit.record.dur||0)}${hit.record.kind===2?` · value ${hit.record.value.toFixed(2)}`:''}${hit.record.aggregated?' · 依畫素保留首尾與極值，點選為原始樣本':hit.record.n>1?` · 聚合 ${hit.record.n} 筆，放大可展開`:''}</small>`;$('tooltip').hidden=false;$('tooltip').style.left=`${Math.max(8,Math.min(innerWidth-350,e.clientX+14))}px`;$('tooltip').style.top=`${Math.min(innerHeight-80,e.clientY+15)}px`;}else $('tooltip').hidden=true;
 });
 $('timeline').addEventListener('pointerup',e=>{if(!pointer)return;const p=localPoint(e);if(!pointer.moved){const hit=hitboxes.findLast(h=>p.x>=h.x&&p.x<=h.x+h.w&&p.y>=h.y&&p.y<=h.y+h.h);if(hit?.groupId)toggleGroup(hit.groupId);else if(hit)selectRecord(hit.record);else clearSelection();}pointer=null;});
 $('timeline').addEventListener('pointercancel',()=>pointer=null);$('timeline').addEventListener('pointerleave',()=>$('tooltip').hidden=true);

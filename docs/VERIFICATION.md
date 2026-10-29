@@ -103,3 +103,13 @@
 舊版頁面不會持有新的 session lease，但舊版 Worker 會先獨占開啟 events.bin 並持有至關閉。因此清理在取得 lease 後，先對 events.bin 執行單檔移除；若檔案仍被舊版分頁鎖定，即回報 busy，不先遞迴刪除其他 metadata。這是因為 [File System Standard](https://fs.spec.whatwg.org/#api-filesystemdirectoryhandle-removeentry) 明確允許遞迴移除失敗時已刪除部分子檔案。
 
 新增先失敗再通過的舊版忙碌檔案順序測試，總數 45 項；並重驗新協作鎖的兩 Worker 清理、終止後釋放、未完成匯入回收。舊版分頁的使用狀態可能直到實際操作時才由 OPFS 判定；尚未以真實瀏覽器驗收。
+
+## v0.3.2：Counter 極值、邊界與數值尺度
+
+先重現 999／-999 短暫尖峰在聚合後只剩 10 的問題：原摘要與畫素桶都以 duration 選代表，counter 的 duration 全為零，因而留第一筆。改為 counter 專用首尾與 min／max 摘要、保留原始樣本指標、視窗邊界讀取確切索引。舊 manifest 缺少摘要時仍可讀原索引，不需強制清快取。
+
+新增 counter-plot.js，裁切左右相鄰樣本的連線，小數自動尺度與刻度不再捨入成 0.0，常數置中，點選提供原始數值／JSON。插值只產生畫面幾何，不是可選事件或分析樣本。C 事件的 address 關聯改指向有數值的 counter 軌道，避免跳至空白基底軌道；舊關聯索引需重新匯入才能更新。
+
+新增九項測試，總數 54 項：正負尖峰與首尾、部分時間桶、亂序區塊與舊 manifest 的差分核對、相同時間戳跨區塊的相鄰樣本、counter address 跳轉、極小／極大數值與常數的幾何、插值不捏造事件，以及正式 Worker 匯入／細節／還原。擴充 app.js 替身測試，核對 1e-6／2e-6 刻度及點選原始數值。
+
+對最終核心重新執行同規格 3 GB 區段引擎測試；另以 100 萬 counter／四曲線、80 查詢檢查極值與延遲。數據、受測來源雜湊與限制見 [PERFORMANCE.md](PERFORMANCE.md)。這些結果不替代真實瀏覽器與真實 3 GB trace 的驗收。

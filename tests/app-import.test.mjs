@@ -12,8 +12,8 @@ test('application startup and file selection reach the loaded timeline',async()=
   const root=await mkdtemp(join(tmpdir(),'trace-app-')),workers=[],errors=[],frames=[];
   const html=await readFile(new URL('../dist/index.html',import.meta.url),'utf8');
   const classList=()=>{const values=new Set();return {contains:x=>values.has(x),add:x=>values.add(x),toggle(x,on){if(on??!values.has(x))values.add(x);else values.delete(x);}};};
-  const canvas=new Proxy({measureText:text=>({width:String(text).length*7})},{get:(o,k)=>o[k]||(()=>{})});
-  function element(id){return {id,style:{setProperty(){}},classList:classList(),dataset:{},value:'',textContent:'',innerHTML:'',hidden:false,open:false,scrollTop:0,clientWidth:1100,clientHeight:400,parentElement:{clientHeight:30},handlers:{},addEventListener(type,fn){this.handlers[type]=fn;},setAttribute(){},getBoundingClientRect:()=>({width:1100,height:400,left:0,top:0}),getContext:()=>canvas,showModal(){this.open=true;},close(){this.open=false;},click(){this.onclick?.();},focus(){}};}
+  const canvasLabels=[],canvas=new Proxy({measureText:text=>({width:String(text).length*7}),fillText:text=>canvasLabels.push(text)},{get:(o,k)=>o[k]||(()=>{})});
+  function element(id){return {id,style:{setProperty(){}},classList:classList(),dataset:{},value:'',textContent:'',innerHTML:'',hidden:false,open:false,scrollTop:0,clientWidth:1100,clientHeight:400,parentElement:{clientHeight:30},handlers:{},addEventListener(type,fn){this.handlers[type]=fn;},setAttribute(){},setPointerCapture(){},getBoundingClientRect:()=>({width:1100,height:400,left:0,top:0}),getContext:()=>canvas,showModal(){this.open=true;},close(){this.open=false;},click(){this.onclick?.();},focus(){}};}
   const elements=new Map([...html.matchAll(/id="([^"]+)"/g)].map(m=>[m[1],element(m[1])]));
   const storage=new Map();
   Object.assign(globalThis,{
@@ -27,6 +27,7 @@ test('application startup and file selection reach the loaded timeline',async()=
       constructor(){workers.push(this);this.native=new NodeWorker(new URL('./worker-harness.mjs',import.meta.url),{workerData:{root}});this.ready=false;this.pending=[];this.native.on('error',error=>errors.push(error));this.native.on('message',data=>{
         if(data.type==='initialized'){this.ready=true;for(const data of this.pending)this.native.postMessage(data);this.pending=[];return;}
         if(data.type==='ready')this.lastReady=data;
+        if(data.type==='query')this.lastQuery=data;
         try{this.onmessage?.({data});}catch(error){errors.push(error);}
       });}
       postMessage(data){if(this.ready)this.native.postMessage(data);else this.pending.push(data);}
@@ -82,5 +83,12 @@ test('application startup and file selection reach the loaded timeline',async()=
     elements.get('storage').click();await until(()=>elements.get('cache-status').textContent.includes('份快取'));
     elements.get('clear-unused').click();await until(()=>elements.get('cache-status').textContent.startsWith('已清除'));
     assert.equal(elements.get('file-name').textContent,'input.json');assert.match(elements.get('cache-list').innerHTML,/目前開啟/);
+    elements.get('cache-dialog').close();
+    input.files=[new File([JSON.stringify([{ph:'C',name:'Power',pid:1,tid:1,ts:0,args:{watts:.000001}},{ph:'C',name:'Power',pid:1,tid:1,ts:1000,args:{watts:.000002}}])],'counter.json')];
+    input.onchange({target:input});await until(()=>elements.get('file-name').textContent==='counter.json');elements.get('expand-groups').click();
+    await until(()=>workers.at(-1).lastQuery?.rows.some(track=>track.rows.some(record=>record.kind===2)));draw();
+    assert(canvasLabels.includes('1e-6')&&canvasLabels.includes('2e-6'),'axis labels must not round small values to zero');
+    elements.get('timeline').handlers.pointerdown({button:0,clientX:0,clientY:104,pointerId:1});elements.get('timeline').handlers.pointerup({clientX:0,clientY:104});
+    await until(()=>elements.get('details-content').innerHTML.includes('<dt>數值</dt><dd>1e-6</dd>'));
   }finally{await Promise.all(workers.map(w=>w.stopped||w.terminate()));await rm(root,{recursive:true});}
 });

@@ -75,4 +75,49 @@ test('dense queries are bounded by viewport resolution and event buffers stay bo
   for(let i=0;i<50000;i++){const e={ph:'X',name:'task',ts:i,dur:.1,pid:1,tid:i%16};db.ingest(e,JSON.stringify(e));assert(db.buffered<LIMITS.bufferedEvents);}
   db.finish();const rows=db.query({start:0,end:50000,trackIds:[0],width:100})[0].rows;assert(rows.length<=101);assert(rows.reduce((sum,r)=>sum+r.n,0)>=3000);
 });
+
+test('counter aggregation preserves positive and negative spikes, endpoints and exact raw details',()=>{
+  const events=Array.from({length:12288},(_,i)=>({ph:'C',name:'Power',pid:1,tid:1,ts:i,args:{watts:i===101?999:i===102?-999:i===106?500:10}}));
+  const {db,manifest}=build(events),id=manifest.tracks.find(t=>t.kind==='counter').id;
+  for(const width of [4,400]){
+    const rows=db.query({start:0,end:12287,trackIds:[id],width})[0].rows;
+    assert.equal(Math.max(...rows.map(r=>r.value)),999);assert.equal(Math.min(...rows.map(r=>r.value)),-999);
+    assert.equal(rows[0].ts,0);assert.equal(rows.at(-1).ts,12287);assert(rows.length<=4*(width+1));
+    const peak=rows.find(r=>r.value===999);assert.equal(db.detail(peak).event.args.watts,999);
+  }
+  const cropped=db.query({start:104.5,end:110.5,trackIds:[id],width:1})[0].rows;
+  assert.equal(Math.max(...cropped.map(r=>r.value)),500);assert(cropped.every(r=>r.ts>=104.5&&r.ts<=110.5));
+});
+
+test('counter extrema match exact source ranges across unsorted blocks and legacy manifests',()=>{
+  const events=Array.from({length:16000},(_,i)=>({ph:'C',pid:1,tid:1,name:'Temperature',ts:(i*97)%12289,args:{value:Math.sin(i)*100,index:i}}));
+  const {db,manifest,raw,index}=build(events),id=manifest.tracks.find(t=>t.kind==='counter').id;
+  const legacy=JSON.parse(JSON.stringify(manifest));delete legacy.counterSummaryVersion;for(const block of legacy.blocks)delete block.counterSummary;
+  const restored=new TraceIndex(raw,index).restore(legacy);
+  for(let i=0;i<24;i++){
+    const start=(i*283)%11000+.25,end=start+10+i*41,width=[1,10,1000][i%3],exact=events.filter(e=>e.ts>=start&&e.ts<=end);
+    for(const trace of [db,restored]){
+      const result=trace.query({start,end,width,trackIds:[id]})[0],values=result.rows.map(r=>r.value);
+      assert.equal(Math.max(...values),Math.max(...exact.map(e=>e.args.value)));assert.equal(Math.min(...values),Math.min(...exact.map(e=>e.args.value)));
+      assert.equal(result.rows[0]?.ts,Math.min(...exact.map(e=>e.ts)));assert.equal(result.rows.at(-1)?.ts,Math.max(...exact.map(e=>e.ts)));
+      assert(result.rows.length<=4*(width+1));assert(result.rows.every(r=>r.ts>=start&&r.ts<=end));
+      const left=events.filter(e=>e.ts<start).sort((a,b)=>b.ts-a.ts||b.args.index-a.args.index)[0],right=events.filter(e=>e.ts>end).sort((a,b)=>a.ts-b.ts||a.args.index-b.args.index)[0];
+      assert.equal(result.before?.ts,left?.ts);assert.equal(result.after?.ts,right?.ts);
+    }
+  }
+  for(const bi of manifest.tracks[id].blocks){const summary=manifest.blocks[bi].counterSummary;assert(summary.length<=32);assert(summary.flatMap(bucket=>bucket[2]).length<=128);}
+});
+
+test('counter context uses the last preceding and first following sample, including tied blocks',()=>{
+  const events=Array.from({length:8200},(_,i)=>({ph:'C',name:'Signal',ts:100,pid:1,tid:1,args:{value:i,index:i}}));
+  const {db,manifest}=build(events),id=manifest.tracks.find(t=>t.kind==='counter').id;
+  const past=db.query({start:101,end:102,trackIds:[id],width:100})[0];assert.equal(past.rows.length,0);assert.equal(db.detail(past.before).event.args.index,8199);
+  const future=db.query({start:98,end:99,trackIds:[id],width:100})[0];assert.equal(future.rows.length,0);assert.equal(db.detail(future.after).event.args.index,0);
+});
+
+test('address links to counter events resolve to a visible numeric track',()=>{
+  const events=[{ph:'C',name:'Power',pid:1,tid:1,ts:10,args:{watts:42,address:'0x1234'}},{ph:'X',name:'Related operation',pid:1,tid:2,ts:20,dur:5,args:{ptr:'0x1234'}}];
+  const {db,links,manifest}=build(events),track=manifest.tracks.find(t=>t.kind==='slice'&&t.count),record=db.query({start:0,end:30,trackIds:[track.id],width:100})[0].rows[0];
+  const match=links.find(events[1],record).matches[0].record;assert(manifest.tracks[match.trackId].count>0);assert.equal(manifest.tracks[match.trackId].kind,'counter');assert.equal(db.detail(match).event.args.watts,42);
+});
 test('demo includes actual linkable addresses and a selected long event',()=>{const {db,links,manifest}=build(demoTrace().traceEvents);const top=manifest.top[0];assert.equal(db.detail(top).event.name,'Checkout interaction');assert.equal(links.find(db.detail(top).event,top).matches.length,3);});

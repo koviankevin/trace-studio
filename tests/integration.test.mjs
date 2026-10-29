@@ -113,11 +113,27 @@ test('worker analysis remains queryable, cancels and returns accurate index-only
     reply=next(worker,'analysis',22);worker.postMessage({type:'analysis',requestId:22,start:info.start,end:info.end,trackIds,thresholdUs:1000});const result=(await reply).result;assert.equal(result.complete,8960);assert.equal(result.tracks.length,112);assert.deepEqual(result.extensions,[]);assert(result.longEvents>0);assert(result.longest.length<=50);
   }finally{await worker.terminate();await rm(root,{recursive:true});}
 });
+
+test('counter envelopes, boundary context and raw details survive the actual worker cache restore',async()=>{
+  const root=await mkdtemp(join(tmpdir(),'trace-studio-test-'));let worker;
+  try{
+    worker=new Worker(new URL('./worker-harness.mjs',import.meta.url),{workerData:{root}});await next(worker,'initialized');
+    const events=Array.from({length:12000},(_,i)=>({ph:'C',name:'Power',pid:1,tid:1,ts:i*10,args:{watts:i===101?999:i===102?-999:10}}));
+    let reply=next(worker,'ready');worker.postMessage({type:'import',file:new File([JSON.stringify(events)],'power.json')});const info=(await reply).info,id=info.tracks.find(t=>t.kind==='counter').id;assert.equal(info.counterSummaryVersion,1);
+    for(let pass=0;pass<2;pass++){
+      reply=next(worker,'query',60+pass);worker.postMessage({type:'query',requestId:60+pass,start:0,end:info.end,width:4,trackIds:[id]});const rows=(await reply).rows[0].rows;assert.equal(Math.max(...rows.map(r=>r.value)),999);assert.equal(Math.min(...rows.map(r=>r.value)),-999);
+      reply=next(worker,'detail',70+pass);worker.postMessage({type:'detail',requestId:70+pass,record:rows.find(r=>r.value===999)});assert.equal((await reply).event.args.watts,999);
+      if(pass===0){await worker.terminate();worker=new Worker(new URL('./worker-harness.mjs',import.meta.url),{workerData:{root}});await next(worker,'initialized');reply=next(worker,'ready');worker.postMessage({type:'restore',id:info.id});await reply;}
+    }
+    reply=next(worker,'query',80);worker.postMessage({type:'query',requestId:80,start:502,end:505,width:100,trackIds:[id]});const result=(await reply).rows[0];assert.equal(result.rows.length,0);assert.equal(result.before.ts,500);assert.equal(result.after.ts,510);
+  }finally{await worker?.terminate();await rm(root,{recursive:true});}
+});
 test('application element references and local assets exist; engine benchmark hashes match',async()=>{
   const base=new URL('../dist/',import.meta.url),html=await readFile(new URL('index.html',base),'utf8'),app=await readFile(new URL('app.js',base),'utf8');
   const ids=new Set([...html.matchAll(/id="([^"]+)"/g)].map(m=>m[1]));const dynamic=new Set(['area-focus','show-relations']);
   for(const m of app.matchAll(/\$\('([^']+)'\)/g))assert(ids.has(m[1])||dynamic.has(m[1]),`Missing #${m[1]}`);
-  for(const asset of ['style.css','workspace.css','app.js','worker.js','core.js','relations.js','navigation.js','track-layout.js','event-summary.js','event-colors.js','analysis.js','session-store.js','extensions/runtime.js','extensions/custom.js','extensions/example.js','hardware-demo.js','icon.svg'])assert((await readFile(new URL(asset,base))).length>0);
-  const benchmark=JSON.parse(await readFile(new URL('../docs/benchmark-2026-10-29-v0.2.1.json',import.meta.url),'utf8'));
+  for(const asset of ['style.css','workspace.css','app.js','worker.js','core.js','relations.js','navigation.js','track-layout.js','event-summary.js','event-colors.js','analysis.js','session-store.js','counter-plot.js','extensions/runtime.js','extensions/custom.js','extensions/example.js','hardware-demo.js','icon.svg'])assert((await readFile(new URL(asset,base))).length>0);
+  const benchmark=JSON.parse(await readFile(new URL('../docs/benchmark-2026-10-29-v0.3.2.json',import.meta.url),'utf8'));
   for(const [file,expected]of Object.entries(benchmark.sourceHashes))assert.equal(createHash('sha256').update(await readFile(new URL(file,base))).digest('hex'),expected,`Rerun benchmark after changing ${file}`);
+  const counters=JSON.parse(await readFile(new URL('../docs/counter-benchmark-2026-10-29-v0.3.2.json',import.meta.url),'utf8'));assert.equal(counters.sourceHashes['core.js'],benchmark.sourceHashes['core.js']);
 });
