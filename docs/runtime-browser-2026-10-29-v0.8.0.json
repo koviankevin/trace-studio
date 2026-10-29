@@ -1,0 +1,691 @@
+{
+  "version": "0.8.0",
+  "recordedAt": "2026-10-29T14:54:33.800Z",
+  "environment": "Windows ChatGPT in-app browser, Chromium 156; browser-reported visible page, 1280x720 viewport; pre-existing synthetic 3 GB OPFS index restored, no JSON reparse",
+  "sourceHashes": {
+    "core.js": "7cf9690fe79af52c5764a8bcaf38c8f1ca92b9ba0942cb2f72e209a57c095d8c",
+    "relations.js": "0a6539ec334878b123070d1b4171a739f07dd3005286ae027e398474cbe7c714",
+    "worker.js": "b8b0769f3a1a6c10b7c300d079b372686b129866307e3aaab8f04cd18fce89de",
+    "app.js": "51e57b4ba4a77752f4a93fbfb6f280692700ebd7ec196f50f8dc636cf71b99ca",
+    "runtime-metrics.js": "3d0865630489b550d1ea96913fd035ea668da15dd666d590c9eec8d55c40dfde",
+    "index.html": "86f05512b52c4d1025fa7ac082436dc53add84eedb5e37e58bc25d03ce26a861",
+    "workspace.css": "314493f501c2c723335b627adc897d4c5e15bda548ef5de10f7985d1ce78f245"
+  },
+  "zoom": {
+    "procedure": "Fit all, start capture, 15 pairs of zoom-in and zoom-out buttons; wait for each completed Canvas update",
+    "report": {
+      "version": 1,
+      "enabled": false,
+      "windowLimit": 512,
+      "elapsedMs": 19980.29999998212,
+      "intents": 30,
+      "coalescedIntents": 0,
+      "hiddenOmitted": 0,
+      "completedFrames": 30,
+      "completedQueries": 33,
+      "canvas": {
+        "samples": 30,
+        "medianMs": 53.19999998807907,
+        "p95Ms": 66.19999998807907,
+        "maxMs": 83.5
+      },
+      "roundTrip": {
+        "samples": 33,
+        "medianMs": 16.19999998807907,
+        "p95Ms": 21.19999998807907,
+        "maxMs": 22.899999976158142
+      },
+      "worker": {
+        "samples": 33,
+        "medianMs": 4.300000011920929,
+        "p95Ms": 7.300000011920929,
+        "maxMs": 8.800000011920929
+      },
+      "longTasks": {
+        "supported": true,
+        "count": 0,
+        "totalMs": 0,
+        "maxMs": 0
+      },
+      "heap": {
+        "lastBytes": 19010706,
+        "maxSampledBytes": 24387942
+      },
+      "observations": {
+        "frames": [
+          {
+            "canvasMs": 47.30000001192093,
+            "roundTripMs": 12.5,
+            "workerMs": 3.7999999821186066
+          },
+          {
+            "canvasMs": 61.19999998807907,
+            "roundTripMs": 18.30000001192093,
+            "workerMs": 5.5
+          },
+          {
+            "canvasMs": 51.39999997615814,
+            "roundTripMs": 14.099999994039536,
+            "workerMs": 3.5
+          },
+          {
+            "canvasMs": 53.900000005960464,
+            "roundTripMs": 17.69999998807907,
+            "workerMs": 6.5
+          },
+          {
+            "canvasMs": 49.400000005960464,
+            "roundTripMs": 12.900000005960464,
+            "workerMs": 3
+          },
+          {
+            "canvasMs": 58.5,
+            "roundTripMs": 21.19999998807907,
+            "workerMs": 6.9000000059604645
+          },
+          {
+            "canvasMs": 57.19999998807907,
+            "roundTripMs": 19.299999982118607,
+            "workerMs": 3.4000000059604645
+          },
+          {
+            "canvasMs": 50.39999997615814,
+            "roundTripMs": 14.699999988079071,
+            "workerMs": 5
+          },
+          {
+            "canvasMs": 49.19999998807907,
+            "roundTripMs": 15.300000011920929,
+            "workerMs": 3.699999988079071
+          },
+          {
+            "canvasMs": 49.70000001788139,
+            "roundTripMs": 13.5,
+            "workerMs": 4.5999999940395355
+          },
+          {
+            "canvasMs": 48.099999994039536,
+            "roundTripMs": 14.200000017881393,
+            "workerMs": 2.699999988079071
+          },
+          {
+            "canvasMs": 48.29999998211861,
+            "roundTripMs": 14.900000005960464,
+            "workerMs": 5.399999976158142
+          },
+          {
+            "canvasMs": 48.5,
+            "roundTripMs": 13.300000011920929,
+            "workerMs": 3
+          },
+          {
+            "canvasMs": 75,
+            "roundTripMs": 19.599999994039536,
+            "workerMs": 4.300000011920929
+          },
+          {
+            "canvasMs": 52.400000005960464,
+            "roundTripMs": 15.799999982118607,
+            "workerMs": 3.9000000059604645
+          },
+          {
+            "canvasMs": 48.400000005960464,
+            "roundTripMs": 14.400000005960464,
+            "workerMs": 5.899999976158142
+          },
+          {
+            "canvasMs": 52.099999994039536,
+            "roundTripMs": 15.5,
+            "workerMs": 3.800000011920929
+          },
+          {
+            "canvasMs": 83.5,
+            "roundTripMs": 21.599999994039536,
+            "workerMs": 7.199999988079071
+          },
+          {
+            "canvasMs": 54.79999998211861,
+            "roundTripMs": 19.5,
+            "workerMs": 5.0999999940395355
+          },
+          {
+            "canvasMs": 59.89999997615814,
+            "roundTripMs": 21,
+            "workerMs": 6.800000011920929
+          },
+          {
+            "canvasMs": 56.900000005960464,
+            "roundTripMs": 20,
+            "workerMs": 4.0999999940395355
+          },
+          {
+            "canvasMs": 61.69999998807907,
+            "roundTripMs": 22.899999976158142,
+            "workerMs": 8.300000011920929
+          },
+          {
+            "canvasMs": 53.599999994039536,
+            "roundTripMs": 16.19999998807907,
+            "workerMs": 4
+          },
+          {
+            "canvasMs": 53.19999998807907,
+            "roundTripMs": 14.599999994039536,
+            "workerMs": 4.9000000059604645
+          },
+          {
+            "canvasMs": 57.30000001192093,
+            "roundTripMs": 19.30000001192093,
+            "workerMs": 3.800000011920929
+          },
+          {
+            "canvasMs": 52.900000005960464,
+            "roundTripMs": 19.099999994039536,
+            "workerMs": 8.800000011920929
+          },
+          {
+            "canvasMs": 53.900000005960464,
+            "roundTripMs": 17.5,
+            "workerMs": 5.700000017881393
+          },
+          {
+            "canvasMs": 55.599999994039536,
+            "roundTripMs": 19,
+            "workerMs": 3.7999999821186066
+          },
+          {
+            "canvasMs": 52.19999998807907,
+            "roundTripMs": 17.400000005960464,
+            "workerMs": 2.5
+          },
+          {
+            "canvasMs": 66.19999998807907,
+            "roundTripMs": 12.900000005960464,
+            "workerMs": 4.0999999940395355
+          }
+        ],
+        "queries": [
+          {
+            "roundTripMs": 11,
+            "workerMs": 3.9000000059604645
+          },
+          {
+            "roundTripMs": 20.69999998807907,
+            "workerMs": 7.300000011920929
+          },
+          {
+            "roundTripMs": 12.5,
+            "workerMs": 3.7999999821186066
+          },
+          {
+            "roundTripMs": 18.30000001192093,
+            "workerMs": 5.5
+          },
+          {
+            "roundTripMs": 14.099999994039536,
+            "workerMs": 3.5
+          },
+          {
+            "roundTripMs": 17.69999998807907,
+            "workerMs": 6.5
+          },
+          {
+            "roundTripMs": 12.900000005960464,
+            "workerMs": 3
+          },
+          {
+            "roundTripMs": 21.19999998807907,
+            "workerMs": 6.9000000059604645
+          },
+          {
+            "roundTripMs": 19.299999982118607,
+            "workerMs": 3.4000000059604645
+          },
+          {
+            "roundTripMs": 14.699999988079071,
+            "workerMs": 5
+          },
+          {
+            "roundTripMs": 15.300000011920929,
+            "workerMs": 3.699999988079071
+          },
+          {
+            "roundTripMs": 13.5,
+            "workerMs": 4.5999999940395355
+          },
+          {
+            "roundTripMs": 14.200000017881393,
+            "workerMs": 2.699999988079071
+          },
+          {
+            "roundTripMs": 14.900000005960464,
+            "workerMs": 5.399999976158142
+          },
+          {
+            "roundTripMs": 13.300000011920929,
+            "workerMs": 3
+          },
+          {
+            "roundTripMs": 19.599999994039536,
+            "workerMs": 4.300000011920929
+          },
+          {
+            "roundTripMs": 15.799999982118607,
+            "workerMs": 3.9000000059604645
+          },
+          {
+            "roundTripMs": 14.400000005960464,
+            "workerMs": 5.899999976158142
+          },
+          {
+            "roundTripMs": 15.5,
+            "workerMs": 3.800000011920929
+          },
+          {
+            "roundTripMs": 21.599999994039536,
+            "workerMs": 7.199999988079071
+          },
+          {
+            "roundTripMs": 19.5,
+            "workerMs": 5.0999999940395355
+          },
+          {
+            "roundTripMs": 21,
+            "workerMs": 6.800000011920929
+          },
+          {
+            "roundTripMs": 20,
+            "workerMs": 4.0999999940395355
+          },
+          {
+            "roundTripMs": 22.899999976158142,
+            "workerMs": 8.300000011920929
+          },
+          {
+            "roundTripMs": 16.19999998807907,
+            "workerMs": 4
+          },
+          {
+            "roundTripMs": 14.599999994039536,
+            "workerMs": 4.9000000059604645
+          },
+          {
+            "roundTripMs": 19.30000001192093,
+            "workerMs": 3.800000011920929
+          },
+          {
+            "roundTripMs": 19.099999994039536,
+            "workerMs": 8.800000011920929
+          },
+          {
+            "roundTripMs": 17.5,
+            "workerMs": 5.700000017881393
+          },
+          {
+            "roundTripMs": 19,
+            "workerMs": 3.7999999821186066
+          },
+          {
+            "roundTripMs": 17.400000005960464,
+            "workerMs": 2.5
+          },
+          {
+            "roundTripMs": 12.900000005960464,
+            "workerMs": 4.0999999940395355
+          },
+          {
+            "roundTripMs": 11.400000005960464,
+            "workerMs": 4.300000011920929
+          }
+        ]
+      },
+      "notes": [
+        "Canvas latency ends when the matching query result is submitted by drawTimeline; it includes debounce/queue time, not compositor presentation or FPS.",
+        "Only completed latest-state updates are sampled; coalesced intents and hidden-page observations are counted separately. Quantiles use floor((n-1)*p) over the bounded recent window.",
+        "JS heap is an optional browser-provided approximation, may exclude Worker heaps or include shared heaps, and is not total browser peak memory."
+      ],
+      "trace": {
+        "events": 2932637,
+        "tracks": 8,
+        "inputBytes": 3000583032,
+        "cacheBytes": 3185339146
+      },
+      "viewport": {
+        "width": 1280,
+        "height": 720,
+        "pixelRatio": 1
+      },
+      "visibility": "visible",
+      "browser": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36"
+    }
+  },
+  "pan": {
+    "procedure": "Start capture, zoom in once, 8 alternating D/A key presses, allow animation tail to complete, stop capture",
+    "report": {
+      "version": 1,
+      "enabled": false,
+      "windowLimit": 512,
+      "elapsedMs": 18169.399999976158,
+      "intents": 38,
+      "coalescedIntents": 17,
+      "hiddenOmitted": 0,
+      "completedFrames": 21,
+      "completedQueries": 34,
+      "canvas": {
+        "samples": 21,
+        "medianMs": 56.29999998211861,
+        "p95Ms": 67.69999998807907,
+        "maxMs": 70.09999999403954
+      },
+      "roundTrip": {
+        "samples": 34,
+        "medianMs": 18.100000023841858,
+        "p95Ms": 30.80000001192093,
+        "maxMs": 62.39999997615814
+      },
+      "worker": {
+        "samples": 34,
+        "medianMs": 4.100000023841858,
+        "p95Ms": 5.5999999940395355,
+        "maxMs": 8.300000011920929
+      },
+      "longTasks": {
+        "supported": true,
+        "count": 0,
+        "totalMs": 0,
+        "maxMs": 0
+      },
+      "heap": {
+        "lastBytes": 21781890,
+        "maxSampledBytes": 24959276
+      },
+      "observations": {
+        "frames": [
+          {
+            "canvasMs": 51.900000005960464,
+            "roundTripMs": 18.099999994039536,
+            "workerMs": 3.399999976158142
+          },
+          {
+            "canvasMs": 45.80000001192093,
+            "roundTripMs": 17.400000005960464,
+            "workerMs": 5.4000000059604645
+          },
+          {
+            "canvasMs": 57.79999998211861,
+            "roundTripMs": 16.600000023841858,
+            "workerMs": 2.899999976158142
+          },
+          {
+            "canvasMs": 42,
+            "roundTripMs": 12.099999994039536,
+            "workerMs": 2.899999976158142
+          },
+          {
+            "canvasMs": 56.599999994039536,
+            "roundTripMs": 15.800000011920929,
+            "workerMs": 4.199999988079071
+          },
+          {
+            "canvasMs": 46.30000001192093,
+            "roundTripMs": 14.800000011920929,
+            "workerMs": 4.100000023841858
+          },
+          {
+            "canvasMs": 53.5,
+            "roundTripMs": 18.700000017881393,
+            "workerMs": 5.5999999940395355
+          },
+          {
+            "canvasMs": 66,
+            "roundTripMs": 18.100000023841858,
+            "workerMs": 4.200000017881393
+          },
+          {
+            "canvasMs": 50.5,
+            "roundTripMs": 15.900000005960464,
+            "workerMs": 2.699999988079071
+          },
+          {
+            "canvasMs": 58,
+            "roundTripMs": 22.799999982118607,
+            "workerMs": 5.200000017881393
+          },
+          {
+            "canvasMs": 60.599999994039536,
+            "roundTripMs": 19.599999994039536,
+            "workerMs": 5.0999999940395355
+          },
+          {
+            "canvasMs": 54.19999998807907,
+            "roundTripMs": 15.699999988079071,
+            "workerMs": 3.5999999940395355
+          },
+          {
+            "canvasMs": 70.09999999403954,
+            "roundTripMs": 17.80000001192093,
+            "workerMs": 3.100000023841858
+          },
+          {
+            "canvasMs": 56.30000001192093,
+            "roundTripMs": 18.799999982118607,
+            "workerMs": 4.800000011920929
+          },
+          {
+            "canvasMs": 54.599999994039536,
+            "roundTripMs": 18.399999976158142,
+            "workerMs": 4.0999999940395355
+          },
+          {
+            "canvasMs": 56.29999998211861,
+            "roundTripMs": 16.200000017881393,
+            "workerMs": 4.0999999940395355
+          },
+          {
+            "canvasMs": 56.19999998807907,
+            "roundTripMs": 18.69999998807907,
+            "workerMs": 4.4000000059604645
+          },
+          {
+            "canvasMs": 60.20000001788139,
+            "roundTripMs": 13.199999988079071,
+            "workerMs": 2.800000011920929
+          },
+          {
+            "canvasMs": 59.099999994039536,
+            "roundTripMs": 18.599999994039536,
+            "workerMs": 5.699999988079071
+          },
+          {
+            "canvasMs": 50.099999994039536,
+            "roundTripMs": 14.599999994039536,
+            "workerMs": 3.7999999821186066
+          },
+          {
+            "canvasMs": 67.69999998807907,
+            "roundTripMs": 16.899999976158142,
+            "workerMs": 4
+          }
+        ],
+        "queries": [
+          {
+            "roundTripMs": 15.799999982118607,
+            "workerMs": 8.300000011920929
+          },
+          {
+            "roundTripMs": 13.5,
+            "workerMs": 4.799999982118607
+          },
+          {
+            "roundTripMs": 18.099999994039536,
+            "workerMs": 3.399999976158142
+          },
+          {
+            "roundTripMs": 26.80000001192093,
+            "workerMs": 3.4000000059604645
+          },
+          {
+            "roundTripMs": 30.80000001192093,
+            "workerMs": 3.9000000059604645
+          },
+          {
+            "roundTripMs": 17.400000005960464,
+            "workerMs": 5.4000000059604645
+          },
+          {
+            "roundTripMs": 16.600000023841858,
+            "workerMs": 2.899999976158142
+          },
+          {
+            "roundTripMs": 12.099999994039536,
+            "workerMs": 2.899999976158142
+          },
+          {
+            "roundTripMs": 15.800000011920929,
+            "workerMs": 4.199999988079071
+          },
+          {
+            "roundTripMs": 14.800000011920929,
+            "workerMs": 4.100000023841858
+          },
+          {
+            "roundTripMs": 18.700000017881393,
+            "workerMs": 5.5999999940395355
+          },
+          {
+            "roundTripMs": 62.39999997615814,
+            "workerMs": 3.5999999940395355
+          },
+          {
+            "roundTripMs": 23.299999982118607,
+            "workerMs": 4.799999982118607
+          },
+          {
+            "roundTripMs": 26.799999982118607,
+            "workerMs": 3.5999999940395355
+          },
+          {
+            "roundTripMs": 20.5,
+            "workerMs": 3.5
+          },
+          {
+            "roundTripMs": 27.900000005960464,
+            "workerMs": 4.9000000059604645
+          },
+          {
+            "roundTripMs": 22.80000001192093,
+            "workerMs": 4.299999982118607
+          },
+          {
+            "roundTripMs": 28,
+            "workerMs": 4.100000023841858
+          },
+          {
+            "roundTripMs": 18.100000023841858,
+            "workerMs": 4.200000017881393
+          },
+          {
+            "roundTripMs": 15.900000005960464,
+            "workerMs": 2.699999988079071
+          },
+          {
+            "roundTripMs": 22.799999982118607,
+            "workerMs": 5.200000017881393
+          },
+          {
+            "roundTripMs": 19.599999994039536,
+            "workerMs": 5.0999999940395355
+          },
+          {
+            "roundTripMs": 15.699999988079071,
+            "workerMs": 3.5999999940395355
+          },
+          {
+            "roundTripMs": 35.599999994039536,
+            "workerMs": 5
+          },
+          {
+            "roundTripMs": 17.80000001192093,
+            "workerMs": 3.100000023841858
+          },
+          {
+            "roundTripMs": 18.799999982118607,
+            "workerMs": 4.800000011920929
+          },
+          {
+            "roundTripMs": 18.399999976158142,
+            "workerMs": 4.0999999940395355
+          },
+          {
+            "roundTripMs": 16.200000017881393,
+            "workerMs": 4.0999999940395355
+          },
+          {
+            "roundTripMs": 18.69999998807907,
+            "workerMs": 4.4000000059604645
+          },
+          {
+            "roundTripMs": 13.199999988079071,
+            "workerMs": 2.800000011920929
+          },
+          {
+            "roundTripMs": 18.599999994039536,
+            "workerMs": 5.699999988079071
+          },
+          {
+            "roundTripMs": 14.599999994039536,
+            "workerMs": 3.7999999821186066
+          },
+          {
+            "roundTripMs": 16.899999976158142,
+            "workerMs": 4
+          },
+          {
+            "roundTripMs": 15.200000017881393,
+            "workerMs": 4.5999999940395355
+          }
+        ]
+      },
+      "notes": [
+        "Canvas latency ends when the matching query result is submitted by drawTimeline; it includes debounce/queue time, not compositor presentation or FPS.",
+        "Only completed latest-state updates are sampled; coalesced intents and hidden-page observations are counted separately. Quantiles use floor((n-1)*p) over the bounded recent window.",
+        "JS heap is an optional browser-provided approximation, may exclude Worker heaps or include shared heaps, and is not total browser peak memory."
+      ],
+      "trace": {
+        "events": 2932637,
+        "tracks": 8,
+        "inputBytes": 3000583032,
+        "cacheBytes": 3185339146
+      },
+      "viewport": {
+        "width": 1280,
+        "height": 720,
+        "pixelRatio": 1
+      },
+      "visibility": "visible",
+      "browser": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36"
+    }
+  },
+  "limitations": [
+    "These are bounded completed state-update-to-Canvas-submit observations, not compositor presentation latency, physical key onset latency, FPS or an INP benchmark.",
+    "Only completed latest-state updates enter Canvas quantiles; coalesced and hidden observations are reported separately.",
+    "Memory values are optional approximate JS heap samples and do not prove browser/Worker peak RAM.",
+    "Warm filesystem/application caches, limited synthetic event shapes and small sample sizes; no performance superiority claim."
+  ],
+  "quotaRecovery": {
+    "environment": "Node Worker plus real filesystem adapter, fault injection only; not browser-native quota exhaustion",
+    "writeStages": [
+      "events.bin",
+      "index.bin",
+      "relations.bin",
+      "manifest.json",
+      "session.json"
+    ],
+    "assertions": [
+      "partial session removed",
+      "previous completed trace remains readable and memory-restorable",
+      "next import succeeds",
+      "UI preserves filter, selected details and time window in the same Worker"
+    ]
+  }
+}

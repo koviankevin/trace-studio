@@ -4,7 +4,7 @@
 
 **[開啟時跡](https://koviankevin.github.io/trace-studio/)** · [操作參考](https://perfetto.dev/docs/visualization/perfetto-ui) · [效能測試](docs/PERFORMANCE.md)
 
-目前為 v0.7.2。已有自動化測試，以及 Windows Chromium 瀏覽器的實際 File／OPFS、三版本比較與 3 GB 合成資料驗收；詳細範圍與未完成項目見[驗證紀錄](docs/VERIFICATION.md)。尚未證實比 Chrome tracing 或 Perfetto 更快；本專案的目標是在熟悉的操作上提供更清楚的資訊與大檔路徑。
+目前為 v0.8.0。已有自動化測試，以及 Windows Chromium 瀏覽器的實際 File／OPFS、三版本比較與 3 GB 合成資料驗收；詳細範圍與未完成項目見[驗證紀錄](docs/VERIFICATION.md)。尚未證實比 Chrome tracing 或 Perfetto 更快；本專案的目標是在熟悉的操作上提供更清楚的資訊與大檔路徑。
 
 ## 使用
 
@@ -31,6 +31,7 @@
 - B/E 關聯跳轉保留完整區段與兩端 Args，只列一次；E 端才出現的關聯鍵也可查找。曲線樣本跳轉保留實際數值。既有本機索引直接套用，不必重新匯入。
 - 亮色與深色模式、指令選單與核心 Perfetto 操作。
 - 背景 Trace 分析：完整 trace／目前範圍／指定群組、事件與各核心累計時間、長事件定位、近似 P95、取消及 JSON 匯出。
+- Trace 資訊中的本機效能記錄：手動開關，觀察 Canvas 更新、Worker 查詢與往返延遲的 P50／P95，以及主頁長任務與可用時的 JS heap 抽樣。保留最近 512 筆，可查看／複製 JSON；不含檔名或事件內容，不上傳。這是更新提交耗時，並非 FPS、螢幕呈現延遲或完整瀏覽器 RAM；切換 Trace 會重新計數。
 - 數值曲線集中分組；事件依名稱規則以淡色區分計算、搬移、等待、框架等，選取外框另外標示。
 - 事件 Arguments、巢狀欄位、配對事件及原始 JSON 預設展開。一般軌道不顯示重複 Thread 標示，ID 保留於提示與詳情。
 - 預設軌道編號不加 `#`。事件缺少名稱或只有空白時使用 TID，省略重複的 PID／程序名稱前綴，例如 `CORE0` + `CORE0_COMPUTE` 顯示 `COMPUTE`。數字 TID 不相減；原始 JSON 和明確的事件名稱不改寫。舊快取也會按需核對並套用補名。

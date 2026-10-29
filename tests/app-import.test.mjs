@@ -58,7 +58,7 @@ test('application startup and file selection reach the loaded timeline',async()=
     await until(()=>elements.get('details-content').innerHTML.includes('完整原始 JSON'));
     assert.equal(elements.get('selection-heading').textContent,'2');
     elements.get('track-filter').value='CORE';elements.get('track-filter').handlers.input({target:elements.get('track-filter')});
-    elements.get('zoom-in').click();draw();const beforePan=elements.get('window-time').textContent;
+    elements.get('runtime-toggle').click();elements.get('zoom-in').click();await until(()=>{draw();return Number(elements.get('runtime-count').textContent)>0;});elements.get('runtime-refresh').click();assert(elements.get('runtime-results').innerHTML.includes('Canvas 更新 P50 / P95'));const captured=JSON.parse(elements.get('runtime-json').value);assert(captured.completedFrames>0);assert.equal(captured.trace.events,2);assert(!elements.get('runtime-json').value.includes('unnamed.json'));assert(!('source'in captured));elements.get('runtime-toggle').click();draw();const beforePan=elements.get('window-time').textContent;
     elements.get('timeline').handlers.pointerdown({button:0,clientX:500,clientY:104,pointerId:2,shiftKey:true});elements.get('timeline').handlers.pointermove({clientX:400,clientY:104});elements.get('timeline').handlers.pointerup({clientX:400,clientY:104});draw();
     assert.notEqual(elements.get('window-time').textContent,beforePan,'Shift drag must pan the existing time window');
     const beforeWheel=elements.get('window-time').textContent;let wheelPrevented=false;elements.get('tracks-scroll').handlers.wheel({ctrlKey:true,deltaY:-120,clientX:400,preventDefault(){wheelPrevented=true;}});draw();
@@ -83,6 +83,9 @@ test('application startup and file selection reach the loaded timeline',async()=
     await until(()=>elements.get('details-content').innerHTML.includes('完整原始 JSON'));
     assert.equal(elements.get('selection-heading').textContent,'2');
     const inputCache=workers.flatMap(worker=>worker.readies||[]).map(ready=>ready.info).find(info=>info?.source.name==='input.json').id;
+    elements.get('track-filter').value='CORE';elements.get('track-filter').handlers.input({target:elements.get('track-filter')});elements.get('zoom-in').click();draw();const quotaWindow=elements.get('window-time').textContent;
+    const quotaWorker=workers.at(-1);const faultConfigured=new Promise(resolve=>{const receive=data=>{if(data.type==='testWriteFaultConfigured'){quotaWorker.native.off('message',receive);resolve();}};quotaWorker.native.on('message',receive);});quotaWorker.native.postMessage({type:'testWriteFault',name:'session.json'});await faultConfigured;
+    input.files=[new File(['[{"ph":"X","name":"quota failure","pid":1,"tid":1,"ts":0,"dur":1}]'],'quota.json')];input.onchange({target:input});await until(()=>elements.get('toast').textContent.includes('額度不足'));await until(()=>elements.get('file-name').textContent==='unnamed.json'&&!elements.get('loading').open);draw();assert.equal(elements.get('events-count').textContent,'2');assert.equal(elements.get('track-filter').value,'CORE');assert.equal(elements.get('window-time').textContent,quotaWindow);assert.equal(workers.at(-1),quotaWorker,'quota recovery must preserve the worker and previous trace');
     elements.get('storage').click();await until(()=>elements.get('cache-list').innerHTML.includes(inputCache));
     assert(elements.get('cache-dialog').open);assert.match(elements.get('cache-list').innerHTML,/目前開啟/);
     const cacheWorker=workers.at(-1);elements.get('cache-list').handlers.click({target:{closest:selector=>selector==='[data-cache-open]'?{dataset:{cacheOpen:inputCache}}:null}});
