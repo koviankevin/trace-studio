@@ -1,0 +1,65 @@
+{
+  "version": "0.9.0",
+  "recordedAt": "2026-10-29T15:44:57.661Z",
+  "environment": "Windows ChatGPT in-app browser, Chromium 156, visible 1280x720; pre-existing synthetic 3 GB OPFS index restored without JSON reparse",
+  "sourceHashes": {
+    "core.js": "ba932ad7ee25e1d2ee0bf8afbcc6759cbca6deebbafc0f625a549b10b9e773a1",
+    "relations.js": "e799fd13f3273e3d69fc9b628f970a4bc08a4951d153aaeaf3edbff23540c23d",
+    "worker.js": "bc5bded96d885022f82ba5da8af207b6429819b4b3bdaceb2388ad18d313d100",
+    "app.js": "5acfa6721c4b0aa5ad4f2a31f7b46c57d0459aa668fb82da57c41c61e6567199",
+    "relation-view.js": "c23d1aef1a23b09b0d03d05df387042459759de6ce1219c8da03720d5264e85a",
+    "style.css": "9fb2846571301099fc520c2771f2b253387de9bf1283254e5424ddc190bf4c23",
+    "index.html": "7fba87c34dcaa6697a93443f0c3843f0b89b854c558c8a4fabb60198a31e1db2",
+    "runtime-metrics.js": "3d0865630489b550d1ea96913fd035ea668da15dd666d590c9eec8d55c40dfde",
+    "workspace.css": "314493f501c2c723335b627adc897d4c5e15bda548ef5de10f7985d1ce78f245"
+  },
+  "observations": {
+    "relations": {
+      "fixture": "Synthetic four-core/eight-track trace; one selected producer plus 48 candidates sharing 0x1000; every tenth candidate also uses tensor",
+      "defaultMode": "Explicit Flow/define-use markers, at most two lines; address candidates outlined",
+      "groups": [
+        12,
+        12,
+        12,
+        12
+      ],
+      "addressFilterRetainsSymbolMatches": true,
+      "previewPressedCount": 1,
+      "nestedLaneEndpoint": "Screenshot observed curved connector to actual lower lane after fix; real app Canvas test asserts endpoint y",
+      "scrolledBeforeCoreChange": 254,
+      "scrolledAfterCoreChange": 254,
+      "layout": {
+        "active": "關聯核心分組",
+        "candidates": 12,
+        "detailsScroll": 254,
+        "drawerHeight": 260,
+        "groups": 1,
+        "height": 600,
+        "scrollWidth": 800,
+        "tracksHeight": 114,
+        "width": 800
+      }
+    },
+    "names": {
+      "fixture": "70,000 unique names, many 180-char suffixes exceed dictionary byte budget; one late full name includes hidden middle target",
+      "importSecondsFromUI": 0.78,
+      "searches": [
+        "overflow target: one result",
+        "hidden middle target: one result, exact original JSON with index 69998 preserved"
+      ],
+      "traceSwitch": "After switching to saved synthetic 3 GB trace, search input and results cleared",
+      "cancel": "Started no-match search on 2,932,637-record trace; Cancel returned 搜尋已取消，Trace 保留。"
+    }
+  },
+  "screenshots": [
+    "evidence/browser/relations-small-v0.9.0.jpg"
+  ],
+  "remaining": [
+    "Standalone Chrome/Edge",
+    "Native Ctrl-wheel and Shift-drag",
+    "Browser-native quota exhaustion",
+    "Total browser/Worker peak memory",
+    "Full accessibility audit",
+    "Real hardware trace semantics"
+  ]
+}

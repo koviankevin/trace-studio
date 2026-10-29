@@ -56,6 +56,21 @@ test('missing event labels remove only the repeated process prefix from string t
   assert.equal(rows[0].label,'COMPUTE');assert.equal(rows[1].label,'Event');assert.equal((await restored.search('COMPUTE')).results.length,1);
   assert.deepEqual(restored.detail(rows[0]).event,events[0]);
 });
+
+test('names beyond the bounded dictionary remain visible and searchable after disk restore',async()=>{
+  const events=Array.from({length:LIMITS.maxNames+3},(_,i)=>({ph:'X',name:i===LIMITS.maxNames+2?'overflow target 🌏':`unique ${i}`,pid:1,tid:77,ts:i*10,dur:5,args:{index:i}}));
+  const {db,manifest,raw,index}=build(events);assert(manifest.nameLimit>0);assert(manifest.names.length<=LIMITS.maxNames);
+  for(const trace of [db,new TraceIndex(raw,index).restore(JSON.parse(JSON.stringify(manifest)))]){
+    const target=trace.query({start:events.at(-1).ts,end:events.at(-1).ts+5,trackIds:[0],width:100})[0].rows[0];assert.equal(trace.detail(target).event.name,'overflow target 🌏');assert.equal(trace.detail(target).event.args.index,events.length-1);assert.equal(target.label,'overflow target 🌏');
+    const result=await trace.search('overflow target');assert.equal(result.results.length,1);assert.equal(result.results[0].offset,target.offset);assert.equal(trace.detail(result.results[0]).event.args.index,events.length-1);
+  }
+});
+
+test('search matches the original name beyond its display preview and cooperatively cancels',async()=>{
+  const name='prefix '.repeat(30)+'distinguishing tail 🌏',events=Array.from({length:40000},(_,i)=>({ph:'X',name:i===39999?name:'work',pid:1,tid:1,ts:i,dur:1})),{db}=build(events);
+  assert.equal(db.detail(db.query({start:39999,end:40000,trackIds:[0]})[0].rows.find(row=>row.ts===39999)).event.name,name);const result=await db.search('distinguishing tail');assert.equal(result.results.length,1);assert.equal(db.detail(result.results[0]).event.name,name);
+  let cancelled=false;await assert.rejects(db.search('no match',100,()=>{},{timeBudgetMs:0,cancelled:()=>cancelled,yieldNow:async()=>{cancelled=true;}}),{name:'AbortError'});
+});
 test('B/E pairs, incomplete spans, metadata, counters and unsupported phases',()=>{
   const events=[{ph:'M',pid:1,tid:1,name:'thread_name',args:{name:'Main'}},{ph:'B',pid:1,tid:1,ts:100,name:'outer',args:{x:1}},{ph:'B',pid:1,tid:1,ts:110,name:'inner'},{ph:'E',pid:1,tid:1,ts:130,args:{result:'ok'}},{ph:'E',pid:1,tid:1,ts:180},{ph:'E',pid:1,tid:1,ts:181},{ph:'C',pid:1,tid:1,ts:190,name:'memory',args:{MB:100,objects:42}},{ph:'s',pid:1,tid:1,ts:195,name:'flow',id:1},{ph:'B',pid:1,tid:1,ts:199,name:'incomplete'}];
   const {db,manifest}=build(events);assert.equal(manifest.unmatched,2);assert.equal(manifest.tracks[0].name,'Main');assert.equal(manifest.tracks.filter(t=>t.kind==='counter').length,2);
@@ -77,7 +92,7 @@ test('addresses normalize without unsafe precision and are not guessed from arbi
 });
 test('relation index resolves exact addresses, defs/uses and standard flow IDs across threads',()=>{
   const events=[{name:'Allocate',ph:'X',pid:1,tid:1,ts:1,dur:20,args:{address:'0x000AbC',defines:'result'}},{name:'Read',ph:'X',pid:1,tid:2,ts:40,dur:4,args:{ptr:'2748',uses:['result']}},{name:'Other',ph:'X',pid:1,tid:2,ts:50,dur:4,args:{address:'0xabd'}},{name:'Start',ph:'s',pid:1,tid:1,ts:100,id:5},{name:'End',ph:'f',pid:1,tid:2,ts:200,id:5}];
-  const {db,links}=build(events);const record=db.query({start:0,end:10,trackIds:[0],width:1000})[0].rows[0];const result=links.find(events[0],record);assert.equal(result.matches.length,1);assert.equal(result.matches[0].record.label,'Read');assert.equal(result.matches[0].record.dur,4);
+  const {db,links}=build(events);const record=db.query({start:0,end:10,trackIds:[0],width:1000})[0].rows[0];const result=links.find(events[0],record);assert.equal(result.matches.length,1);assert.equal(result.matches[0].record.label,'Read');assert.equal(result.matches[0].record.dur,4);assert.deepEqual(result.matches[0].associations.map(item=>item.relation.type),['symbol','address']);
   const flow=db.query({start:100,end:100,trackIds:[0]})[0].rows[0];assert.equal(links.find(events[3],flow).matches[0].record.label,'End');
 });
 
@@ -155,4 +170,16 @@ test('demo includes actual linkable addresses and a selected long event',()=>{co
 
 test('explicit define/use candidates are not crowded out by frequently reused addresses',()=>{
   const events=[...Array.from({length:80},(_,i)=>({name:i===79?'Consumer':'reused',ph:'X',pid:1,tid:1,ts:i*10,dur:5,args:{address:'0x1000',...(i===79?{uses:'tensor'}:{})}})),{name:'Selected',ph:'X',pid:1,tid:1,ts:1000,dur:10,args:{address:'0x1000',defines:'tensor'}}];const {db,links,manifest}=build(events),selected=manifest.top.find(record=>db.detail(record).event.name==='Selected'),result=links.find(events.at(-1),selected);assert.equal(result.matches.length,64);assert.equal(result.keys[0].type,'symbol');assert(result.matches.some(match=>match.record.label==='Consumer'&&match.relation.type==='symbol'&&match.otherRole==='use'));
+});
+
+
+test('full-name dictionaries keep distinct long names, bound key bytes, and resolve overlong counter labels',async()=>{
+  const prefix='same-prefix-'.repeat(20),a=prefix+' A '+'.'.repeat(100),b=prefix+' B '+'.'.repeat(100);
+  const {db}=build([{ph:'X',name:a,ts:0,dur:2},{ph:'X',name:b,ts:4,dur:2},{ph:'C',name:'counter-'.repeat(600),ts:8,args:{watts:3}}]);
+  assert.notEqual(db.names.indexOf(a),db.names.indexOf(b));assert.equal((await db.search(' A ')).results.length,1);assert.equal((await db.search(' B ')).results.length,1);
+  const counter=db.query({start:8,end:9,trackIds:db.tracks.filter(t=>t.kind==='counter').map(t=>t.id)})[0].rows[0];assert(counter.label.endsWith(' · watts'));assert.equal(db.detail(counter).event.args.watts,3);
+  const many=build(Array.from({length:1100},(_,i)=>({ph:'X',name:String(i).padStart(4,'0')+'z'.repeat(4080),ts:i*2,dur:1}))).db;
+  assert(many.nameLimit>0);assert(many.names.reduce((n,name)=>n+name.length*2,0)<=LIMITS.maxNameBytes);assert.equal((await many.search('1099zzz')).results.length,1);
+  const legacy=JSON.parse(JSON.stringify(db.manifest()));delete legacy.fullNamesVersion;legacy.names=legacy.names.map(name=>name.slice(0,160));const old=new TraceIndex(db.raw.handle,db.index.handle).restore(legacy);
+  assert.equal((await old.search(' B ')).results.length,1);assert.equal(old.detail((await old.search(' B ')).results[0]).event.name,b);
 });

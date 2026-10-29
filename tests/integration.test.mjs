@@ -188,7 +188,18 @@ test('application element references and local assets exist; engine benchmark ha
   const ids=new Set([...html.matchAll(/id="([^"]+)"/g)].map(m=>m[1]));const dynamic=new Set(['area-focus','show-relations']);
   for(const m of app.matchAll(/\$\('([^']+)'\)/g))assert(ids.has(m[1])||dynamic.has(m[1]),`Missing #${m[1]}`);
   for(const asset of ['style.css','workspace.css','app.js','worker.js','core.js','relations.js','navigation.js','track-layout.js','event-summary.js','event-colors.js','analysis.js','session-store.js','counter-plot.js','argument-analysis.js','argument-facts.js','event-labels.js','trace-cache.js','trace-comparison.js','comparison-view.js','relation-view.js','tar-stream.js','trace-selection.js','time-format.js','runtime-metrics.js','extensions/runtime.js','extensions/custom.js','extensions/example.js','hardware-demo.js','icon.svg'])assert((await readFile(new URL(asset,base))).length>0);
-  const benchmark=JSON.parse(await readFile(new URL('../docs/benchmark-2026-10-29-v0.7.1.json',import.meta.url),'utf8'));
+  const benchmark=JSON.parse(await readFile(new URL('../docs/benchmark-2026-10-29-v0.9.0.json',import.meta.url),'utf8'));
   for(const [file,expected]of Object.entries(benchmark.sourceHashes))assert.equal(createHash('sha256').update(await readFile(new URL(file,base))).digest('hex'),expected,`Rerun benchmark after changing ${file}`);
-  const counters=JSON.parse(await readFile(new URL('../docs/counter-benchmark-2026-10-29-v0.7.1.json',import.meta.url),'utf8'));assert.equal(counters.sourceHashes['core.js'],benchmark.sourceHashes['core.js']);
+  const counters=JSON.parse(await readFile(new URL('../docs/counter-benchmark-2026-10-29-v0.9.0.json',import.meta.url),'utf8'));assert.equal(counters.sourceHashes['core.js'],benchmark.sourceHashes['core.js']);
+});
+
+
+test('worker search yields to viewport queries, cancels, and a replacement search remains usable',async()=>{
+  const root=await mkdtemp(join(tmpdir(),'trace-studio-test-')),worker=new Worker(new URL('./worker-harness.mjs',import.meta.url),{workerData:{root}});
+  try{
+    await next(worker,'initialized');let ready=next(worker,'ready');worker.postMessage({type:'import',file:new File([JSON.stringify(Array.from({length:70000},(_,i)=>({ph:'X',name:'name-'+i+'x'.repeat(180),pid:1,tid:1,ts:i*2,dur:1})))],'many-names.json')});const info=(await ready).info;
+    const progress=next(worker,'searchProgress',800),cancelled=next(worker,'searchCancelled',800);worker.postMessage({type:'search',traceId:info.id,requestId:800,term:'never-matches'});await progress;
+    const query=next(worker,'query',801);worker.postMessage({type:'cancelSearch'});worker.postMessage({type:'query',traceId:info.id,requestId:801,start:0,end:20,trackIds:[0],width:800});await cancelled;assert((await query).rows[0].rows.length);
+    const replacement=next(worker,'search',802);worker.postMessage({type:'search',traceId:info.id,requestId:802,term:'name-69999x'});const found=await replacement;assert.equal(found.results.length,1);assert(found.results[0].label.startsWith('name-69999'));
+  }finally{await worker.terminate();await removeTestRoot(root);}
 });

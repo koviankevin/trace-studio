@@ -1,0 +1,187 @@
+{
+  "version": "0.9.0",
+  "recordedAt": "2026-10-29T15:44:57.658Z",
+  "environment": "Windows ChatGPT in-app browser, Chromium 156, visible 1280x720; pre-existing synthetic 3 GB OPFS index restored without JSON reparse",
+  "sourceHashes": {
+    "core.js": "ba932ad7ee25e1d2ee0bf8afbcc6759cbca6deebbafc0f625a549b10b9e773a1",
+    "relations.js": "e799fd13f3273e3d69fc9b628f970a4bc08a4951d153aaeaf3edbff23540c23d",
+    "worker.js": "bc5bded96d885022f82ba5da8af207b6429819b4b3bdaceb2388ad18d313d100",
+    "app.js": "5acfa6721c4b0aa5ad4f2a31f7b46c57d0459aa668fb82da57c41c61e6567199",
+    "relation-view.js": "c23d1aef1a23b09b0d03d05df387042459759de6ce1219c8da03720d5264e85a",
+    "style.css": "9fb2846571301099fc520c2771f2b253387de9bf1283254e5424ddc190bf4c23",
+    "index.html": "7fba87c34dcaa6697a93443f0c3843f0b89b854c558c8a4fabb60198a31e1db2",
+    "runtime-metrics.js": "3d0865630489b550d1ea96913fd035ea668da15dd666d590c9eec8d55c40dfde",
+    "workspace.css": "314493f501c2c723335b627adc897d4c5e15bda548ef5de10f7985d1ce78f245"
+  },
+  "procedure": "Start capture, return to timeline, fit all, five pairs of zoom-in/zoom-out; stop capture and read visible report JSON. Ten completed Canvas updates, fit was already at full extent.",
+  "report": {
+    "version": 1,
+    "enabled": false,
+    "windowLimit": 512,
+    "elapsedMs": 3951.5,
+    "intents": 10,
+    "coalescedIntents": 0,
+    "hiddenOmitted": 0,
+    "completedFrames": 10,
+    "completedQueries": 12,
+    "canvas": {
+      "samples": 10,
+      "medianMs": 61.5,
+      "p95Ms": 85.19999998807907,
+      "maxMs": 96.59999999403954
+    },
+    "roundTrip": {
+      "samples": 12,
+      "medianMs": 16.19999998807907,
+      "p95Ms": 24.599999994039536,
+      "maxMs": 24.69999998807907
+    },
+    "worker": {
+      "samples": 12,
+      "medianMs": 4.5,
+      "p95Ms": 7.700000017881393,
+      "maxMs": 9.700000017881393
+    },
+    "longTasks": {
+      "supported": true,
+      "count": 0,
+      "totalMs": 0,
+      "maxMs": 0
+    },
+    "heap": {
+      "lastBytes": 10938087,
+      "maxSampledBytes": 23505366
+    },
+    "observations": {
+      "frames": [
+        {
+          "canvasMs": 61.5,
+          "roundTripMs": 24.599999994039536,
+          "workerMs": 9.700000017881393
+        },
+        {
+          "canvasMs": 56.79999998211861,
+          "roundTripMs": 18.799999982118607,
+          "workerMs": 5.600000023841858
+        },
+        {
+          "canvasMs": 61.400000005960464,
+          "roundTripMs": 15.700000017881393,
+          "workerMs": 4.5
+        },
+        {
+          "canvasMs": 52,
+          "roundTripMs": 16.19999998807907,
+          "workerMs": 5.800000011920929
+        },
+        {
+          "canvasMs": 68.40000000596046,
+          "roundTripMs": 18.30000001192093,
+          "workerMs": 4.299999982118607
+        },
+        {
+          "canvasMs": 73.90000000596046,
+          "roundTripMs": 16.700000017881393,
+          "workerMs": 5.199999988079071
+        },
+        {
+          "canvasMs": 54.5,
+          "roundTripMs": 16.099999994039536,
+          "workerMs": 4.4000000059604645
+        },
+        {
+          "canvasMs": 85.19999998807907,
+          "roundTripMs": 15.300000011920929,
+          "workerMs": 4.0999999940395355
+        },
+        {
+          "canvasMs": 64.7999999821186,
+          "roundTripMs": 18.299999982118607,
+          "workerMs": 4.800000011920929
+        },
+        {
+          "canvasMs": 96.59999999403954,
+          "roundTripMs": 24.69999998807907,
+          "workerMs": 7.700000017881393
+        }
+      ],
+      "queries": [
+        {
+          "roundTripMs": 14.400000005960464,
+          "workerMs": 4.5
+        },
+        {
+          "roundTripMs": 13,
+          "workerMs": 4.299999982118607
+        },
+        {
+          "roundTripMs": 24.599999994039536,
+          "workerMs": 9.700000017881393
+        },
+        {
+          "roundTripMs": 18.799999982118607,
+          "workerMs": 5.600000023841858
+        },
+        {
+          "roundTripMs": 15.700000017881393,
+          "workerMs": 4.5
+        },
+        {
+          "roundTripMs": 16.19999998807907,
+          "workerMs": 5.800000011920929
+        },
+        {
+          "roundTripMs": 18.30000001192093,
+          "workerMs": 4.299999982118607
+        },
+        {
+          "roundTripMs": 16.700000017881393,
+          "workerMs": 5.199999988079071
+        },
+        {
+          "roundTripMs": 16.099999994039536,
+          "workerMs": 4.4000000059604645
+        },
+        {
+          "roundTripMs": 15.300000011920929,
+          "workerMs": 4.0999999940395355
+        },
+        {
+          "roundTripMs": 18.299999982118607,
+          "workerMs": 4.800000011920929
+        },
+        {
+          "roundTripMs": 24.69999998807907,
+          "workerMs": 7.700000017881393
+        }
+      ]
+    },
+    "notes": [
+      "Canvas latency ends when the matching query result is submitted by drawTimeline; it includes debounce/queue time, not compositor presentation or FPS.",
+      "Only completed latest-state updates are sampled; coalesced intents and hidden-page observations are counted separately. Quantiles use floor((n-1)*p) over the bounded recent window.",
+      "JS heap is an optional browser-provided approximation, may exclude Worker heaps or include shared heaps, and is not total browser peak memory."
+    ],
+    "trace": {
+      "events": 2932637,
+      "tracks": 8,
+      "inputBytes": 3000583032,
+      "cacheBytes": 3185339146
+    },
+    "viewport": {
+      "width": 1280,
+      "height": 720,
+      "pixelRatio": 1
+    },
+    "visibility": "visible",
+    "browser": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36"
+  },
+  "independentlyRecomputed": {
+    "samples": 10,
+    "p95Ms": 85.19999998807907
+  },
+  "limits": [
+    "Small smoke observation, not a stable latency ceiling, compositor/FPS measurement or comparison against Perfetto",
+    "No new browser 3 GB file import this release; Node engine import rerun and prior browser OPFS index restored",
+    "Approximate JS heap does not prove total browser/Worker peak memory"
+  ]
+}

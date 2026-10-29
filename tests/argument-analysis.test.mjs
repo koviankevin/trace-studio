@@ -23,3 +23,9 @@ test('whole graph summaries exclude untagged work and retain all matching totals
   const db=trace([{ph:'X',name:'unrelated',pid:9,tid:1,ts:-10000,dur:100000,args:{CoreId:9,MemoryRanges:mem('0x1000',4096,'OUTPUT')}},...Array.from({length:120},(_,i)=>({ph:'X',name:'compute',pid:1,tid:1,ts:i*10,dur:5,args:{TfliteID:i%2,CoreId:0}}))]);
   const result=await analyzeArguments(db,{focus:{kind:'tflite-all'}});assert.equal(result.matched,120);assert.equal(result.members.length,100);assert.equal(result.matchedSummary.start,0);assert.equal(result.matchedSummary.end,1195);assert.equal(result.matchedSummary.totalUs,600);assert.deepEqual(result.matchedSummary.cores,['0']);assert.equal(result.locations.length,0);assert.equal(result.tfliteGroupCount,2);
 });
+
+
+test('focused analysis groups full source names rather than matching preview prefixes',async()=>{
+  const prefix='shared'.repeat(30),a=prefix+' A '+'.'.repeat(90),b=prefix+' B '+'.'.repeat(90),db=trace([{ph:'X',name:a,pid:1,tid:1,ts:0,dur:10,args:{TfliteID:7}},{ph:'X',name:b,pid:1,tid:2,ts:20,dur:5,args:{TfliteID:7}},{ph:'X',name:'x'.repeat(5000),pid:1,tid:2,ts:30,dur:3,args:{TfliteID:7}}]);
+  const result=await analyzeArguments(db,{focus:{kind:'tflite',value:'7'}});assert.equal(result.nameCount,2);assert.deepEqual(result.byName.map(row=>row.label),[a,b]);assert.equal(result.matched,3);assert.equal(result.matchedSummary.totalUs,18);assert.equal(result.omittedNameEvents,1);
+});

@@ -87,8 +87,9 @@ export class TraceJSONReader {
 
 const encoder=new TextEncoder(), decoder=new TextDecoder();
 const RECORD=64, BLOCK=4096, MAX_BUFFER=16384;
-export const LIMITS={recordBytes:RECORD,blockEvents:BLOCK,bufferedEvents:MAX_BUFFER,maxNames:65536,maxTracks:8192,maxOpenSpans:100000};
+export const LIMITS={recordBytes:RECORD,blockEvents:BLOCK,bufferedEvents:MAX_BUFFER,maxNames:65536,maxNameBytes:8*1024*1024,maxNameLength:4096,maxTracks:8192,maxOpenSpans:100000};
 export function hash(value) { let h=2166136261; for(let i=0;i<value.length;i++) h=Math.imul(h^value.charCodeAt(i),16777619); return h>>>0; }
+const previewName=name=>name.length>160?decoder.decode(encoder.encode(name.slice(0,110).replace(/[\uD800-\uDBFF]$/,'')+'…'+name.slice(-49).replace(/^[\uDC00-\uDFFF]/,''))):name;
 class BufferedFile {
   constructor(handle) {this.handle=handle; this.offset=0;this.buffer=new Uint8Array(1024*1024);this.used=0;}
   append(bytes) {
@@ -146,11 +147,12 @@ export class TraceIndex {
     this.blocks=[];this.buffered=0;this.openSpans=0;this.metadata={};this.phases={};this.start=Infinity;this.end=-Infinity;
     this.count=0;this.slices=0;this.skipped=0;this.unmatched=0;this.outOfOrder=0;this.top=[];
     this.categories=new Map();this.cache=new Map();this.nameLimit=0;this.metadataBytes=0;
-    this.legacyNames=false;this.labelCache=new Map();
+    this.legacyNames=false;this.labelCache=new Map();this.nameKeyBytes=0;this.fullNamesVersion=1;
   }
-  intern(name,identity) {name=String(name||'Event').slice(0,160);const key=identity??name;let id=this.nameMap.get(key);if(id!==undefined)return id;
-    if(this.names.length>=LIMITS.maxNames){this.nameLimit++;return 0;}
-    id=this.names.length;this.names.push(name);this.nameMap.set(key,id);return id;}
+  intern(name,identity) {name=String(name??'Event');const key=identity??name;let id=this.nameMap.get(key);if(id!==undefined)return id;
+    if(this.names.length>=LIMITS.maxNames||name.length>LIMITS.maxNameLength||this.nameKeyBytes+name.length*2>LIMITS.maxNameBytes){this.nameLimit++;return 0;}
+    // Independent bounded strings, rather than slices retaining a large raw token.
+    const stored=decoder.decode(encoder.encode(name));this.nameKeyBytes+=name.length*2;id=this.names.length;this.names.push(stored);this.nameMap.set(identity??stored,id);return id;}
   eventName(e,t,suffix=null){
     if(e.name!==null&&e.name!==undefined&&String(e.name).trim())return this.intern(suffix===null?e.name:`${e.name} · ${suffix}`);
     const key=`${t.id}/${suffix===null?'event':`counter:${suffix}`}`;let fallback=this.fallbackNames.get(key);
@@ -252,19 +254,24 @@ export class TraceIndex {
     this.nameMap.clear();this.trackMap.clear();return this.manifest();
   }
   manifest() {
-    return {version:1,namePolicy:'short-tid-v1',counterSummaryVersion:1,start:this.start,end:this.end,count:this.count,slices:this.slices,phases:this.phases,
+    return {version:1,namePolicy:'short-tid-v1',fullNamesVersion:1,counterSummaryVersion:1,start:this.start,end:this.end,count:this.count,slices:this.slices,phases:this.phases,
       tracks:this.tracks.map(({buffer,stack,lastTs,...t})=>t),blocks:this.blocks,names:this.names,
       processes:this.processes,metadata:this.metadata,categories:[...this.categories],top:this.top,
       skipped:this.skipped,unmatched:this.unmatched,outOfOrder:this.outOfOrder,nameLimit:this.nameLimit,
       diskBytes:this.raw.offset+this.index.offset};
   }
   adjustPointEnd(){if(this.blocks.some(block=>block.last>=this.end))this.end+=Math.max(.001,Math.abs(this.end)*Number.EPSILON);}
-  restore(m) {Object.assign(this,m);this.categories=new Map(m.categories);this.legacyNames=m.namePolicy!=='short-tid-v1';this.adjustPointEnd();m.end=this.end;return this;}
+  restore(m) {Object.assign(this,m);this.fullNamesVersion=m.fullNamesVersion||0;this.categories=new Map(m.categories);this.legacyNames=m.namePolicy!=='short-tid-v1';this.adjustPointEnd();m.end=this.end;return this;}
   legacyNameCandidate(name,track){const label=this.names[name];return this.legacyNames&&(!label||label==='Event'||label==='未命名事件'||label===String(track.tid)||label===track.name||track.kind==='counter');}
+  sourceName(record,trackId=record.trackId,knownEvent){
+    const event=knownEvent??this.detail(record).event,track=this.tracks[trackId]||{};let label=missingEventName(event)?fallbackEventName(event,track,this.processes):String(event.name);
+    if(track.kind==='counter'){const suffix=track.counterKey??Object.keys(event.args||{}).filter(key=>Number.isFinite(event.args[key])&&(track.name.endsWith(' · '+key)||track.key?.endsWith(' · '+key))).sort((a,b)=>b.length-a.length)[0];if(suffix!==undefined)label+=' · '+suffix;}
+    return label;
+  }
   displayName(record,trackId=record.trackId,knownEvent){
     const track=this.tracks[trackId]||{},label=this.names[record.name]||record.label||fallbackEventName({},track,this.processes);
-    if(record.name===0)return fallbackEventName({},track,this.processes);
-    if(!this.legacyNameCandidate(record.name,track))return label;
+    if(record.name===0||!this.fullNamesVersion&&label.length>=160){const key=`source:${trackId}/${record.offset}`;if(this.labelCache.has(key))return this.labelCache.get(key);const result=previewName(this.sourceName(record,trackId,knownEvent));this.labelCache.set(key,result);if(this.labelCache.size>4096)this.labelCache.delete(this.labelCache.keys().next().value);return result;}
+    if(!this.legacyNameCandidate(record.name,track)){if(label.length<=160)return label;const key=`name:${record.name}`;if(this.labelCache.has(key))return this.labelCache.get(key);const result=previewName(label);this.labelCache.set(key,result);if(this.labelCache.size>4096)this.labelCache.delete(this.labelCache.keys().next().value);return result;}
     const shared=label==='Event'||/^(?:undefined|null|未命名事件)?\s*·/.test(label),key=shared?`${trackId}/${record.offset}`:`${trackId}/name:${record.name}`;
     if(this.labelCache.has(key))return this.labelCache.get(key);
     const event=knownEvent??this.detail(record).event;
@@ -354,16 +361,21 @@ export class TraceIndex {
       const bytes=new Uint8Array(length);let n=0;while(n<length){const got=this.raw.handle.read(bytes.subarray(n),{at:at+n});if(!got)throw Error('事件讀取失敗');n+=got;}return decoder.decode(bytes);};
     const rawText=read(r.offset,r.length);return {event:JSON.parse(rawText),rawText,endEvent:r.endLength?JSON.parse(read(r.endOffset,r.endLength)):null};
   }
-  async search(term,limit=100,progress=()=>{}) {
-    const needle=term.toLocaleLowerCase();const ids=new Set();
-    this.names.forEach((name,i)=>{if(name.toLocaleLowerCase().includes(needle))ids.add(i);});
+  async search(term,limit=100,progress=()=>{},{cancelled=()=>false,yieldNow=()=>new Promise(resolve=>setTimeout(resolve,0)),timeBudgetMs=8}={}) {
+    if(typeof term!=='string'||term.length>4096||!Number.isInteger(limit)||limit<1||limit>1000||!Number.isFinite(timeBudgetMs)||timeBudgetMs<0||timeBudgetMs>50)throw Error('搜尋條件無效（關鍵字上限 4,096 字元）');
+    const abort=()=>{if(cancelled()){const error=Error('搜尋已取消');error.name='AbortError';throw error;}};abort();
+    const needle=term.toLocaleLowerCase(),ids=new Set();let lastYield=performance.now();
+    for(let i=0;i<this.names.length;i++){if(this.names[i].toLocaleLowerCase().includes(needle))ids.add(i);if(!(i%256)&&performance.now()-lastYield>=timeBudgetMs){progress(0);await yieldNow();abort();lastYield=performance.now();}}
     const results=[];let scanned=0;
     for(const t of this.tracks){for(const bi of t.blocks){const b=this.blocks[bi],v=this.readBlock(b);
+      abort();
       const identityMatches=this.legacyNames&&fallbackEventName({},t,this.processes).toLocaleLowerCase().includes(needle);
-      for(let i=0;i<b.count;i++){const r=readRecord(v,i*RECORD);if(ids.has(r.name)||identityMatches){const label=this.displayName(r,t.id);if(!label.toLocaleLowerCase().includes(needle))continue;results.push({...r,label,trackId:t.id});if(results.length>=limit)return {results,capped:true};}}
-      scanned+=b.count;if(scanned%32768<4096){progress(scanned);await new Promise(r=>setTimeout(r,0));}
+      for(let i=0;i<b.count;i++){const r=readRecord(v,i*RECORD),readSource=r.name===0||!this.fullNamesVersion&&(this.names[r.name]?.length||0)>=160;scanned++;
+        if(readSource||ids.has(r.name)||identityMatches){const full=readSource?this.sourceName(r,t.id):this.legacyNameCandidate(r.name,t)?this.displayName(r,t.id):this.names[r.name];if(full.toLocaleLowerCase().includes(needle)){results.push({...r,label:previewName(full),trackId:t.id});if(results.length>=limit)return {results,capped:true,scanned};}}
+        if((readSource||!(scanned%256))&&performance.now()-lastYield>=timeBudgetMs){progress(scanned);await yieldNow();abort();lastYield=performance.now();}
+      }
     }}
-    return {results,capped:false};
+    abort();return {results,capped:false,scanned};
   }
   neighbor(record,direction){
     const t=this.tracks[record.trackId];let best;

@@ -1,19 +1,19 @@
-import {TraceJSONReader,TraceIndex,demoTrace,LIMITS} from './core.js?v=0.7.1';
-import {RelationIndex} from './relations.js?v=0.7.1';
+import {TraceJSONReader,TraceIndex,demoTrace,LIMITS} from './core.js?v=0.9.0';
+import {RelationIndex} from './relations.js?v=0.9.0';
 import {summarizeGroups} from './track-layout.js?v=0.4.0';
 import {hardwareDemo} from './hardware-demo.js?v=0.4.0';
-import {analyzeTrace,scanTraceIndex} from './analysis.js?v=0.4.0';
+import {analyzeTrace,scanTraceIndex} from './analysis.js?v=0.9.0';
 import {loadExtensionHost} from './extensions/runtime.js';
 import {createSessionStore} from './session-store.js?v=0.3.1';
 import {extractRecordFacts} from './argument-facts.js?v=0.4.0';
-import {analyzeArguments} from './argument-analysis.js?v=0.7.0';
+import {analyzeArguments} from './argument-analysis.js?v=0.9.0';
 import {TraceCache} from './trace-cache.js?v=0.5.0';
-import {compareTraces} from './trace-comparison.js?v=0.7.0';
+import {compareTraces} from './trace-comparison.js?v=0.9.0';
 import {readTar} from './tar-stream.js?v=0.7.0';
 // Register onmessage synchronously. A top-level await here drops messages
 // delivered while custom.js is loading, including the UI's first import.
 const extensionHostReady=loadExtensionHost();
-let analysisToken=0;
+let analysisToken=0,searchToken=0;
 let importOperation=null;
 const abortImport=operation=>{if(operation?.cancelled)throw Object.assign(Error('已取消開檔'),{name:'AbortError'});};
 const argumentCache=new Map();
@@ -25,7 +25,7 @@ const context=()=>({db,folder,rawHandle,indexHandle,relationHandle,relations,ses
 function activate(value){({db,folder,rawHandle,indexHandle,relationHandle,relations,sessionId,source,sessionLease,activeManifest}=value);}
 async function dispose(value){for(const handle of [value?.rawHandle,value?.indexHandle,value?.relationHandle]){try{handle?.close();}catch{}}await value?.sessionLease?.release();}
 async function drainCache(){for(const value of traceCache.drain())await dispose(value);}
-async function close({retain=false}={}){analysisToken++;argumentCache.clear();const previous=context();rawHandle=indexHandle=relationHandle=sessionLease=activeManifest=null;db=null;if(retain&&previous.db&&previous.activeManifest){for(const value of traceCache.put(previous))await dispose(value);}else await dispose(previous);}
+async function close({retain=false}={}){analysisToken++;searchToken++;argumentCache.clear();const previous=context();rawHandle=indexHandle=relationHandle=sessionLease=activeManifest=null;db=null;if(retain&&previous.db&&previous.activeManifest){for(const value of traceCache.put(previous))await dispose(value);}else await dispose(previous);}
 async function root(){if(!navigator.storage?.getDirectory)throw Error('這個瀏覽器無法使用磁碟索引，請用最新版桌面 Chrome 或 Edge，並以 HTTPS 開啟。');return (await navigator.storage.getDirectory()).getDirectoryHandle('trace-studio-v1',{create:true});}
 async function open(id,create){
   // Reserve the requested index before parking the current one can evict it.
@@ -151,7 +151,8 @@ onmessage=async({data})=>{
     else if(type==='compare'){const token=++analysisToken,cancelled=()=>analysisToken!==token;const result=await compareTraces(data.ids,data.tfliteId,{openTrace:comparisonTrace,scopes:data.scopes,sourceNames:data.sourceNames,cancelled,onProgress:progress=>send('comparisonProgress',{requestId,...progress})});send('comparison',{requestId,result});}
     else if(type==='cancelAnalysis'){analysisToken++;}
     else if(type==='detail'&&db){const detail=db.detail(data.record);send('detail',{requestId,...detail,facts:extractRecordFacts(detail),links:relations.find(detail.event,data.record,detail.endEvent)});}
-    else if(type==='search'&&db){const result=await db.search(data.term,100,scanned=>send('searchProgress',{requestId,scanned}));send('search',{requestId,...result});}
+    else if(type==='search'&&db){const current=db,token=++searchToken,cancelled=()=>token!==searchToken||db!==current;const result=await current.search(data.term,100,scanned=>send('searchProgress',{requestId,scanned}),{cancelled});send('search',{requestId,...result});}
+    else if(type==='cancelSearch'){searchToken++;}
     else if(type==='neighbor'&&db){
       send('neighbor',{requestId,record:db.neighbor(data.record,data.direction)});
     }else if(type==='benchmark'){
@@ -166,5 +167,5 @@ onmessage=async({data})=>{
       if(batch)await w.write(batch);await w.write(']}');await w.close();
       const f=await handle.getFile();try{await importFile(new File([f],`synthetic-${f.size}.json`));}finally{await r.removeEntry(name).catch(()=>{});}
     }
-  }catch(error){if(['import','demo','hardwareDemo'].includes(type)&&error.name==='AbortError')send('importCancelled',{requestId});else if(['analysis','compare'].includes(type)&&error.name==='AbortError')send(type==='compare'?'comparisonCancelled':'analysisCancelled',{requestId});else send('error',{requestId,operation:type,code:error.name,message:error.name==='QuotaExceededError'?'瀏覽器儲存額度不足。原始檔未變更；請清除快取或釋出空間再試。':error.name==='NoModificationAllowedError'?'這份 Trace 正由其他分頁或背景作業使用，請關閉該分頁後重試。':error.message});}
+  }catch(error){if(type==='search'&&error.name==='AbortError')send('searchCancelled',{requestId});else if(['import','demo','hardwareDemo'].includes(type)&&error.name==='AbortError')send('importCancelled',{requestId});else if(['analysis','compare'].includes(type)&&error.name==='AbortError')send(type==='compare'?'comparisonCancelled':'analysisCancelled',{requestId});else send('error',{requestId,operation:type,code:error.name,message:error.name==='QuotaExceededError'?'瀏覽器儲存額度不足。原始檔未變更；請清除快取或釋出空間再試。':error.name==='NoModificationAllowedError'?'這份 Trace 正由其他分頁或背景作業使用，請關閉該分頁後重試。':error.message});}
 };

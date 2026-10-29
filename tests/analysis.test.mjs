@@ -46,3 +46,11 @@ test('extension cancellation propagates and invalid colors cannot break the defa
 test('event palette distinguishes compute, transfer, wait and frame and is stable across redraws',()=>{
   const inputs=['CONV','DMA · COMPUTE','Semaphore wait','FRAME'];const result=inputs.map(label=>eventColor({label}));assert.equal(new Set(result.map(x=>x.fill)).size,4);assert.equal(eventColor({label:'CONV'}).fill,result[0].fill);assert.notEqual(eventColor({label:'CONV'},true).fill,result[0].fill);assert.equal(eventColor({label:'CUSTOM_OP'}).category,'其他');
 });
+
+
+test('unindexed names preserve all duration totals, report exclusions, and hydrate at most the longest 50',async()=>{
+  const events=Array.from({length:70},(_,i)=>({ph:'X',name:'long'.repeat(1100)+i,pid:1,tid:77,ts:i*200,dur:i+1})),trace=build(events);let reads=0;const detail=trace.detail.bind(trace);trace.detail=record=>{reads++;return detail(record);};
+  const result=await analyzeTrace(trace);assert.equal(result.complete,70);assert.equal(result.totalUs,2485);assert.equal(result.tracks[0].totalUs,2485);assert.equal(result.unindexedNameEvents,70);assert.equal(result.unindexedNameUs,2485);assert.deepEqual(result.byName,[]);assert.equal(reads,50);assert(result.longest.every(row=>row.record.label.startsWith('long')));assert(result.notes.some(note=>note.includes('名稱排行不包含')));
+  const name='prefix'.repeat(30)+'tail',normal=build([{ph:'X',name,ts:0,dur:1}]),manifest=normal.manifest();delete manifest.fullNamesVersion;manifest.names=manifest.names.map(value=>value.slice(0,160));const legacy=new TraceIndex(normal.raw.handle,normal.index.handle).restore(manifest);
+  const old=await analyzeTrace(legacy);assert.equal(old.unindexedNameEvents,1);assert(old.longest[0].record.label.endsWith('tail'));
+});
