@@ -7,6 +7,7 @@ const extensionHost=await loadExtensionHost();
 const $=id=>document.getElementById(id), esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const state={info:null,start:0,end:1,tracks:[],layout:[],rows:new Map(),groups:[],collapsed:new Set(),groupRows:new Map(),lanes:new Map(),density:'compact',pins:new Set(),expanded:new Set(),selected:null,detail:null,links:[],area:null,filter:'',view:'timeline',query:0,detailId:0,searchId:0,analysisId:0,analysis:null,analysisBusy:false,showLinks:true};
 let worker,queryTimer,paintFrame,toastTimer,searchResults=[],commandIndex=0,filteredCommands=[],importing=false,queryBusy=false,queryDirty=false;
+let importRecovery=null,restoringRecovery=null;
 let labelWidth=250,plotWidth=700,plotHeight=420,hitboxes=[],pointer=null,overviewPointer=null;
 const palette=['#a8c995','#aac4d9','#e3c489','#bcb2d2','#b4d7cd','#d9b7a8'];
 function formatTime(us,short=false){const n=Math.abs(us);if(n>=1e6)return `${(us/1e6).toFixed(short?2:3)} s`;if(n>=1000)return `${(us/1000).toFixed(short?1:3)} ms`;return `${us.toFixed(n<1?2:1)} µs`;}
@@ -14,13 +15,18 @@ function bytes(n){return n>=1e9?`${(n/1e9).toFixed(2)} GB`:n>=1e6?`${(n/1e6).toF
 function number(n){return n.toLocaleString('en-US');}
 function toast(message){$('toast').textContent=message;$('toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').hidden=true,6500);}
 function send(type,data={}){worker.postMessage({type,...data});}
-function startWorker(){worker?.terminate();queryBusy=false;queryDirty=false;clearTimeout(queryTimer);queryTimer=null;worker=new Worker(new URL('./worker.js?v=0.2.1',import.meta.url),{type:'module'});worker.onmessage=handleMessage;worker.onerror=e=>{finishLoading();toast(`背景引擎錯誤：${e.message}`);};}
+function startWorker(){worker?.terminate();queryBusy=false;queryDirty=false;clearTimeout(queryTimer);queryTimer=null;const active=new Worker(new URL('./worker.js?v=0.2.2',import.meta.url),{type:'module'});worker=active;active.onmessage=event=>{if(worker===active)handleMessage(event);};active.onerror=e=>{if(worker!==active)return;finishLoading();toast(`背景引擎錯誤：${e.message}`);};}
 function finishLoading(){importing=false;if($('loading').open)$('loading').close();}
-function beginLoading(title='正在讀取 Trace'){
+function beginLoading(title='正在讀取 Trace',remember=true){
+  if(remember&&state.info)importRecovery={id:state.info.id,start:state.start,end:state.end,filter:state.filter,view:state.view,pins:new Set(state.pins),expanded:new Set(state.expanded),collapsed:new Set(state.collapsed),lanes:new Map(state.lanes),selected:state.selected,detail:state.detail,links:state.links,area:state.area,analysis:state.analysis,detailsHidden:$('details').hidden,scrollTop:$('tracks-scroll').scrollTop};
   importing=true;state.info=null;state.rows.clear();state.selected=null;state.links=[];state.area=null;state.detail=null;
   state.analysis=null;state.analysisId++;setAnalysisBusy(false);$('analysis-results').innerHTML='';$('export-analysis').disabled=true;
   $('loading-title').textContent=title;$('progress-bar').style.width='0%';$('progress-percent').textContent='0%';$('progress-bytes').textContent='準備磁碟索引…';$('progress-events').textContent='0';$('progress-rate').textContent='— MB/s';
   if(!$('loading').open)$('loading').showModal();
+}
+function recoverImport(message){
+  const previous=importRecovery||restoringRecovery;if(!previous)return false;
+  restoringRecovery={...previous,notice:message};importRecovery=null;beginLoading('正在還原上一份 Trace',false);toast(`${message} 正在還原上一份 Trace。`);send('restore',{id:previous.id});return true;
 }
 function loadFile(file){if(!file)return;if(!/\.(json|gz)$/i.test(file.name)){toast('目前支援 Chrome Trace JSON（.json / .json.gz），請先轉換其他格式。');return;}startWorker();beginLoading();send('import',{file});}
 function loadDemo(){startWorker();beginLoading('正在準備多核心示範 Trace');send('hardwareDemo');}
@@ -31,10 +37,13 @@ function handleMessage({data}){
       $('progress-bytes').textContent=`${bytes(data.bytes)} / ${bytes(data.total)}`;$('progress-events').textContent=number(data.events);$('progress-rate').textContent=`${(data.bytes/1e6/Math.max(.01,data.elapsed)).toFixed(1)} MB/s`;break;
     }
     case 'ready':{
+      const recovered=restoringRecovery?.id===data.info.id?restoringRecovery:null;restoringRecovery=null;importRecovery=null;
       state.info=data.info;state.start=data.info.start;state.end=data.info.end;state.selected=null;state.detail=null;state.links=[];state.pins.clear();state.expanded.clear();state.lanes.clear();state.rows.clear();state.groupRows.clear();state.groups=groupTracks(data.info.tracks,data.info.processes);state.collapsed=defaultCollapsed(state.groups);state.filter='';$('track-filter').value='';$('details').hidden=true;finishLoading();
       try{localStorage.setItem('trace-studio-session',data.info.id);}catch{}
-      updateInfo(data.restored);setView('timeline');updateLayout();drawOverview();requestQuery();
-      if(!data.info.source.demo)toast(data.restored?'已從本機快取還原，不需重新解析。':`已完成索引：${number(data.info.count)} 筆事件，${data.info.importSeconds.toFixed(2)} 秒。`);
+      if(recovered){for(const key of ['start','end','filter','view','pins','expanded','collapsed','lanes','selected','detail','links','area','analysis'])state[key]=recovered[key];$('track-filter').value=state.filter;$('details').hidden=recovered.detailsHidden;}
+      updateInfo(data.restored);setView(recovered?.view||'timeline');updateLayout();if(recovered){$('tracks-scroll').scrollTop=recovered.scrollTop;renderLabels();if(state.detail)renderDetail();if(state.analysis)renderAnalysis();else $('analysis-status').textContent='可重新選擇範圍並開始分析。';}drawOverview();requestQuery();
+      if(!recovered&&!data.info.source.demo)toast(data.restored?'已從本機快取還原，不需重新解析。':`已完成索引：${number(data.info.count)} 筆事件，${data.info.importSeconds.toFixed(2)} 秒。`);
+      if(recovered)toast(`${recovered.notice} 已返回上一份 Trace。`);
       break;
     }
     case 'query':{
@@ -51,13 +60,13 @@ function handleMessage({data}){
     case 'analysisProgress':if(data.requestId===state.analysisId)$('analysis-status').textContent=`背景分析中：${number(data.scanned)} / ${number(data.total)} 筆索引，已找到 ${number(data.complete)} 個區段，${data.elapsed.toFixed(1)} 秒。時間軸仍可操作。`;break;
     case 'analysis':if(data.requestId===state.analysisId){state.analysis=data.result;setAnalysisBusy(false);renderAnalysis();}break;
     case 'analysisCancelled':if(data.requestId===state.analysisId){setAnalysisBusy(false);$('analysis-status').textContent='分析已取消，trace 保留。';}break;
-    case 'cleared':try{localStorage.removeItem('trace-studio-session');}catch{}$('cache-dialog').close();toast('Trace 快取已清除。');loadDemo();break;
+    case 'cleared':try{localStorage.removeItem('trace-studio-session');}catch{}state.info=null;importRecovery=null;restoringRecovery=null;$('cache-dialog').close();toast('Trace 快取已清除。');loadDemo();break;
     case 'error':{
       finishLoading();toast(data.message);
       if(data.operation==='query'){queryBusy=false;queryDirty=false;}
       if(data.operation==='analysis'&&data.requestId===state.analysisId){setAnalysisBusy(false);$('analysis-status').textContent=data.message;}
-      if(data.operation==='restore'){try{localStorage.removeItem('trace-studio-session');}catch{}loadDemo();}
-      else if(data.operation==='import'||data.operation==='demo'||data.operation==='hardwareDemo'){state.info=null;state.rows.clear();$('file-name').textContent='無法開啟 Trace';$('file-subtitle').textContent='請選擇另一個 JSON 檔案';$('details-content').innerHTML=`<div class="selection-empty">${esc(data.message)}</div>`;paint();}
+      if(data.operation==='restore'){if(restoringRecovery){restoringRecovery=null;importRecovery=null;$('file-name').textContent='無法還原上一份 Trace';$('file-subtitle').textContent='可重新選擇原始檔案';}else{try{localStorage.removeItem('trace-studio-session');}catch{}loadDemo();}}
+      else if(data.operation==='import'||data.operation==='demo'||data.operation==='hardwareDemo'){if(recoverImport(data.message))break;state.info=null;state.rows.clear();$('file-name').textContent='無法開啟 Trace';$('file-subtitle').textContent='請選擇另一個 JSON 檔案';$('details-content').innerHTML=`<div class="selection-empty">${esc(data.message)}</div>`;paint();}
       break;
     }
   }
@@ -259,7 +268,9 @@ $('shortcuts').onclick=openHelp;$('help-link').onclick=openHelp;
 document.querySelectorAll('[data-close]').forEach(e=>e.onclick=()=>$(e.dataset.close).close());
 $('storage').onclick=async()=>{const q=await navigator.storage.estimate().catch(()=>({}));$('storage-usage').textContent=q.usage!==undefined?`本站已用 ${bytes(q.usage)} / 額度 ${bytes(q.quota||0)}`:'無法讀取儲存額度。';$('cache-dialog').showModal();};
 $('clear-cache').onclick=()=>{startWorker();send('clear');};
-$('cancel').onclick=()=>{startWorker();finishLoading();toast('已取消。未完成的快取可從左側「清除 Trace 快取」移除。');const last=localStorage.getItem('trace-studio-session');if(last)send('restore',{id:last});else loadDemo();};
+function cancelImport(){startWorker();finishLoading();if(recoverImport('已取消開檔。'))return;toast('已取消。未完成的快取可從左側「清除 Trace 快取」移除。');let last;try{last=localStorage.getItem('trace-studio-session');}catch{}if(last){beginLoading('正在還原上一份 Trace',false);send('restore',{id:last});}else loadDemo();}
+$('cancel').onclick=cancelImport;
+$('loading').addEventListener('cancel',e=>{e.preventDefault();cancelImport();});
 $('theme').onclick=()=>{document.body.classList.toggle('dark');try{localStorage.setItem('trace-studio-theme',document.body.classList.contains('dark')?'dark':'light');}catch{}paint();drawOverview();};
 const commands=[['開啟 Trace 檔案','O',()=>$('file').click()],['載入多核心示範','',loadDemo],['展開全部核心與程序','',()=>$('expand-groups').click()],['收合全部核心與程序','',()=>$('collapse-groups').click()],['切換緊湊／舒適列高','',()=>$('density-toggle').click()],['顯示完整 Trace','',fitAll],['聚焦目前選取','F',focusSelection],['放大時間軸','W',()=>zoom(.65)],['縮小時間軸','S',()=>zoom(1/.65)],['搜尋事件名稱','/',()=>setView('events')],['尋找軌道','Ctrl P',()=>{setView('timeline');$('track-filter').focus();}],['切換詳情面板','Q',()=>$('details').hidden=!$('details').hidden],['切換深色模式','',()=>$('theme').click()],['Trace 資訊','',()=>setView('info')],['操作與快捷鍵','?',openHelp]];
 function renderCommands(){const term=$('command-input').value.toLowerCase();filteredCommands=commands.filter(c=>c[0].toLowerCase().includes(term));commandIndex=Math.min(commandIndex,Math.max(0,filteredCommands.length-1));$('command-list').innerHTML=filteredCommands.map((c,i)=>`<button data-command="${i}" class="${i===commandIndex?'command-selected':''}"><span>${c[0]}</span><kbd>${c[1]||'↵'}</kbd></button>`).join('');}
