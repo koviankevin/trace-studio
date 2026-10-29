@@ -203,3 +203,9 @@ test('worker search yields to viewport queries, cancels, and a replacement searc
     const replacement=next(worker,'search',802);worker.postMessage({type:'search',traceId:info.id,requestId:802,term:'name-69999x'});const found=await replacement;assert.equal(found.results.length,1);assert(found.results[0].label.startsWith('name-69999'));
   }finally{await worker.terminate();await removeTestRoot(root);}
 });
+
+
+test('entry point cache keys match the release version for application and styles',async()=>{
+  const html=await readFile(new URL('../dist/index.html',import.meta.url),'utf8'),{version}=JSON.parse(await readFile(new URL('../package.json',import.meta.url),'utf8'));
+  for(const asset of ['app.js','style.css'])assert(html.includes('./'+asset+'?v='+version),'Stale browser cache key for '+asset+' in release '+version);
+});
