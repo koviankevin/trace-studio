@@ -25,7 +25,7 @@ test('disk index preserves nested args, UTF-8, custom fields and raw JSON',()=>{
   const {db}=build([event]);const r=db.query({start:210,end:220,trackIds:[0],width:1000})[0].rows[0];assert.equal(r.dur,80);assert.deepEqual(db.detail(r).event,event);assert.equal(db.detail(r).rawText,JSON.stringify(event));
 });
 
-test('unnamed events use their final thread name without altering raw events or explicit names',async()=>{
+test('unnamed events use compact raw TIDs without altering raw events or explicit names',async()=>{
   const event={ph:'X',pid:1,tid:2,ts:0,dur:10,args:{address:'0x1'}};
   const {db,manifest,raw,index}=build([event,
     {ph:'X',pid:1,tid:3,ts:20,dur:10,name:'Event'},
@@ -33,18 +33,28 @@ test('unnamed events use their final thread name without altering raw events or 
     {ph:'C',pid:1,tid:2,ts:70,args:{load:42}},
     {ph:'M',pid:1,tid:2,name:'thread_name',args:{name:'CORE0_COMPUTE'}}]);
   const rows=db.query({start:0,end:100,trackIds:manifest.tracks.map(t=>t.id),width:1000}).flatMap(t=>t.rows);
-  assert.equal(rows.find(r=>r.ts===0).label,'CORE0_COMPUTE');
+  assert.equal(rows.find(r=>r.ts===0).label,'2');
   assert.equal(rows.find(r=>r.ts===20).label,'Event');
-  assert.equal(rows.find(r=>r.ts===40).label,'CORE0_COMPUTE');
-  assert.equal(rows.find(r=>r.kind===2).label,'CORE0_COMPUTE · load');
+  assert.equal(rows.find(r=>r.ts===40).label,'2');
+  assert.equal(rows.find(r=>r.kind===2).label,'2 · load');
   assert.deepEqual(db.detail(rows.find(r=>r.ts===0)).event,event);
   assert.equal(db.detail(rows.find(r=>r.ts===0)).rawText,JSON.stringify(event));
   const restored=new TraceIndex(raw,index).restore(JSON.parse(JSON.stringify(manifest)));
-  assert.equal(restored.query({start:0,end:10,trackIds:[0]})[0].rows[0].label,'CORE0_COMPUTE');
-  assert((await restored.search('CORE0_COMPUTE')).results.some(r=>r.ts===0));
-  assert.equal(db.neighbor(rows.find(r=>r.ts===0),1).label,'CORE0_COMPUTE');
+  assert.equal(restored.query({start:0,end:10,trackIds:[0]})[0].rows[0].label,'2');
+  assert((await restored.search('2')).results.some(r=>r.ts===0));
+  assert.equal(db.neighbor(rows.find(r=>r.ts===0),1).label,'2');
   const unnamed=build([{ph:'X',ts:0,dur:10,pid:5,tid:123}]);
   assert.equal(unnamed.db.query({start:0,end:10,trackIds:[0]})[0].rows[0].label,'123');
+});
+
+test('missing event labels remove only the repeated process prefix from string tids',async()=>{
+  const events=[{ph:'X',pid:'CORE0',tid:'CORE0_COMPUTE',ts:0,dur:10},{ph:'X',pid:'CORE0',tid:'CORE0_COMPUTE',ts:20,dur:5,name:'Event'}];
+  const {db,manifest,raw,index}=build(events);assert.equal(db.query({start:0,end:30,trackIds:[0]})[0].rows[0].label,'COMPUTE');
+  // Recreate the old shared Event dictionary to exercise a real legacy cache.
+  const legacy=JSON.parse(JSON.stringify(manifest));delete legacy.namePolicy;legacy.names=legacy.names.map(()=> 'Event');
+  const restored=new TraceIndex(raw,index).restore(legacy),rows=restored.query({start:0,end:30,trackIds:[0]})[0].rows;
+  assert.equal(rows[0].label,'COMPUTE');assert.equal(rows[1].label,'Event');assert.equal((await restored.search('COMPUTE')).results.length,1);
+  assert.deepEqual(restored.detail(rows[0]).event,events[0]);
 });
 test('B/E pairs, incomplete spans, metadata, counters and unsupported phases',()=>{
   const events=[{ph:'M',pid:1,tid:1,name:'thread_name',args:{name:'Main'}},{ph:'B',pid:1,tid:1,ts:100,name:'outer',args:{x:1}},{ph:'B',pid:1,tid:1,ts:110,name:'inner'},{ph:'E',pid:1,tid:1,ts:130,args:{result:'ok'}},{ph:'E',pid:1,tid:1,ts:180},{ph:'E',pid:1,tid:1,ts:181},{ph:'C',pid:1,tid:1,ts:190,name:'memory',args:{MB:100,objects:42}},{ph:'s',pid:1,tid:1,ts:195,name:'flow',id:1},{ph:'B',pid:1,tid:1,ts:199,name:'incomplete'}];

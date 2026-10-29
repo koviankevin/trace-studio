@@ -7,7 +7,7 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {gzipSync} from 'node:zlib';
 import {createHash} from 'node:crypto';
-function next(worker,type,requestId){return new Promise((resolve,reject)=>{const timer=setTimeout(()=>{worker.off('message',handler);reject(Error(`timeout: ${type}`));},10000);const handler=m=>{if(m.type==='error'&&type!=='error'){clearTimeout(timer);worker.off('message',handler);reject(Error(m.message));}if(m.type===type&&(requestId===undefined||m.requestId===requestId)){clearTimeout(timer);worker.off('message',handler);resolve(m);}};worker.on('message',handler);worker.once('error',reject);});}
+function next(worker,type,requestId,predicate=()=>true){return new Promise((resolve,reject)=>{const clean=()=>{clearTimeout(timer);worker.off('message',handler);worker.off('error',failed);},failed=error=>{clean();reject(error);},timer=setTimeout(()=>failed(Error(`timeout: ${type}`)),10000);const handler=m=>{if(m.type==='error'&&type!=='error')return failed(Error(m.message));if(m.type===type&&(requestId===undefined||m.requestId===requestId)&&predicate(m)){clean();resolve(m);}};worker.on('message',handler);worker.once('error',failed);});}
 test('real worker message protocol: demo, viewport, detail, relation, search and restore',async()=>{
   const root=await mkdtemp(join(tmpdir(),'trace-studio-test-'));let worker;
   try{
@@ -129,12 +129,24 @@ test('counter envelopes, boundary context and raw details survive the actual wor
     reply=next(worker,'query',80);worker.postMessage({type:'query',requestId:80,start:502,end:505,width:100,trackIds:[id]});const result=(await reply).rows[0];assert.equal(result.rows.length,0);assert.equal(result.before.ts,500);assert.equal(result.after.ts,510);
   }finally{await worker?.terminate();await removeTestRoot(root);}
 });
+test('raw Args analysis groups hardware fields, remains queryable, cancels, caches and pages',async()=>{
+  const root=await mkdtemp(join(tmpdir(),'trace-studio-test-')),worker=new Worker(new URL('./worker-harness.mjs',import.meta.url),{workerData:{root}});
+  try{
+    await next(worker,'initialized');const events=Array.from({length:30000},(_,i)=>({ph:'X',pid:`CORE${i%4}`,tid:`CORE${i%4}_COMPUTE`,ts:i*20,dur:10,args:{TfliteID:i%13,LinkId:i%9,CoreId:i%4,MemoryRanges:{'Range Start 0':'0x1000','Range End 0':'0x1fff','Size 0':4096,'Space 0':i%2?'LOC_INPUT_LOCAL':'LOC_OUTPUT_LOCAL'}}}));
+    let reply=next(worker,'ready');worker.postMessage({type:'import',file:new File([JSON.stringify(events)],'argument-analysis.json')});const info=(await reply).info,request={type:'analysis',includeArguments:true,start:info.start,end:info.end,trackIds:info.tracks.map(t=>t.id),argumentFocus:{kind:'flow',value:'7'}};
+    const progress=next(worker,'analysisProgress',200,message=>message.stage==='args');worker.postMessage({...request,requestId:200});await progress;
+    const viewport=next(worker,'query',201),cancelled=next(worker,'analysisCancelled',200);worker.postMessage({type:'query',requestId:201,start:info.start,end:info.end,width:1000,trackIds:[0]});worker.postMessage({type:'cancelAnalysis'});assert((await viewport).rows[0].rows.length);await cancelled;
+    reply=next(worker,'analysis',202);worker.postMessage({...request,requestId:202});const result=(await reply).result.arguments;assert.equal(result.events,30000);assert.equal(result.matched,3333);assert.equal(result.groups.flow.length,1);assert.equal(result.groups.flow[0].id,'7');assert.equal(result.members.length,100);assert(result.hasMore);assert.equal(result.members[0].record.label,'COMPUTE');
+    reply=next(worker,'analysis',203);worker.postMessage({...request,requestId:203});assert((await reply).result.arguments.reused);
+    reply=next(worker,'analysis',204);worker.postMessage({...request,requestId:204,memberOffset:100});const page=(await reply).result.arguments;assert.equal(page.matched,3333);assert.notEqual(page.members[0].record.offset,result.members[0].record.offset);
+  }finally{await worker.terminate();await removeTestRoot(root);}
+});
 test('application element references and local assets exist; engine benchmark hashes match',async()=>{
   const base=new URL('../dist/',import.meta.url),html=await readFile(new URL('index.html',base),'utf8'),app=await readFile(new URL('app.js',base),'utf8');
   const ids=new Set([...html.matchAll(/id="([^"]+)"/g)].map(m=>m[1]));const dynamic=new Set(['area-focus','show-relations']);
   for(const m of app.matchAll(/\$\('([^']+)'\)/g))assert(ids.has(m[1])||dynamic.has(m[1]),`Missing #${m[1]}`);
-  for(const asset of ['style.css','workspace.css','app.js','worker.js','core.js','relations.js','navigation.js','track-layout.js','event-summary.js','event-colors.js','analysis.js','session-store.js','counter-plot.js','extensions/runtime.js','extensions/custom.js','extensions/example.js','hardware-demo.js','icon.svg'])assert((await readFile(new URL(asset,base))).length>0);
-  const benchmark=JSON.parse(await readFile(new URL('../docs/benchmark-2026-10-29-v0.3.2.json',import.meta.url),'utf8'));
+  for(const asset of ['style.css','workspace.css','app.js','worker.js','core.js','relations.js','navigation.js','track-layout.js','event-summary.js','event-colors.js','analysis.js','session-store.js','counter-plot.js','argument-analysis.js','argument-facts.js','event-labels.js','extensions/runtime.js','extensions/custom.js','extensions/example.js','hardware-demo.js','icon.svg'])assert((await readFile(new URL(asset,base))).length>0);
+  const benchmark=JSON.parse(await readFile(new URL('../docs/benchmark-2026-10-29-v0.4.0.json',import.meta.url),'utf8'));
   for(const [file,expected]of Object.entries(benchmark.sourceHashes))assert.equal(createHash('sha256').update(await readFile(new URL(file,base))).digest('hex'),expected,`Rerun benchmark after changing ${file}`);
-  const counters=JSON.parse(await readFile(new URL('../docs/counter-benchmark-2026-10-29-v0.3.2.json',import.meta.url),'utf8'));assert.equal(counters.sourceHashes['core.js'],benchmark.sourceHashes['core.js']);
+  const counters=JSON.parse(await readFile(new URL('../docs/counter-benchmark-2026-10-29-v0.4.0.json',import.meta.url),'utf8'));assert.equal(counters.sourceHashes['core.js'],benchmark.sourceHashes['core.js']);
 });

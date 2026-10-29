@@ -8,7 +8,8 @@ export function hardwareDemo(){
       const name=`CORE${core}_${unit}${work?' work':''}`;events.push({ph:'M',pid,tid,name:'thread_name',args:{name}});
       for(let flow=0;flow<80;flow++){
         const ts=flow*16667+core*1400+(tid%6)*370,dur=unit.startsWith('FRAME')?500:1200+(tid%7)*1700;
-        events.push({name:unit.startsWith('FRAME')?'FRAME':`${unit==='COMPUTE'?'CONV':'DMA'} · ${unit}`,ph:'X',pid,tid,ts,dur,cat:work?'work':'hardware',args:{coreid:core,linkid:flow,opid:Math.floor(flow/4),commandid:1000+Math.floor(flow/8),blockid:flow%4,partitionid:core,input_shape:[12,12,64],output_shape:[10,10,32],block_shape:[10,10,32],block_offset:[0,0,core*32],address:`0x${(0x100000+flow*0x1000).toString(16)}`,memory_traffic:{DRAM:{read_bytes:4096+tid*512,write_bytes:work?0:2048},LOCAL:{read_bytes:2048,write_bytes:1024}},demo:true}});
+        const start=0x100000+flow*0x1000,output=unit==='COMPUTE';
+        events.push({name:unit.startsWith('FRAME')?'FRAME':`${unit==='COMPUTE'?'CONV':'DMA'} · ${unit}`,ph:'X',pid,tid,ts,dur,cat:work?'work':'hardware',args:{coreid:core,linkid:flow,TfliteID:Math.floor(flow/4),GroupId:Math.floor(flow/4),opid:Math.floor(flow/4),commandid:1000+Math.floor(flow/8),blockid:flow%4,partitionid:core,input_shape:[12,12,64],output_shape:[10,10,32],block_shape:[10,10,32],block_offset:[0,0,core*32],address:`0x${start.toString(16)}`,MemoryRanges:{'Range Start 0':`0x${(start+(output?0:128)).toString(16)}`,'Range End 0':`0x${(start+(output?255:383)).toString(16)}`,'Size 0':256,'Space 0':`LOC_${output?'OUTPUT':'INPUT'}_LOCAL`},memory_traffic:{DRAM:{read_bytes:4096+tid*512,write_bytes:work?0:2048},LOCAL:{read_bytes:2048,write_bytes:1024}},demo:true}});
       }tid++;
     }
   }

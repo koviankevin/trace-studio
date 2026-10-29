@@ -24,6 +24,13 @@ test('analysis handles empty scopes and rejects invalid inputs',async()=>{
   const trace=build(events);const result=await analyzeTrace(trace,{trackIds:[]});assert.equal(result.complete,0);assert.equal(result.minUs,0);assert.equal(result.p95UpperUs,0);assert.deepEqual(result.longest,[]);
   await assert.rejects(analyzeTrace(trace,{start:2,end:1}));await assert.rejects(analyzeTrace(trace,{thresholdUs:-1}));
 });
+
+test('legacy analysis projects compact TIDs and preserves explicitly named Event records',async()=>{
+  const trace=build([{ph:'X',pid:'CORE0',tid:'CORE0_COMPUTE',ts:0,dur:10},{ph:'X',pid:'CORE0',tid:'CORE0_COMPUTE',name:'Event',ts:20,dur:5}]),manifest=trace.manifest();delete manifest.namePolicy;manifest.names=manifest.names.map(()=> 'Event');
+  for(const block of manifest.blocks){const data=new DataView(trace.index.handle.data.buffer);for(let i=0;i<block.count;i++)data.setUint32(block.at+i*64+28,1,true);}
+  const restored=new TraceIndex(trace.raw.handle,trace.index.handle).restore(manifest),result=await analyzeTrace(restored);
+  assert.deepEqual(result.byName.map(row=>[row.label,row.count,row.totalUs]),[['COMPUTE',1,10],['Event',1,5]]);assert.equal(result.longest[0].record.label,'COMPUTE');
+});
 test('extension index scanning preserves references and can read one selected event',async()=>{
   const trace=build(events),rows=[];for await(const row of scanTraceIndex(trace,{start:8,end:20,trackIds:[0]}))rows.push(row);assert.equal(rows.length,3);assert.equal(trace.detail(rows.find(r=>r.label==='A')).event.name,'A');
 });

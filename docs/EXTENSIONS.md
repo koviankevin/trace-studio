@@ -78,6 +78,9 @@ export default {
 | `dist/extensions/custom.js` | 內部擴充的唯一宣告入口。 |
 | `dist/extensions/runtime.js` | 驗證擴充、隔離欄位／分析錯誤、整理輸出。欄位／結果各最多 200 列，文字有長度上限。 |
 | `dist/analysis.js` | 基本統計及有界索引掃描；主 UI 不知道磁碟格式。 |
+| `dist/argument-facts.js` | 純函式解析 ID、Identity、MemoryRanges，保留來源路徑、衝突及端點依據；可擴充欄位別名。 |
+| `dist/argument-analysis.js` | 按需掃描原始 Args、同 ID 集合與記憶體範圍候選、分頁及取消。 |
+| `dist/event-labels.js` | 缺名事件的短 TID 顯示規則；不改原始 JSON。 |
 | `dist/event-summary.js` | 內建硬體欄位對照；只顯示來源提供的資料。 |
 | `dist/event-colors.js` | 內建依名稱規則分類的淡色配色。 |
 | `dist/track-layout.js` | 程序／核心／數值曲線分組、篩選、釘選與列高。 |
@@ -100,3 +103,27 @@ export default {
 - UI／內網瀏覽器行為需要另外驗收；Node 的 Worker／磁碟測試不能當作瀏覽器效能證明。
 
 內部部署可以只保留自己的靜態網站與擴充檔；不需要連公開 GitHub Pages，也沒有預設的資料外傳路徑。
+
+## 延伸事件 Args 分析
+
+內建分析以 `extractRecordFacts({event,endEvent})` 合併 B/E 的 Args；`extractArgumentFacts(event, options)` 則只處理一端。回傳 `ids`、`sources`、`memories`、`warnings`、`conflicts`、`truncated`，不依賴 DOM、磁碟或 AI。每個 memory 的 `start/end` 都是含尾端的十六進位字串，`bytes/declaredBytes` 是十進位字串，另保留 `rawEnd`、`basis`、`sizeMatches`、Location／space／role 與來源路徑。
+
+內部欄位格式不同時可新增別名，或在擴充內傳入自己的對照；鍵名比對忽略大小寫與底線。這不需要修改 parser 或磁碟索引：
+
+```js
+import {extractArgumentFacts, DEFAULT_ID_FIELDS, compareMemory}
+  from '../argument-facts.js?v=0.4.0';
+
+const facts = extractArgumentFacts(event, {
+  idFields: {...DEFAULT_ID_FIELDS,
+    tflite: [...DEFAULT_ID_FIELDS.tflite, 'internal_operator_id']}
+});
+// facts.ids.tflite、facts.sources.tflite
+// compareMemory(a, b) 回傳交集／bytes／角色方向，沒有交集則 null。
+```
+
+內建 `analyzeArguments(trace, options)` 使用 `scanTraceIndex` 按需讀取原始事件。選項包含 `start/end/trackIds`、`focus`、`memberOffset`、`cancelled`、`onProgress`；這是引擎層入口，UI 擴充優先透過既有 `scanIndex/readEvent` 使用純解析函式，避免依賴 Worker 的生命週期。`focus` 支援 `{kind:'tflite'|'flow',value}` 與記憶體條件；每頁 100 筆，換頁重新掃描，Worker 保留最近 8 份完成結果。
+
+`summary.arguments` 可讀取本次已完成的內建 Args 分析（使用者未勾選時不存在）。它是傳給擴充的獨立副本，不可假設每次分析都有。單事件預設上限為 4,096 欄位／8 層／32 個 memory，群組每類最多 16,384、回傳前 100 組；限制與衝突必須保留在呈現中。基礎 ID 可能跨推論重用，memory overlap 沒有 allocation 生命週期，不得直接標成已證明的 producer/consumer 或關鍵路徑。
+
+Args 專項測試：`node --test tests/argument-facts.test.mjs tests/argument-analysis.test.mjs`。新增 schema 時請用合成資料驗證欄位優先順序、零值、ID 重用、跨核心、端點與 unsafe integer；不要將內部 trace 或使用者截圖提交到公開庫。

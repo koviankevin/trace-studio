@@ -158,3 +158,9 @@ body.timeline-workspace{overflow:hidden}
 .cache-entry-actions{flex-shrink:0}.cache-pagination{justify-content:center;margin:16px 0}.cache-close-current{border-top:1px solid var(--line);margin-top:20px;padding-top:12px;color:var(--muted)}
 #cache-status{font-size:13px;line-height:1.6}#cache-dialog button:disabled{cursor:not-allowed}
 @media(max-width:540px){.cache-entry{align-items:flex-start;flex-direction:column}.cache-entry-actions{align-self:flex-end}}
+.argument-actions,.argument-focus-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:10px 0}
+.argument-facts{border-top:1px solid var(--line);margin-top:16px;padding-top:12px}.argument-facts h3{font-size:14px}
+.argument-facts .analysis-table{font-size:13px}.argument-facts small{display:block;color:var(--muted);margin-top:4px}
+.analysis-controls .argument-option{display:flex;flex-direction:row;align-items:center;gap:6px;max-width:380px}
+.analysis-controls input[type=checkbox]{width:auto;min-width:0;min-height:0}.argument-focus-bar{font-size:13px;color:var(--muted)}
+.argument-report{margin-top:26px;padding-top:20px;border-top:1px solid var(--line)}.argument-report p{line-height:1.7;font-size:14px}.argument-report .analysis-table td{white-space:normal;overflow-wrap:anywhere}

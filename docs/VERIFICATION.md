@@ -135,3 +135,21 @@
 | 日常穩定性 | 快取清單與還原、取消殘留回收、兩 Worker lease 與舊版忙碌檔案測試 | 真實多分頁與 OPFS 獨占衝突驗收 |
 
 本次重新要求瀏覽器工具列出可用瀏覽器，仍回報「Local browser use is disabled in Work settings」。此障礙已跨多個連續目標回合存在。依使用者先前「先完成並發布，瀏覽器操作稍後再驗收」的指示，保留已發布版本，不繞過設定啟動其他瀏覽器控制。商品等級尚未達成；下一個必要步驟是開啟瀏覽器操作後執行本文件既有的實機驗收，依結果修正，再判定交付。
+
+## v0.4.0：Args 分析與短 TID
+
+依使用者最新澄清，缺名事件使用原始 TID，移除重複的 PID／程序前綴（`CORE0_COMPUTE` → `COMPUTE`），不是數值相減或組合 `tid-pid`；明確提供的事件名仍保留。舊快取按需讀取原始欄位，核對缺名與明確名為 Event 的差異；搜尋、時間軸、鄰近事件、關聯與分析使用同一顯示規則。使用者已說明「開啟沒反應」是誤打，本次不以開檔故障為修改依據。
+
+Args 分析解析明確欄位與 Identity 中的識別值，整理同 TfliteID／LinkId 跨核心集合，並從 MemoryRanges 配出範圍。Size 用於核對含尾端／不含尾端，記憶體候選有重疊 bytes、Location、角色方向與時間先後；不推論 allocation 因果。完整原始事件保留，解析上限與欄位衝突在結果中標示，超出群組上限仍可指定 ID 搜尋完整選取範圍。
+
+- `argument-facts.test.mjs`：大小寫／進位／零值、Identity 與明確欄位優先、父物件及欄位編號配對、端點定義、Size 不符、空間與角色、可擴充別名及掃描界線。
+- `argument-analysis.test.mjs`：跨核心同 ID、範圍重疊、B/E Args、分頁／上限／取消、counter 多 metric 與變動欄位去重、末端樣本。
+- `analysis.test.mjs`：舊快取的同字典 ID 可分開呈現缺名 COMPUTE 與明確 Event，基本現代索引分析仍不讀取原始 Args。
+- `app-import.test.mjs`：執行正式 UI 模組與 Worker，依序點選同 TfliteID、Flow、返回事件、記憶體條件，核對 128 B 重疊與跨程序／核心開關。這是 DOM／磁碟替身入口測試，並非瀏覽器驗收。
+- `integration.test.mjs`：30,000 筆合成 Args，分析期間仍能 query、取消、重用結果快取、換頁；完整 Flow 條件核對 3,333 筆、頁面不重複。
+
+合成四核心示範增加 TfliteID、GroupId 與輸入／輸出 MemoryRanges，便於直接探索；所有欄位仍是合成資料。`argument-facts.js` 與 `argument-analysis.js` 保留明確程式擴充入口，文件含內部 schema 別名範例。發布前重新跑同源 3 GB 與 100 萬 counter 基準，來源 SHA-256 見 v0.4.0 JSON 紀錄與 PERFORMANCE.md。3 GB 測試不包含 Args 全掃描成本，不能將建索引秒數當作完整分析時間。
+
+瀏覽器人工驗收仍待啟用操作後進行，包含 Args 表格的小螢幕排版、真實 OPFS 分析時的時間軸操作與實際 trace 的 ID／memory 語意。
+
+發布前 `node --test tests/*.test.mjs` 共 66 項全數通過；`git diff --check` 通過。受測引擎來源與兩份基準雜湊一致。正式 Pages 資產一致性由發布後的 verification 腳本另行確認。
