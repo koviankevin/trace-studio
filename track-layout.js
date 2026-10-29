@@ -7,21 +7,28 @@ function compareTracks(a,b){
   const base=s=>s.replace(/(?:[\s_-]+work)$/i,'');
   return natural.compare(base(a.name),base(b.name))||Number(/(?:[\s_-]+work)$/i.test(a.name))-Number(/(?:[\s_-]+work)$/i.test(b.name))||natural.compare(a.name,b.name)||a.id-b.id;
 }
-export function groupTracks(tracks,processes={}){
+export function trackName(track){return track.name===`Thread ${track.tid}`?`#${track.tid}`:track.name;}
+function groupProcesses(tracks,processes={},prefix=''){
   const processesById=new Map();
   for(const track of tracks){if(!track.count)continue;const key=String(track.pid);if(!processesById.has(key))processesById.set(key,[]);processesById.get(key).push(track);}
   const roots=[];
   for(const [pid,members]of processesById){
     const buckets=new Map();for(const track of members){const key=coreName(track.name)||'';if(!buckets.has(key))buckets.set(key,[]);buckets.get(key).push(track);}
-    const root={id:`process:${pid}`,label:processes[pid]||`Process ${pid}`,pid,kind:'process',tracks:members,children:[]};
+    const root={id:`${prefix}process:${pid}`,label:processes[pid]||`Process ${pid}`,pid,kind:'process',tracks:members,children:[]};
     if(buckets.size>1&&[...buckets.keys()].some(Boolean)){
       for(const [core,children]of [...buckets].sort(([a],[b])=>a===''?1:b===''?-1:natural.compare(a,b))){
-        root.children.push({id:`core:${pid}:${core||'other'}`,label:core||'其他軌道',pid,kind:'core',tracks:children,children:[...children].sort(compareTracks)});
+        root.children.push({id:`${prefix}core:${pid}:${core||'other'}`,label:core||'其他軌道',pid,kind:'core',tracks:children,children:[...children].sort(compareTracks)});
       }
     }else root.children=[...members].sort(compareTracks);
     roots.push(root);
   }
   return roots.sort((a,b)=>natural.compare(a.label,b.label)||natural.compare(a.pid,b.pid));
+}
+export function groupTracks(tracks,processes={}){
+  const curves=tracks.filter(t=>t.count&&t.kind==='counter'),segments=tracks.filter(t=>t.kind!=='counter');
+  const roots=groupProcesses(segments,processes);
+  if(curves.length)roots.push({id:'numeric-curves',label:'數值曲線',pid:null,kind:'counter-group',tracks:curves,children:groupProcesses(curves,processes,'counter-')});
+  return roots;
 }
 export function allGroups(roots){const result=[];function visit(node){if(!node.children)return;result.push(node);for(const child of node.children)visit(child);}roots.forEach(visit);return result;}
 export function defaultCollapsed(roots){
@@ -44,13 +51,14 @@ export function makeTrackLayout(roots,{collapsed=new Set(),filter='',pins=new Se
   const matches=(t,path=[])=>!words.length||words.some(word=>`${t.name} ${coreName(t.name)||''} ${t.pid} ${t.tid} ${path.map(g=>g.label).join(' ')}`.toLowerCase().includes(word));
   function push(row,h){rows.push({...row,y,h});y+=h;}
   function leaf(track,path,depth){
-    let name=track.name;const core=coreName(name);
+    let name=trackName(track);const core=coreName(name);
     if(core&&path.some(group=>coreName(group.label)===core)){
       name=name.replace(new RegExp(`^${core.replace(/(\D+)(\d+)/,'$1[ _#:-]*$2')}[ _:/-]+`,'i'),'')||track.name;
     }
     push({id:`track:${track.id}`,type:'track',track,depth,path:path.map(g=>g.id),displayName:name},trackHeight(track,{density,expanded:expanded.has(track.id),lanes:lanes.get(track.id)||1}));
   }
-  for(const id of pins){const t=byId.get(id);if(t&&matches(t,roots.filter(root=>root.pid===String(t.pid))))leaf(t,[],0);}
+  function trailFor(id,groups=roots,path=[]){for(const group of groups)if(group.tracks.some(t=>t.id===id)){const trail=[...path,group];return trailFor(id,group.children.filter(t=>t.children),trail)||trail;}return null;}
+  for(const id of pins){const t=byId.get(id);if(t&&matches(t,trailFor(id)||[]))leaf(t,[],0);}
   function visit(group,path,depth){
     const trail=[...path,group],members=group.tracks.filter(t=>!pins.has(t.id)&&matches(t,trail));if(!members.length)return;
     const isCollapsed=!words.length&&collapsed.has(group.id);

@@ -1,21 +1,24 @@
 import {PerfettoNavigation,wheelZoomRatio} from './navigation.js';
-import {groupTracks,allGroups,defaultCollapsed,makeTrackLayout,revealTrack} from './track-layout.js';
+import {groupTracks,allGroups,defaultCollapsed,makeTrackLayout,revealTrack,trackName} from './track-layout.js?v=0.2.0';
 import {eventSummary} from './event-summary.js';
+import {eventColor} from './event-colors.js';
+import {loadExtensionHost} from './extensions/runtime.js';
+const extensionHost=await loadExtensionHost();
 const $=id=>document.getElementById(id), esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const state={info:null,start:0,end:1,tracks:[],layout:[],rows:new Map(),groups:[],collapsed:new Set(),groupRows:new Map(),lanes:new Map(),density:'compact',pins:new Set(),expanded:new Set(),selected:null,detail:null,links:[],area:null,filter:'',view:'timeline',query:0,detailId:0,searchId:0,showLinks:true};
+const state={info:null,start:0,end:1,tracks:[],layout:[],rows:new Map(),groups:[],collapsed:new Set(),groupRows:new Map(),lanes:new Map(),density:'compact',pins:new Set(),expanded:new Set(),selected:null,detail:null,links:[],area:null,filter:'',view:'timeline',query:0,detailId:0,searchId:0,analysisId:0,analysis:null,analysisBusy:false,showLinks:true};
 let worker,queryTimer,paintFrame,toastTimer,searchResults=[],commandIndex=0,filteredCommands=[],importing=false,queryBusy=false,queryDirty=false;
 let labelWidth=250,plotWidth=700,plotHeight=420,hitboxes=[],pointer=null,overviewPointer=null;
 const palette=['#a8c995','#aac4d9','#e3c489','#bcb2d2','#b4d7cd','#d9b7a8'];
-const darkPalette=['#688957','#68869b','#a08b56','#81759c','#5c8b7e','#a17b67'];
 function formatTime(us,short=false){const n=Math.abs(us);if(n>=1e6)return `${(us/1e6).toFixed(short?2:3)} s`;if(n>=1000)return `${(us/1000).toFixed(short?1:3)} ms`;return `${us.toFixed(n<1?2:1)} µs`;}
 function bytes(n){return n>=1e9?`${(n/1e9).toFixed(2)} GB`:n>=1e6?`${(n/1e6).toFixed(1)} MB`:`${(n/1e3).toFixed(0)} KB`;}
 function number(n){return n.toLocaleString('en-US');}
 function toast(message){$('toast').textContent=message;$('toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').hidden=true,6500);}
 function send(type,data={}){worker.postMessage({type,...data});}
-function startWorker(){worker?.terminate();queryBusy=false;queryDirty=false;clearTimeout(queryTimer);queryTimer=null;worker=new Worker(new URL('./worker.js',import.meta.url),{type:'module'});worker.onmessage=handleMessage;worker.onerror=e=>{finishLoading();toast(`背景引擎錯誤：${e.message}`);};}
+function startWorker(){worker?.terminate();queryBusy=false;queryDirty=false;clearTimeout(queryTimer);queryTimer=null;worker=new Worker(new URL('./worker.js?v=0.2.0',import.meta.url),{type:'module'});worker.onmessage=handleMessage;worker.onerror=e=>{finishLoading();toast(`背景引擎錯誤：${e.message}`);};}
 function finishLoading(){importing=false;if($('loading').open)$('loading').close();}
 function beginLoading(title='正在讀取 Trace'){
   importing=true;state.info=null;state.rows.clear();state.selected=null;state.links=[];state.area=null;state.detail=null;
+  state.analysis=null;state.analysisId++;setAnalysisBusy(false);$('analysis-results').innerHTML='';$('export-analysis').disabled=true;
   $('loading-title').textContent=title;$('progress-bar').style.width='0%';$('progress-percent').textContent='0%';$('progress-bytes').textContent='準備磁碟索引…';$('progress-events').textContent='0';$('progress-rate').textContent='— MB/s';
   if(!$('loading').open)$('loading').showModal();
 }
@@ -45,10 +48,14 @@ function handleMessage({data}){
     case 'searchProgress':if(data.requestId===state.searchId)$('search-results').innerHTML=`<p class="empty-state">搜尋中… 已掃描 ${number(data.scanned)} 筆索引</p>`;break;
     case 'search':if(data.requestId===state.searchId){searchResults=data.results;renderEventRows($('search-results'),data.results,data.capped?'顯示前 100 筆符合結果。縮小關鍵字可找到更精確的事件。':`找到 ${number(data.results.length)} 筆事件。`,true);}break;
     case 'neighbor':if(data.record)selectRecord(data.record,true);else toast('已到達這條軌道的邊界。');break;
+    case 'analysisProgress':if(data.requestId===state.analysisId)$('analysis-status').textContent=`背景分析中：${number(data.scanned)} / ${number(data.total)} 筆索引，已找到 ${number(data.complete)} 個區段，${data.elapsed.toFixed(1)} 秒。時間軸仍可操作。`;break;
+    case 'analysis':if(data.requestId===state.analysisId){state.analysis=data.result;setAnalysisBusy(false);renderAnalysis();}break;
+    case 'analysisCancelled':if(data.requestId===state.analysisId){setAnalysisBusy(false);$('analysis-status').textContent='分析已取消，trace 保留。';}break;
     case 'cleared':try{localStorage.removeItem('trace-studio-session');}catch{}$('cache-dialog').close();toast('Trace 快取已清除。');loadDemo();break;
     case 'error':{
       finishLoading();toast(data.message);
       if(data.operation==='query'){queryBusy=false;queryDirty=false;}
+      if(data.operation==='analysis'&&data.requestId===state.analysisId){setAnalysisBusy(false);$('analysis-status').textContent=data.message;}
       if(data.operation==='restore'){try{localStorage.removeItem('trace-studio-session');}catch{}loadDemo();}
       else if(data.operation==='import'||data.operation==='demo'||data.operation==='hardwareDemo'){state.info=null;state.rows.clear();$('file-name').textContent='無法開啟 Trace';$('file-subtitle').textContent='請選擇另一個 JSON 檔案';$('details-content').innerHTML=`<div class="selection-empty">${esc(data.message)}</div>`;paint();}
       break;
@@ -65,6 +72,7 @@ function updateInfo(restored=false){
   $('threads-sub').textContent=`${Object.keys(i.phases).length} 種事件類型 · ${number(i.slices)} 筆可視化事件`;
   $('import-time').innerHTML=`${i.importSeconds.toFixed(2)} <em>s</em>`;$('cache-sub').textContent=restored?'已從本機磁碟快取還原':'Worker 解析＋磁碟建索引';
   $('overview-end').textContent=formatTime(i.end-i.start,true);
+  $('analysis-group').innerHTML='<option value="all">全部</option>'+allGroups(state.groups).map(group=>`<option value="${esc(group.id)}">${esc(group.label)}${group.id.startsWith('counter-')?' · 數值曲線':''}</option>`).join('');setAnalysisBusy(false);
   renderEventRows($('insights-list'),i.top,'事件持續時間，非獨占 CPU 耗時。',false);
   const phases=Object.entries(i.phases).map(([ph,n])=>`<div class="info-line"><span>ph = ${esc(ph)}</span><span>${number(n)}</span></div>`).join('');
   $('info-content').innerHTML=`<div class="info-panel"><h3>來源與儲存</h3>${infoLine('檔案',i.source.name)}${infoLine('原始大小',bytes(i.source.size))}${infoLine('索引＋事件快取',bytes(i.diskBytes+(i.relations?.bytes||0)))}${infoLine('關聯索引',number(i.relations?.count||0))}${infoLine('完整事件數',number(i.count))}<p>原始事件在本機磁碟保留。畫面會依解析度聚合密集事件；放大可繼續展開，點選可讀取原始 JSON。未經過網路上傳。</p></div><div class="info-panel"><h3>事件類型</h3>${phases}</div><div class="info-panel"><h3>解析品質</h3>${infoLine('無法繪製／metadata 過大',number(i.skipped))}${infoLine('未配對 B / E',number(i.unmatched))}${infoLine('逆序時間戳',number(i.outOfOrder))}${infoLine('名稱摘要超過字典上限',number(i.nameLimit))}<p class="${i.unmatched||i.skipped||i.outOfOrder?'warning':''}">X 完整事件、B/E 同步區段、I/i/R 即時事件、C counter 可視化。其他 phase 保留為標記。非同步事件尚未重建區段。逆序資料仍可查詢，但可能增加磁碟讀取。</p></div><div class="info-panel"><h3>位址與關聯</h3><p>自動辨識 args 中的 address / addr / ptr / pointer 與十六進位字串，按精確位址連結。另支援明確 defines / uses 及 s/t/f flow ID。相同位址不代表因果關係、相同配置生命週期或範圍重疊；大於安全整數的數值 address 請用字串記錄。</p><p>每事件最多 32 個關聯鍵，每次顯示最多 64 筆關聯。完整原始 args 仍可讀取。</p></div><div class="info-panel full"><h3>檔案 Metadata</h3><div class="json-tree">${tree(i.metadata)}</div></div><div class="info-panel full"><h3>大檔設計與目前邊界</h3><p>分段讀取 → Worker 解析 → OPFS 磁碟索引 → 可見軌道查詢 → Canvas 繪製。未將整份 JSON 或全部事件載入主執行緒。需要桌面 Chrome / Edge、HTTPS 與足夠的瀏覽器儲存額度。3 GB 檔案的實際載入時間取決於事件數、args 大小、硬碟、可用空間與瀏覽器；請參考 GitHub 中公開的測試結果。這版尚未支援 Perfetto protobuf、SQL、stack sampling 重建與跨檔比較。</p></div>`;
@@ -74,12 +82,12 @@ function tree(obj,depth=0){
   if(obj===null||typeof obj!=='object')return `<span class="json-value">${esc(typeof obj==='string'?obj:JSON.stringify(obj))}</span>`;
   if(depth>12)return `<span class="json-value">結構深度超過 12 層，請展開下方原始 JSON。</span>`;
   const entries=Object.entries(obj);return entries.slice(0,200).map(([key,value])=>{
-    if(value!==null&&typeof value==='object')return `<details ${depth<1?'open':''}><summary><span class="json-key">${esc(key)}</span> <span class="json-value">${Array.isArray(value)?`Array(${value.length})`:`{ ${Object.keys(value).length} }`}</span></summary>${tree(value,depth+1)}</details>`;
+    if(value!==null&&typeof value==='object')return `<details open><summary><span class="json-key">${esc(key)}</span> <span class="json-value">${Array.isArray(value)?`Array(${value.length})`:`{ ${Object.keys(value).length} }`}</span></summary>${tree(value,depth+1)}</details>`;
     const address=/address|addr|ptr|pointer/i.test(key)||typeof value==='string'&&/^0x[0-9a-f]+$/i.test(value);
     const text=typeof value==='string'?value:JSON.stringify(value);return `<div class="json-leaf"><span class="json-key">${esc(key)}</span><span class="json-value ${address?'address':''}">${esc(text?.length>16000?text.slice(0,16000)+'…（完整內容見原始 JSON）':text)}</span></div>`;
   }).join('')+(entries.length>200?'<p>前 200 個欄位；完整資料請查看原始 JSON。</p>':'');
 }
-function setView(view){state.view=view;document.body.classList.toggle('timeline-workspace',view==='timeline');document.querySelectorAll('.view').forEach(e=>e.classList.toggle('active',e.id===`${view}-view`));document.querySelectorAll('.nav').forEach(e=>e.classList.toggle('active',e.dataset.view===view));$('breadcrumb').textContent=({timeline:'時間軸',events:'事件搜尋',insights:'耗時分析',info:'Trace 資訊'})[view];if(view==='timeline'){measure();requestQuery();}if(view==='events')$('search-input').focus();}
+function setView(view){state.view=view;document.body.classList.toggle('timeline-workspace',view==='timeline');document.querySelectorAll('.view').forEach(e=>e.classList.toggle('active',e.id===`${view}-view`));document.querySelectorAll('.nav').forEach(e=>e.classList.toggle('active',e.dataset.view===view));$('breadcrumb').textContent=({timeline:'時間軸',events:'事件搜尋',insights:'Trace 分析',info:'Trace 資訊'})[view];if(view==='timeline'){measure();requestQuery();}if(view==='events')$('search-input').focus();}
 function updateLayout(){
   const scroll=$('tracks-scroll'),oldTop=scroll.scrollTop,anchor=state.layout.find(r=>r.y+r.h>oldTop),offset=anchor?oldTop-anchor.y:0;
   const result=makeTrackLayout(state.groups,{collapsed:state.collapsed,filter:state.filter,pins:state.pins,expanded:state.expanded,density:state.density,lanes:state.lanes});state.layout=result.rows;
@@ -93,8 +101,8 @@ function measure(){if(state.view!=='timeline')return;labelWidth=parseInt(getComp
 function visibleLayout(){const top=$('tracks-scroll').scrollTop;return state.layout.filter(r=>r.y+r.h>=top&&r.y<=top+plotHeight);}
 function renderLabels(){
   $('track-labels').innerHTML=visibleLayout().map(row=>{
-    if(row.type==='group')return `<div class="track-label group-label ${row.group.kind}" style="top:${row.y}px;height:${row.h}px;padding-left:${8+row.depth*12}px"><button class="group-toggle" data-group="${esc(row.group.id)}" aria-expanded="${!row.collapsed}" title="${esc(row.group.label)} · PID ${esc(row.group.pid)} · ${row.trackIds.length} 條軌道"><span>${row.collapsed?'▸':'▾'}</span><b>${esc(row.group.label)}</b><small>${row.trackIds.length}</small></button></div>`;
-    const {track:t,y,h}=row;return `<div class="track-label" style="top:${y}px;height:${h}px;padding-left:${8+row.depth*12}px" data-track="${t.id}" title="${esc(t.name)} · PID ${esc(t.pid)} · TID ${esc(t.tid)} · ${number(t.count)} events；雙擊展開高度"><div class="track-label-top"><i class="track-color" style="background:${palette[t.id%palette.length]}"></i><span class="track-title">${esc(row.displayName)}</span><button class="pin ${state.pins.has(t.id)?'pinned':''}" data-pin="${t.id}" title="${state.pins.has(t.id)?'取消釘選':'釘選軌道'}" aria-label="釘選 ${esc(t.name)}">⌖</button></div><div class="track-meta">PID ${esc(t.pid)} · TID ${esc(t.tid)}<br><span style="line-height:2">${number(t.count)} ${t.kind==='counter'?'samples':'events'}</span></div></div>`;
+    if(row.type==='group')return `<div class="track-label group-label ${row.group.kind}" style="top:${row.y}px;height:${row.h}px;padding-left:${8+row.depth*12}px"><button class="group-toggle" data-group="${esc(row.group.id)}" aria-expanded="${!row.collapsed}" title="${esc(row.group.label)}${row.group.pid===null?'':` · PID ${esc(row.group.pid)}`} · ${row.trackIds.length} 條軌道"><span>${row.collapsed?'▸':'▾'}</span><b>${esc(row.group.label)}</b><small>${row.trackIds.length}</small></button></div>`;
+    const {track:t,y,h}=row;return `<div class="track-label" style="top:${y}px;height:${h}px;padding-left:${8+row.depth*12}px" data-track="${t.id}" title="${esc(t.name)} · PID ${esc(t.pid)} · TID ${esc(t.tid)} · ${number(t.count)} events；雙擊展開高度"><div class="track-label-top"><i class="track-color" style="background:${palette[t.id%palette.length]}"></i><span class="track-title">${esc(row.displayName)}</span><button class="pin ${state.pins.has(t.id)?'pinned':''}" data-pin="${t.id}" title="${state.pins.has(t.id)?'取消釘選':'釘選軌道'}" aria-label="釘選 ${esc(t.name)}">⌖</button></div><div class="track-meta"><span style="line-height:2">${number(t.count)} ${t.kind==='counter'?'samples':'events'}</span></div></div>`;
   }).join('');
 }
 function requestQuery(){paint();if(!state.info||state.view!=='timeline'||importing)return;if(queryBusy){queryDirty=true;return;}if(queryTimer)return;queryTimer=setTimeout(()=>{queryTimer=null;if(!state.info||importing)return;state.query++;queryBusy=true;const visible=visibleLayout();send('query',{requestId:state.query,start:state.start,end:state.end,trackIds:visible.filter(r=>r.type==='track').map(r=>r.track.id),groups:visible.filter(r=>r.type==='group'&&r.collapsed).map(r=>({id:r.id,trackIds:r.trackIds})),width:Math.ceil(plotWidth)});},25);}
@@ -128,14 +136,13 @@ function drawTimeline(){
     const rows=state.rows.get(row.track.id)||[];
     if(row.track.kind==='counter'){
       let min=Infinity,max=-Infinity;for(const r of rows){min=Math.min(min,r.value);max=Math.max(max,r.value);}const range=Math.max(1,max-min);
-      if(rows.length){ctx.beginPath();rows.forEach((r,i)=>{const x=xTime(r.ts),py=y+row.h-13-(r.value-min)/range*(row.h-34);if(i===0)ctx.moveTo(x,py);else ctx.lineTo(x,py);hitboxes.push({x:x-4,y:py-7,w:8,h:14,record:r});});ctx.strokeStyle=dark?'#a2bd87':'#8daa75';ctx.lineWidth=1.3;ctx.stroke();ctx.lineWidth=1;ctx.lineTo(xTime(rows.at(-1).ts),y+row.h-10);ctx.lineTo(xTime(rows[0].ts),y+row.h-10);ctx.closePath();ctx.fillStyle=dark?'#8daa7520':'#b4c99b30';ctx.fill();ctx.fillStyle=dark?'#b8c9ab':'#697b60';ctx.font='12px Consolas,monospace';ctx.fillText(max.toFixed(1),8,y+17);}
+      if(rows.length){ctx.beginPath();rows.forEach((r,i)=>{const x=xTime(r.ts),py=y+row.h-13-(r.value-min)/range*(row.h-34);if(i===0)ctx.moveTo(x,py);else ctx.lineTo(x,py);hitboxes.push({x:x-4,y:py-7,w:8,h:14,record:r});});ctx.strokeStyle=eventColor({label:row.track.name},true).fill;ctx.lineWidth=1.3;ctx.stroke();ctx.lineWidth=1;ctx.lineTo(xTime(rows.at(-1).ts),y+row.h-10);ctx.lineTo(xTime(rows[0].ts),y+row.h-10);ctx.closePath();ctx.fillStyle=eventColor({label:row.track.name},dark).fill+'28';ctx.fill();ctx.fillStyle=dark?'#b8c9ab':'#697b60';ctx.font='12px Consolas,monospace';ctx.fillText(max.toFixed(1),8,y+17);}
       continue;
     }
     const maxLane=state.expanded.has(row.track.id)?8:4,laneHeight=state.density==='compact'?17:state.expanded.has(row.track.id)?22:19;
     for(const r of rows){const lane=Math.min(maxLane-1,r.lane||0),x=Math.max(-2,xTime(r.ts)),right=Math.min(plotWidth+2,xTime(r.ts+Math.max(0,r.dur))),w=Math.max(2,right-x-.8),py=y+(state.density==='compact'?7:9)+lane*(laneHeight+1);if(x>plotWidth||right<0)continue;
       const selected=state.selected?.offset===r.offset;
-      let color=r.color%palette.length;if(/script|function|v8|react|reconcile|performwork/i.test(r.label))color=1;else if(/layout|paint|raster|frame|commit|composite/i.test(r.label))color=0;else if(/request|resource|network/i.test(r.label))color=2;
-      ctx.fillStyle=(dark?darkPalette:palette)[color];
+      ctx.fillStyle=(extensionHost.eventColor(r,{dark})||eventColor(r,dark)).fill;
       if(r.kind===1||r.kind===3){ctx.beginPath();ctx.moveTo(x,py+1);ctx.lineTo(x+4,py+laneHeight/2);ctx.lineTo(x,py+laneHeight-1);ctx.lineTo(x-4,py+laneHeight/2);ctx.closePath();ctx.fill();}
       else {ctx.beginPath();ctx.roundRect(x,py,w,laneHeight-1,1.5);ctx.fill();}
       if(selected){ctx.strokeStyle=dark?'#e4efb6':'#476f39';ctx.lineWidth=1.8;ctx.strokeRect(x-.5,py-.5,Math.max(3,w+1),laneHeight);ctx.lineWidth=1;}
@@ -156,8 +163,9 @@ function renderDetail(){
   const extras=Object.fromEntries(Object.entries(e).filter(([key])=>!['name','ph','pid','tid','ts','dur','cat','args'].includes(key)));
   const links=d.links,linkType={address:'位址',symbol:'符號',flow:'Flow'};
   const linkHTML=links?.keys.length?`<section class="relation-section"><div class="relation-top"><b>⌁ 位址與事件關聯 <small>${links.capped?'前 64 筆 / ':''}${number(links.total)} 筆候選</small></b><button class="text-button" id="show-relations">${state.showLinks?'隱藏連線':'顯示連線'}</button></div><div class="relation-keys">${links.keys.map(k=>`<span class="relation-key">${linkType[k.type]} ${esc(k.key)} <span style="opacity:.6">${esc(k.path)}</span></span>`).join('')}</div><div class="relation-list">${links.matches.map((m,i)=>`<button class="relation-item" data-relation="${i}"><span>${esc(m.record.label)}<small>${m.relation.type==='address'?'相同位址':`${esc(m.relation.role)} → ${esc(m.otherRole)}`} · TID ${esc(state.info.tracks[m.record.trackId]?.tid)}</small></span><span class="relation-time">${formatTime(m.record.ts-state.info.start,true)} ↗</span></button>`).join('')||'<span style="font-size:14px;color:var(--muted)">此 Trace 沒有其他具有相同鍵的事件。</span>'}</div><p style="font-size:12px;color:var(--muted);margin-bottom:0">相同位址是比對線索，未證明因果或同一記憶體生命週期。連線最多繪製 16 筆。</p></section>`:'<section class="relation-section"><span style="font-size:14px;color:var(--muted)">此事件未找到可辨識的 address / ptr、defines / uses 或標準 flow ID。</span></section>';
-  const summary=eventSummary(e),summaryHTML=summary.length?`<table class="event-fields"><caption>Trace 欄位摘要</caption><tbody>${summary.map(field=>`<tr title="${esc(field.path)}"><th scope="row">${esc(field.label)}</th><td>${esc(field.value)}</td></tr>`).join('')}</tbody></table>`:'';
-  $('details-content').innerHTML=`<div class="event-summary"><h3>${esc(e.name||'Unnamed event')}</h3><span class="category-badge">${esc(e.cat||'uncategorized')} · ph=${esc(e.ph||'?')}</span><dl><dt>持續時間</dt><dd>${formatTime(r.dur||0)}</dd><dt>相對起點</dt><dd>${formatTime(r.ts-state.info.start)}</dd><dt>原始時間戳</dt><dd>${esc(e.ts)} µs</dd><dt>Process</dt><dd>${esc(state.info.processes[e.pid]||e.pid)}</dd><dt>Thread</dt><dd>${esc(t?.name||e.tid)} (${esc(e.tid)})</dd></dl></div><div>${summaryHTML}<details class="arguments-section" ${summary.length?'':'open'}><summary>原始 Arguments · ${Object.keys(e.args||{}).length} 欄位</summary><div class="json-tree">${Object.keys(e.args||{}).length?tree(e.args):'<span class="json-key">此事件沒有 args。</span>'}${Object.keys(extras).length?`<details><summary>其他原始欄位</summary>${tree(extras)}</details>`:''}${d.endEvent?`<details><summary>配對的 E 事件</summary>${tree(d.endEvent)}</details>`:''}</div></details><details class="raw-details"><summary>查看完整原始 JSON</summary><pre>${esc(d.rawText)}</pre></details></div>${linkHTML}`;
+  const custom=extensionHost.eventFields(e,{record:r,track:t}),extensionErrors=[...(extensionHost.startupErrors||[]),...custom.errors];
+  const summary=[...eventSummary(e),...custom.fields],summaryHTML=summary.length?`<table class="event-fields"><caption>Trace 欄位摘要</caption><tbody>${summary.map(field=>`<tr title="${esc(field.path)}"><th scope="row">${esc(field.label)}</th><td>${esc(field.value)}</td></tr>`).join('')}</tbody></table>`:'';
+  $('details-content').innerHTML=`<div class="event-summary"><h3>${esc(e.name||'Unnamed event')}</h3><span class="category-badge">${esc(e.cat||'uncategorized')} · ph=${esc(e.ph||'?')}</span><dl><dt>持續時間</dt><dd>${formatTime(r.dur||0)}</dd><dt>相對起點</dt><dd>${formatTime(r.ts-state.info.start)}</dd><dt>原始時間戳</dt><dd>${esc(e.ts)} µs</dd><dt>Process</dt><dd>${esc(state.info.processes[e.pid]||e.pid)}</dd><dt>軌道</dt><dd>${esc(t?trackName(t):e.tid)} · ${esc(e.tid)}</dd></dl></div><div>${summaryHTML}${extensionErrors.map(error=>`<p class="warning">${esc(error.title)}：${esc(error.message)}</p>`).join('')}<details class="arguments-section" open><summary>原始 Arguments · ${Object.keys(e.args||{}).length} 欄位</summary><div class="json-tree">${Object.keys(e.args||{}).length?tree(e.args):'<span class="json-key">此事件沒有 args。</span>'}${Object.keys(extras).length?`<details open><summary>其他原始欄位</summary>${tree(extras)}</details>`:''}${d.endEvent?`<details open><summary>配對的 E 事件</summary>${tree(d.endEvent)}</details>`:''}</div></details><details class="raw-details" open><summary>完整原始 JSON</summary><pre>${esc(d.rawText)}</pre></details></div>${linkHTML}`;
 }
 function showArea(start,end,trackIds){state.selected=null;state.detail=null;state.links=[];state.area={start:Math.min(start,end),end:Math.max(start,end),trackIds};$('details').hidden=false;$('selection-heading').textContent='時間範圍';$('selection-badge').textContent='AREA SELECTION';$('details-content').innerHTML=`<div class="event-summary"><h3>${formatTime(state.area.end-state.area.start)}</h3><span class="category-badge">${trackIds.length} 條軌道</span><dl><dt>起點</dt><dd>${formatTime(state.area.start-state.info.start)}</dd><dt>終點</dt><dd>${formatTime(state.area.end-state.info.start)}</dd></dl></div><div><div class="args-header"><b>範圍選取</b></div><p style="font-size:14px;color:var(--muted);line-height:2">按 F 聚焦這段時間。拖曳兩側邊界可以調整範圍。範圍時間是牆鐘時間，不等同於 CPU 耗時。</p><button class="soft-button" id="area-focus">⤢ 聚焦範圍 <kbd>F</kbd></button></div>`;paint();}
 function renderEventRows(element,rows,note,search){
@@ -165,6 +173,35 @@ function renderEventRows(element,rows,note,search){
 }
 function navigateRecord(r){setView('timeline');if(state.filter){state.filter='';$('track-filter').value='';updateLayout();}selectRecord(r,true);focusSelection();}
 function search(){const term=$('search-input').value.trim();if(!state.info||!term)return;state.searchId++;$('search-results').innerHTML='<p class="empty-state">正在背景搜尋磁碟索引…</p>';send('search',{requestId:state.searchId,term});}
+function setAnalysisBusy(busy){state.analysisBusy=busy;$('run-analysis').disabled=busy||!state.info;$('cancel-analysis').hidden=!busy;$('export-analysis').disabled=busy||!state.analysis;}
+function runAnalysis(){
+  if(!state.info||state.analysisBusy)return;const windowed=$('analysis-scope').value==='window',thresholdUs=Number($('analysis-threshold').value)*1000;
+  if(!Number.isFinite(thresholdUs)||thresholdUs<0){toast('請輸入有效的長事件門檻。');return;}
+  const group=allGroups(state.groups).find(g=>g.id===$('analysis-group').value);let ids=(windowed?state.tracks:state.info.tracks).filter(t=>t.count>0).map(t=>t.id);
+  if(group){const allowed=new Set(group.tracks.map(t=>t.id));ids=ids.filter(id=>allowed.has(id));}
+  state.analysisId++;state.analysis=null;$('analysis-results').innerHTML='';setAnalysisBusy(true);$('analysis-status').textContent='正在背景掃描索引，可切回時間軸繼續操作。';
+  send('analysis',{requestId:state.analysisId,start:windowed?state.start:state.info.start,end:windowed?state.end:state.info.end,trackIds:ids,thresholdUs});
+}
+function renderAnalysis(){
+  const result=state.analysis;if(!result)return;
+  $('analysis-status').textContent=`${result.analysisSeconds.toFixed(2)} 秒 · ${result.scope.trackIds.length} 條軌道 · ${formatTime(result.scope.start-state.info.start,true)} — ${formatTime(result.scope.end-state.info.start,true)} · 長事件門檻 ${formatTime(result.scope.thresholdUs,true)}`;
+  const map=new Map(result.tracks.map(t=>[t.trackId,t]));
+  const groups=allGroups(state.groups).filter(g=>g.children.every(child=>!child.children)).map(g=>{
+    const matches=g.tracks.map(t=>map.get(t.id)).filter(Boolean);return {label:g.label+(g.id.startsWith('counter-')?' · 數值曲線':''),count:matches.reduce((n,t)=>n+t.count,0),samples:matches.reduce((n,t)=>n+t.counters,0),totalUs:matches.reduce((n,t)=>n+t.totalUs,0)};
+  }).filter(g=>g.count||g.samples).sort((a,b)=>b.totalUs-a.totalUs);
+  const table=(heading,columns,rows)=>`<section class="analysis-section"><h3>${heading}</h3><div class="analysis-table-wrap"><table class="analysis-table"><thead><tr>${columns.map(c=>`<th scope="col">${c}</th>`).join('')}</tr></thead><tbody>${rows.length?rows.join(''):`<tr><td colspan="${columns.length}">這個範圍沒有符合資料。</td></tr>`}</tbody></table></div></section>`;
+  const extensions=[...(result.extensions||[]),...(result.extensionErrors||[]).map(error=>({...error,status:'error'}))];
+  $('analysis-results').innerHTML=`<div class="analysis-stats"><div><span>區段數量</span><strong>${number(result.complete)}</strong><small>另有 ${number(result.markers)} 標記／${number(result.counters)} 數值樣本</small></div><div><span>累計區段時間（含重疊）</span><strong>${formatTime(result.totalUs,true)}</strong><small>不等於使用率或 self time</small></div><div><span>達門檻的長事件</span><strong>${number(result.longEvents)}</strong><small>最長 ${formatTime(result.maxUs,true)}</small></div><div><span>P95 近似上界</span><strong>≈ ${formatTime(result.p95UpperUs,true)}</strong><small>對數分桶估計</small></div></div><p class="analysis-note">${result.notes.map(esc).join(' ')}</p>`+
+    table('各核心／程序', ['群組','區段數','數值樣本','累計時間（含重疊）'],groups.slice(0,100).map(g=>`<tr><th scope="row">${esc(g.label)}</th><td>${number(g.count)}</td><td>${number(g.samples)}</td><td>${formatTime(g.totalUs,true)}</td></tr>`))+
+    table('事件名稱排行 · 前 100 筆',['事件名稱','次數','累計時間','平均','最長'],result.byName.map((row,i)=>`<tr><th scope="row"><button class="analysis-name" data-analysis-name="${i}" title="搜尋此事件">${esc(row.label)} ↗</button></th><td>${number(row.count)}</td><td>${formatTime(row.totalUs,true)}</td><td>${formatTime(row.averageUs,true)}</td><td>${formatTime(row.maxUs,true)}</td></tr>`))+
+    table('最長區段定位 · 前 50 筆',['事件','來源軌道','範圍內持續時間','起點'],result.longest.map((item,i)=>`<tr><th scope="row"><button class="analysis-name" data-analysis-record="${i}">${esc(item.record.label)} ↗</button></th><td>${esc(trackName(state.info.tracks[item.record.trackId]))}</td><td>${formatTime(item.clippedUs,true)}</td><td>${formatTime(item.record.ts-state.info.start,true)}</td></tr>`))+
+    table('各軌道累計時間 · 前 100 筆',['軌道','區段數','累計時間','最長'],result.tracks.slice(0,100).map(row=>`<tr><th scope="row">${esc(trackName(state.info.tracks[row.trackId]))}</th><td>${number(row.count)}</td><td>${formatTime(row.totalUs,true)}</td><td>${formatTime(row.maxUs,true)}</td></tr>`))+
+    extensions.map(extension=>`<section class="analysis-section"><h3>${esc(extension.title)}</h3>${extension.status==='error'?`<p class="warning">擴充失敗：${esc(extension.message)}</p>`:`<p class="analysis-note">${esc(extension.summary)}</p><table class="event-fields"><tbody>${extension.rows.map(row=>`<tr><th>${esc(row.label)}</th><td>${esc(row.value)}</td></tr>`).join('')}</tbody></table>`}</section>`).join('');
+}
+$('analysis-form').onsubmit=e=>{e.preventDefault();runAnalysis();};
+$('cancel-analysis').onclick=()=>{send('cancelAnalysis');$('analysis-status').textContent='正在取消分析…';};
+$('analysis-results').onclick=e=>{const record=e.target.closest('[data-analysis-record]'),name=e.target.closest('[data-analysis-name]');if(record){const r=state.analysis?.longest[Number(record.dataset.analysisRecord)]?.record;if(r)navigateRecord(r);}else if(name){const label=state.analysis?.byName[Number(name.dataset.analysisName)]?.label;if(label){setView('events');$('search-input').value=label;search();}}};
+$('export-analysis').onclick=()=>{if(!state.analysis)return;const blob=new Blob([JSON.stringify({version:1,source:state.info.source,...state.analysis},null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download='trace-analysis.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
 function localPoint(e){const r=$('timeline').getBoundingClientRect();return {x:e.clientX-r.left,y:e.clientY-r.top};}
 $('timeline').addEventListener('pointerdown',e=>{
   if(!state.info||e.button!==0)return;$('tracks-scroll').focus({preventScroll:true});const p=localPoint(e);

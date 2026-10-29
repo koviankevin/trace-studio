@@ -1,10 +1,14 @@
 import {TraceJSONReader,TraceIndex,demoTrace,LIMITS} from './core.js';
 import {RelationIndex} from './relations.js';
-import {summarizeGroups} from './track-layout.js';
+import {summarizeGroups} from './track-layout.js?v=0.2.0';
 import {hardwareDemo} from './hardware-demo.js';
+import {analyzeTrace,scanTraceIndex} from './analysis.js';
+import {loadExtensionHost} from './extensions/runtime.js';
+const extensionHost=await loadExtensionHost();
+let analysisToken=0;
 let db,folder,rawHandle,indexHandle,relationHandle,relations,sessionId,source;
 const send=(type,data={})=>postMessage({type,...data});
-async function close(){for(const h of [rawHandle,indexHandle,relationHandle]){try{h?.close();}catch{}}rawHandle=indexHandle=relationHandle=null;db=null;}
+async function close(){analysisToken++;for(const h of [rawHandle,indexHandle,relationHandle]){try{h?.close();}catch{}}rawHandle=indexHandle=relationHandle=null;db=null;}
 async function root(){if(!navigator.storage?.getDirectory)throw Error('這個瀏覽器無法使用磁碟索引，請用最新版桌面 Chrome 或 Edge，並以 HTTPS 開啟。');return (await navigator.storage.getDirectory()).getDirectoryHandle('trace-studio-v1',{create:true});}
 async function open(id,create){
   await close();folder=await(await root()).getDirectoryHandle(id,{create});sessionId=id;
@@ -56,6 +60,11 @@ onmessage=async({data})=>{
     }else if(type==='clear'){
       await close();const r=await root();for await(const name of r.keys())await r.removeEntry(name,{recursive:true});send('cleared');
     }else if(type==='query'&&db){const start=performance.now();send('query',{requestId,rows:db.query(data),groups:summarizeGroups(db,data.groups||[],data.start,data.end,data.width||1000),ms:performance.now()-start});}
+    else if(type==='analysis'&&db){const token=++analysisToken,current=db,cancelled=()=>analysisToken!==token||db!==current;
+      const result=await analyzeTrace(current,{...data,cancelled,onProgress:progress=>send('analysisProgress',{requestId,...progress})});
+      result.extensions=await extensionHost.analyze({summary:result,scope:result.scope,cancelled,scanIndex:()=>scanTraceIndex(current,{...result.scope,cancelled}),readEvent:record=>current.detail(record).event});result.extensionErrors=extensionHost.startupErrors||[];
+      if(cancelled()){const error=new Error('分析已取消');error.name='AbortError';throw error;}send('analysis',{requestId,result});}
+    else if(type==='cancelAnalysis'){analysisToken++;}
     else if(type==='detail'&&db){const detail=db.detail(data.record);send('detail',{requestId,...detail,links:relations.find(detail.event,data.record)});}
     else if(type==='search'&&db){const result=await db.search(data.term,100,scanned=>send('searchProgress',{requestId,scanned}));send('search',{requestId,...result});}
     else if(type==='neighbor'&&db){
@@ -72,5 +81,5 @@ onmessage=async({data})=>{
       if(batch)await w.write(batch);await w.write(']}');await w.close();
       const f=await handle.getFile();try{await importFile(new File([f],`synthetic-${f.size}.json`));}finally{await r.removeEntry(name).catch(()=>{});}
     }
-  }catch(error){send('error',{requestId,operation:type,message:error.name==='QuotaExceededError'?'瀏覽器儲存額度不足。原始檔未變更；請清除快取或釋出空間再試。':error.message});}
+  }catch(error){if(type==='analysis'&&error.name==='AbortError')send('analysisCancelled',{requestId});else send('error',{requestId,operation:type,message:error.name==='QuotaExceededError'?'瀏覽器儲存額度不足。原始檔未變更；請清除快取或釋出空間再試。':error.message});}
 };
