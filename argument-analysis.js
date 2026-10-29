@@ -10,6 +10,7 @@ export async function analyzeArguments(trace,{start=trace.start,end=trace.end,tr
   for(const track of trace.tracks)if(selected.has(track.id)&&track.kind==='counter'&&track.counterSource!==undefined){const key=JSON.stringify([track.pid,track.tid,track.counterSource]);if(!counterOwners.has(key))counterOwners.set(key,new Map());counterOwners.get(key).set(track.counterKey,track.id);}
   let scanned=0,events=0,withIds=0,memoryRanges=0,matched=0,truncatedFacts=0,conflicts=0,warnings=0,omittedGroupEvents=0,omittedLocationRanges=0,lastYield=performance.now(),lastProgress=0;
   const matchedSummary={start:Infinity,end:-Infinity,totalUs:0,cores:new Set(),pids:new Set(),contextsTruncated:false};
+  if(focus?.kind==='tflite-set'&&(!Array.isArray(focus.values)||focus.values.length>256))throw Error('TfliteID 選取內容無效');const selectedTfliteIds=new Set(focus?.kind==='tflite-set'?focus.values.map(String):[]);
   const started=performance.now(),total=trackIds.reduce((sum,id)=>sum+(trace.tracks[id]?.count||0),0);
   const abort=()=>{if(cancelled()){const error=Error('分析已取消');error.name='AbortError';throw error;}};
   function stat(map,key){if(map.has(key))return map.get(key);if(map.size>=maxGroups){omittedGroupEvents++;return null;}const value={id:key,count:0,totalUs:0,start:Infinity,end:-Infinity,cores:new Set(),pids:new Set(),memories:0,examples:[]};map.set(key,value);return value;}
@@ -24,6 +25,7 @@ export async function analyzeArguments(trace,{start=trace.start,end=trace.end,tr
     const facts=extractRecordFacts(detail),record={...source,label:trace.displayName?trace.displayName(source,source.trackId,detail.event):source.label};events++;if(Object.keys(facts.ids).length)withIds++;if(facts.truncated)truncatedFacts++;conflicts+=facts.conflicts.length;warnings+=facts.warnings.length;
     let matches=[];
     if(focus?.kind==='tflite-all'&&facts.ids.tflite!==undefined)matches=[{kind:'has-id',path:facts.sources.tflite}];
+    if(focus?.kind==='tflite-set'&&selectedTfliteIds.has(facts.ids.tflite))matches=[{kind:'same-id',path:facts.sources.tflite}];
     if(focus?.kind==='tflite'||focus?.kind==='flow'){if(facts.ids[focus.kind]===String(focus.value))matches=[{kind:'same-id',path:facts.sources[focus.kind]}];}
     else if(focus?.kind==='memory'&&record.offset!==focus.sourceOffset){
       const sameProcess=String(track.pid)===String(focus.pid),sameCore=focus.core===undefined||facts.ids.core===undefined||focus.core===facts.ids.core;

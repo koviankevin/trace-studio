@@ -1,18 +1,21 @@
 import {TraceJSONReader,TraceIndex,demoTrace,LIMITS} from './core.js?v=0.4.0';
-import {RelationIndex} from './relations.js?v=0.4.0';
+import {RelationIndex} from './relations.js?v=0.7.0';
 import {summarizeGroups} from './track-layout.js?v=0.4.0';
 import {hardwareDemo} from './hardware-demo.js?v=0.4.0';
 import {analyzeTrace,scanTraceIndex} from './analysis.js?v=0.4.0';
 import {loadExtensionHost} from './extensions/runtime.js';
 import {createSessionStore} from './session-store.js?v=0.3.1';
 import {extractRecordFacts} from './argument-facts.js?v=0.4.0';
-import {analyzeArguments} from './argument-analysis.js?v=0.6.0';
+import {analyzeArguments} from './argument-analysis.js?v=0.7.0';
 import {TraceCache} from './trace-cache.js?v=0.5.0';
-import {compareTraces} from './trace-comparison.js?v=0.6.0';
+import {compareTraces} from './trace-comparison.js?v=0.7.0';
+import {readTar} from './tar-stream.js?v=0.7.0';
 // Register onmessage synchronously. A top-level await here drops messages
 // delivered while custom.js is loading, including the UI's first import.
 const extensionHostReady=loadExtensionHost();
 let analysisToken=0;
+let importOperation=null;
+const abortImport=operation=>{if(operation?.cancelled)throw Object.assign(Error('已取消開檔'),{name:'AbortError'});};
 const argumentCache=new Map();
 let db,folder,rawHandle,indexHandle,relationHandle,relations,sessionId,source,sessionLease,activeManifest;
 const traceCache=new TraceCache();
@@ -51,32 +54,67 @@ function publicInfo(m){
   for(const b of m.blocks)for(const r of b.summary){const bin=Math.max(0,Math.min(179,Math.floor((r.ts-m.start)/duration*180)));overview[bin]+=r.n;}
   const {blocks,names,relations:links,...info}=m;info.top=info.top.map(r=>({...r,label:db.displayName(r,r.trackId)}));return {...info,relations:links?{count:links.count,bytes:links.bytes,types:links.types}:null,overview,id:sessionId,source,limits:LIMITS};
 }
-async function importFile(file,isDemo=false,requestId){
-  const started=performance.now();
-  const header=new Uint8Array(await file.slice(0,2).arrayBuffer()),gzip=header[0]===0x1f&&header[1]===0x8b;
-  if(/\.gz$/i.test(file.name)&&!gzip)throw Error('檔名標示為 .gz，但內容不是 gzip。請確認檔案格式或重新匯出 JSON。');
+async function restoreSession(id){
+  const memoryRestored=await open(id,false),manifest=memoryRestored?activeManifest:JSON.parse(await(await(await folder.getFileHandle('manifest.json')).getFile()).text());
+  if(manifest.version!==1)throw Error('快取版本不相容，請重新開啟原始 trace。');
+  if(!manifest.relations)throw Error('關聯索引版本已更新，請重新匯入 trace。');
+  if(!memoryRestored){db.restore(manifest);relations.restore(manifest.relations);}source=manifest.source;activeManifest=manifest;return {manifest,memoryRestored:!!memoryRestored};
+}
+async function checkQuota(size){
   const quota=await navigator.storage?.estimate?.().catch(()=>({}))||{};
   const available=Number.isFinite(quota.quota)&&Number.isFinite(quota.usage)?Math.max(0,quota.quota-quota.usage):Infinity;
-  if(!isDemo && !gzip && available<file.size*1.3)throw Error('瀏覽器剩餘儲存空間不足。請先清除舊快取或釋出磁碟空間後再匯入。');
+  if(available<size*1.3)throw Error('瀏覽器剩餘儲存空間不足。請先清除舊快取或釋出磁碟空間後再匯入。');
+}
+async function saveManifest(manifest){const writer=await(await folder.getFileHandle('manifest.json',{create:true})).createWritable();try{await writer.write(JSON.stringify(manifest));await writer.close();}catch(error){await writer.abort?.().catch(()=>{});throw error;}}
+async function importJSONStream(stream,sourceInfo,{started=performance.now(),progressStarted=started,progress=()=>({bytes:sourceInfo.size,total:sourceInfo.size}),knownSize=true,operation=null}={}){
+  try{abortImport(operation);if(knownSize&&!sourceInfo.demo)await checkQuota(sourceInfo.size);abortImport(operation);}catch(error){await stream.cancel().catch(()=>{});throw error;}
   const id=crypto.randomUUID();let chunks;
   try{
-    await open(id,true);source={name:file.name,size:file.size,demo:isDemo};const createdAt=new Date().toISOString();
+    await open(id,true);abortImport(operation);source=sourceInfo;const createdAt=new Date().toISOString();
     await sessions.write(folder,{source,createdAt});
-    let read=0,lastReport=0;
+    let lastReport=0;
     const reader=new TraceJSONReader((event,text)=>db.ingest(event,text),(key,value)=>db.addMetadata(key,value));
-    let stream=file.stream().pipeThrough(new TransformStream({transform(chunk,controller){read+=chunk.byteLength;controller.enqueue(chunk);}}));
-    if(gzip)stream=stream.pipeThrough(new DecompressionStream('gzip'));
     chunks=stream.pipeThrough(new TextDecoderStream('utf-8',{fatal:true})).getReader();
-    for(;;){const {value,done}=await chunks.read();if(done)break;reader.feed(value);
-      const now=performance.now();if(now-lastReport>100){lastReport=now;send('progress',{bytes:read,total:file.size,events:db.count,elapsed:(now-started)/1000,diskBytes:db.raw.offset+db.index.offset});}
+    for(;;){abortImport(operation);const {value,done}=await chunks.read();abortImport(operation);if(done)break;reader.feed(value);
+      const now=performance.now();if(now-lastReport>100){lastReport=now;send('progress',{...progress(),events:db.count,elapsed:(now-progressStarted)/1000,diskBytes:db.raw.offset+db.index.offset});}
     }
-    reader.end();const manifest=db.finish();manifest.relations=relations.finish();manifest.source=source;manifest.createdAt=createdAt;manifest.importSeconds=(performance.now()-started)/1000;
-    const writable=await(await folder.getFileHandle('manifest.json',{create:true})).createWritable();
-    await writable.write(JSON.stringify(manifest));await writable.close();
+    abortImport(operation);reader.end();const manifest=db.finish();manifest.relations=relations.finish();manifest.source=source;manifest.createdAt=createdAt;manifest.importSeconds=(performance.now()-started)/1000;
+    await saveManifest(manifest);
     await sessions.write(folder,{source,createdAt,count:manifest.count});
-    activeManifest=manifest;
-    send('ready',{requestId,info:publicInfo(manifest)});
-  }catch(error){await chunks?.cancel().catch(()=>{});await close();try{await(await root()).removeEntry(id,{recursive:true});}catch{}throw error;}
+    abortImport(operation);
+    activeManifest=manifest;return manifest;
+  }catch(error){
+    // Request upstream cancellation before releasing the file handles. A browser
+    // File/decoder pipe may settle cancellation later; do not hold the OPFS lease
+    // while waiting for a stream which will no longer be consumed.
+    if(chunks)chunks.cancel().catch(()=>{});else stream.cancel().catch(()=>{});
+    if(error.name==='AbortError')send('importCleanup',{stage:'closing'});
+    await close();if(error.name==='AbortError')send('importCleanup',{stage:'removing'});
+    try{await(await root()).removeEntry(id,{recursive:true});}catch{}throw error;
+  }finally{chunks?.releaseLock();}
+}
+async function runImport(file,isDemo=false,requestId){
+  if(importOperation)throw Error('已有檔案正在開啟，請先完成或取消。');const operation={cancelled:false};importOperation=operation;try{await importFile(file,isDemo,requestId,operation);}finally{if(importOperation===operation)importOperation=null;}
+}
+async function importFile(file,isDemo=false,requestId,operation=null){
+  const started=performance.now(),header=new Uint8Array(await file.slice(0,2).arrayBuffer()),gzip=header[0]===0x1f&&header[1]===0x8b,archive=/\.(?:tar(?:\.gz)?|tgz)$/i.test(file.name);
+  abortImport(operation);
+  if(/\.(?:gz|tgz)$/i.test(file.name)&&!gzip)throw Error('檔名標示為 gzip，但內容不是 gzip。請確認檔案格式。');
+  let read=0,stream=file.stream().pipeThrough(new TransformStream({transform(chunk,controller){read+=chunk.byteLength;controller.enqueue(chunk);}}));if(gzip)stream=stream.pipeThrough(new DecompressionStream('gzip'));
+  const progress=()=>({bytes:read,total:file.size});
+  if(!archive){const manifest=await importJSONStream(stream,{name:file.name,size:file.size,demo:isDemo},{started,progress,knownSize:!gzip,operation});send('ready',{requestId,info:publicInfo(manifest)});return;}
+  const summary={name:file.name,imported:0,skipped:0,failed:0,complete:true,failures:[]};let lastId=null;
+  try{await readTar(stream,{cancelled:()=>!!operation?.cancelled,onSkip:()=>summary.skipped++,onFile:async(entry,body)=>{
+    if(!/\.json(?:\.gz)?$/i.test(entry.name)){summary.skipped++;return;}
+    if(summary.imported+summary.failed>=256)throw Error('單一 tar 最多匯入 256 個 JSON 成員');
+    send('progress',{...progress(),member:entry.name,events:0,elapsed:(performance.now()-started)/1000});
+    try{const nestedGzip=/\.gz$/i.test(entry.name);await importJSONStream(nestedGzip?body.pipeThrough(new DecompressionStream('gzip')):body,{name:`${file.name} › ${entry.name}`,size:entry.size,demo:false,archive:{name:file.name,path:entry.name}},{progress:()=>({...progress(),member:entry.name}),progressStarted:started,knownSize:!nestedGzip,operation});lastId=sessionId;summary.imported++;}
+    catch(error){if(error.name==='AbortError')throw error;summary.failed++;if(summary.failures.length<20)summary.failures.push({name:entry.name,message:error.message});if(error.name==='QuotaExceededError'||/儲存空間不足/.test(error.message))throw error;}
+  }});}catch(error){if(error.name==='AbortError'||operation?.cancelled)throw Object.assign(error,{name:'AbortError'});summary.complete=false;summary.error=error.message;}
+  if(!lastId)throw Error(summary.error||`封裝內沒有可讀的 Trace JSON（${summary.failed} 份失敗、${summary.skipped} 份略過）。`);
+  if(!db||sessionId!==lastId||!activeManifest)await restoreSession(lastId);
+  summary.elapsed=(performance.now()-started)/1000;db.addMetadata('archiveImport',summary);try{await saveManifest(activeManifest);}catch(error){summary.saveWarning=error.message;}
+  send('ready',{requestId,info:publicInfo(activeManifest),archive:summary});
 }
 onmessage=async({data})=>{
   const {type,requestId}=data;
@@ -85,15 +123,14 @@ onmessage=async({data})=>{
   try{
     const extensionHost=await extensionHostReady;
     if(data.traceId&&data.traceId!==sessionId)throw Error('請求所屬 Trace 已切換。');
-    if(type==='import')await importFile(data.file,false,requestId);
+    if(type==='cancelImport'){if(importOperation)importOperation.cancelled=true;else send('importCancelUnavailable',{requestId});}
+    else if(type==='import')await runImport(data.file,false,requestId);
     else if(type==='demo'){
-      const file=new File([JSON.stringify(demoTrace())],'checkout-flow.demo.json',{type:'application/json'});await importFile(file,true,requestId);
+      const file=new File([JSON.stringify(demoTrace())],'checkout-flow.demo.json',{type:'application/json'});await runImport(file,true,requestId);
     }else if(type==='hardwareDemo'){
-      const file=new File([JSON.stringify(hardwareDemo())],'core-four-core.demo.json',{type:'application/json'});await importFile(file,true,requestId);
+      const file=new File([JSON.stringify(hardwareDemo())],'core-four-core.demo.json',{type:'application/json'});await runImport(file,true,requestId);
     }else if(type==='restore'){
-      const memoryRestored=await open(data.id,false),m=memoryRestored?activeManifest:JSON.parse(await(await(await folder.getFileHandle('manifest.json')).getFile()).text());
-      if(m.version!==1)throw Error('快取版本不相容，請重新開啟原始 trace。');
-      if(!memoryRestored)db.restore(m);if(!m.relations)throw Error('關聯索引版本已更新，請重新匯入 trace。');if(!memoryRestored)relations.restore(m.relations);source=m.source;activeManifest=m;send('ready',{requestId,info:publicInfo(m),restored:true,memoryRestored:!!memoryRestored});
+      const {manifest,memoryRestored}=await restoreSession(data.id);send('ready',{requestId,info:publicInfo(manifest),restored:true,memoryRestored});
     }else if(type==='cachePolicy'){analysisToken++;for(const value of traceCache.configure(data.limitMB))await dispose(value);send('cachePolicy',{requestId,limitMB:data.limitMB});
     }else if(type==='sessions'){send('sessions',{requestId,sessions:(await sessions.list(db?sessionId:null)).map(item=>({...item,memory:traceCache.has(item.id)||item.current}))});
     }else if(type==='removeSession'){
@@ -129,5 +166,5 @@ onmessage=async({data})=>{
       if(batch)await w.write(batch);await w.write(']}');await w.close();
       const f=await handle.getFile();try{await importFile(new File([f],`synthetic-${f.size}.json`));}finally{await r.removeEntry(name).catch(()=>{});}
     }
-  }catch(error){if(['analysis','compare'].includes(type)&&error.name==='AbortError')send(type==='compare'?'comparisonCancelled':'analysisCancelled',{requestId});else send('error',{requestId,operation:type,code:error.name,message:error.name==='QuotaExceededError'?'瀏覽器儲存額度不足。原始檔未變更；請清除快取或釋出空間再試。':error.name==='NoModificationAllowedError'?'這份 Trace 正由其他分頁或背景作業使用，請關閉該分頁後重試。':error.message});}
+  }catch(error){if(['import','demo','hardwareDemo'].includes(type)&&error.name==='AbortError')send('importCancelled',{requestId});else if(['analysis','compare'].includes(type)&&error.name==='AbortError')send(type==='compare'?'comparisonCancelled':'analysisCancelled',{requestId});else send('error',{requestId,operation:type,code:error.name,message:error.name==='QuotaExceededError'?'瀏覽器儲存額度不足。原始檔未變更；請清除快取或釋出空間再試。':error.name==='NoModificationAllowedError'?'這份 Trace 正由其他分頁或背景作業使用，請關閉該分頁後重試。':error.message});}
 };

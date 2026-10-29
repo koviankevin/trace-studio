@@ -50,7 +50,7 @@ export class RelationIndex{
   finish(){for(let i=0;i<64;i++)this.flush(i);this.handle.flush?.();return {blocks:this.blocks,count:this.count,bytes:this.offset,types:this.types};}
   restore(m){this.blocks=m.blocks;this.count=m.count;this.offset=m.bytes;this.types=m.types;}
   find(event,ref){
-    const keys=extractRelations(event),matches=[],seen=new Set();let total=0;
+    const keys=extractRelations(event).sort((a,b)=>Number(a.type==='address')-Number(b.type==='address')),matches=[],seen=new Set();let total=0;
     for(const key of keys){const h=hash(key.identity),h2=hash('second:'+key.identity);
       for(const b of this.blocks){if(b.bucket!==h%64||h<b.min||h>b.max)continue;
         const bytes=new Uint8Array(b.count*SIZE);let n=0;

@@ -6,14 +6,17 @@ import {loadExtensionHost} from './extensions/runtime.js';
 import {counterPlot,formatCounterValue} from './counter-plot.js?v=0.3.2';
 import {extractArgumentFacts} from './argument-facts.js?v=0.4.0';
 import {fallbackEventName,missingEventName} from './event-labels.js?v=0.4.0';
-import {comparisonHTML} from './comparison-view.js?v=0.6.0';
+import {comparisonHTML} from './comparison-view.js?v=0.7.0';
+import {selectRelationLines} from './relation-view.js?v=0.7.0';
+import {formatTimestamp,formatTimeWindow} from './time-format.js?v=0.7.0';
 const extensionHost=await loadExtensionHost();
 const $=id=>document.getElementById(id), esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const state={info:null,start:0,end:1,tracks:[],layout:[],rows:new Map(),groups:[],collapsed:new Set(),groupRows:new Map(),lanes:new Map(),density:'compact',pins:new Set(),expanded:new Set(),selected:null,detail:null,links:[],area:null,filter:'',view:'timeline',query:0,detailId:0,searchId:0,analysisId:0,analysis:null,analysisBusy:false,showLinks:true};
 let worker,queryTimer,paintFrame,toastTimer,searchResults=[],commandIndex=0,filteredCommands=[],importing=false,queryBusy=false,queryDirty=false;
-let importRecovery=null,restoringRecovery=null;
+let importRecovery=null,restoringRecovery=null,importCancelling=false;
 let cacheRequest=0,cacheEntries=[],cacheBusy=false,cachePage=0;
 const counterEdges=new Map();
+let relationMode='compact';
 let argumentFocus=null;
 let pendingFiles=[],loadRequestId=0,workspaceRequest=0,savedTraces=[],comparisonIds=new Set(),comparisonRequest=0,comparisonBusy=false,comparisonResult=null,pendingNavigation=null;
 let cacheLimit=64;try{const value=Number(localStorage.getItem('trace-studio-cache-limit')??64);if([0,32,64,128,256].includes(value))cacheLimit=value;}catch{}
@@ -26,13 +29,13 @@ function number(n){return n.toLocaleString('en-US');}
 function toast(message){$('toast').textContent=message;$('toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').hidden=true,6500);}
 function send(type,data={}){if(['import','restore','demo','hardwareDemo'].includes(type))data={requestId:loadRequestId,...data};if(['query','detail','neighbor','search','analysis'].includes(type))data={traceId:state.info?.id,...data};worker.postMessage({type,...data});}
 function forgetCaches(ids){try{if(ids.includes(localStorage.getItem('trace-studio-session'))){if(state.info&&!ids.includes(state.info.id))localStorage.setItem('trace-studio-session',state.info.id);else localStorage.removeItem('trace-studio-session');}}catch{}}
-function startWorker(){worker?.terminate();queryBusy=false;queryDirty=false;clearTimeout(queryTimer);queryTimer=null;const active=new Worker(new URL('./worker.js?v=0.6.0',import.meta.url),{type:'module'});worker=active;active.onmessage=event=>{if(worker===active)handleMessage(event);};active.postMessage({type:'cachePolicy',limitMB:cacheLimit});active.onerror=e=>{if(worker!==active)return;finishLoading();toast(`背景引擎錯誤：${e.message}`);};}
-function finishLoading(){importing=false;if($('loading').open)$('loading').close();}
+function startWorker(){worker?.terminate();queryBusy=false;queryDirty=false;clearTimeout(queryTimer);queryTimer=null;const active=new Worker(new URL('./worker.js?v=0.7.0',import.meta.url),{type:'module'});worker=active;active.onmessage=event=>{if(worker===active)handleMessage(event);};active.postMessage({type:'cachePolicy',limitMB:cacheLimit});active.onerror=e=>{if(worker!==active)return;finishLoading();toast(`背景引擎錯誤：${e.message}`);};}
+function finishLoading(){importing=false;importCancelling=false;if($('loading').open)$('loading').close();}
 function beginLoading(title='正在讀取 Trace',remember=true){
   saveTraceView();loadRequestId++;state.query++;state.detailId++;state.searchId++;setComparisonBusy(false);
   queryBusy=false;queryDirty=false;clearTimeout(queryTimer);queryTimer=null;
   if(remember&&state.info)importRecovery={id:state.info.id,start:state.start,end:state.end,filter:state.filter,view:state.view,pins:new Set(state.pins),expanded:new Set(state.expanded),collapsed:new Set(state.collapsed),lanes:new Map(state.lanes),selected:state.selected,detail:state.detail,links:state.links,area:state.area,analysis:state.analysis,detailsHidden:$('details').hidden,scrollTop:$('tracks-scroll').scrollTop};
-  importing=true;state.info=null;state.rows.clear();state.selected=null;state.links=[];state.area=null;state.detail=null;
+  importing=true;importCancelling=false;$('cancel').disabled=false;state.info=null;state.rows.clear();state.selected=null;state.links=[];state.area=null;state.detail=null;
   counterEdges.clear();
   argumentFocus=null;$('argument-focus').textContent='全部事件';$('argument-cross-label').hidden=true;
   state.analysis=null;state.analysisId++;setAnalysisBusy(false);$('analysis-results').innerHTML='';$('export-analysis').disabled=true;
@@ -43,8 +46,8 @@ function recoverImport(message){
   const previous=importRecovery||restoringRecovery;if(!previous)return false;
   restoringRecovery={...previous,notice:message};importRecovery=null;beginLoading('正在還原上一份 Trace',false);toast(`${message} 正在還原上一份 Trace。`);send('restore',{id:previous.id});return true;
 }
-function loadFile(file){if(!file)return;if(!/\.(json|gz)$/i.test(file.name)){toast('目前支援 Chrome Trace JSON（.json / .json.gz），請先轉換其他格式。');return;}if(!worker)startWorker();beginLoading(pendingFiles.length?`正在讀取 ${file.name}（另有 ${pendingFiles.length} 份待開啟）`:'正在讀取 Trace');send('import',{file,requestId:loadRequestId});}
-function loadFiles(files){if(importing){toast('請先完成或取消目前的匯入。');return;}const valid=[...files].filter(file=>/\.(json|gz)$/i.test(file.name));if(!valid.length){toast('請選擇 .json 或 .json.gz Trace。');return;}pendingFiles=valid;loadFile(pendingFiles.shift());}
+function loadFile(file){if(!file)return;if(!/\.(json|gz|tar|tgz)$/i.test(file.name)){toast('目前支援 JSON、JSON.gz、tar、tar.gz 與 tgz。');return;}if(!worker)startWorker();beginLoading(pendingFiles.length?`正在讀取 ${file.name}（另有 ${pendingFiles.length} 份待開啟）`:'正在讀取 Trace');send('import',{file,requestId:loadRequestId});}
+function loadFiles(files){if(importing){toast('請先完成或取消目前的匯入。');return;}const valid=[...files].filter(file=>/\.(json|gz|tar|tgz)$/i.test(file.name));if(!valid.length){toast('請選擇 JSON／JSON.gz／tar.gz Trace。');return;}pendingFiles=valid;loadFile(pendingFiles.shift());}
 function loadDemo(){if(!worker)startWorker();beginLoading('正在準備多核心示範 Trace');send('hardwareDemo',{requestId:loadRequestId});}
 function saveTraceView(){if(!state.info)return;traceViews.delete(state.info.id);traceViews.set(state.info.id,{start:state.start,end:state.end,filter:state.filter,pins:[...state.pins],expanded:[...state.expanded],collapsed:[...state.collapsed],scrollTop:$('tracks-scroll').scrollTop});while(traceViews.size>50)traceViews.delete(traceViews.keys().next().value);try{localStorage.setItem('trace-studio-views',JSON.stringify([...traceViews]));}catch{}}
 function restoreTraceView(id){const view=traceViews.get(id);if(!view||typeof view!=='object')return;const start=Math.max(state.info.start,Number(view.start)),end=Math.min(state.info.end,Number(view.end));if(Number.isFinite(start)&&Number.isFinite(end)&&end>start){state.start=start;state.end=end;}state.filter=typeof view.filter==='string'?view.filter.slice(0,500):'';$('track-filter').value=state.filter;for(const key of ['pins','expanded','collapsed'])if(Array.isArray(view[key]))state[key]=new Set(view[key].slice(0,8192));}
@@ -60,10 +63,18 @@ function openComparison(){const id=state.detail?.facts?.ids.tflite;if(id!==undef
 function handleMessage({data}){
   if(data.traceId&&data.traceId!==state.info?.id)return;
   switch(data.type){
+    case 'importCleanup':if(importCancelling)$('loading-title').textContent=data.stage==='closing'?'正在關閉未完成的索引…':'正在移除未完成的快取…';break;
     case 'progress':{
+      if(importCancelling)break;
+      if(data.member)$('loading-title').textContent=`正在讀取封裝：${data.member}`;
       const p=Math.min(99.9,data.bytes/Math.max(1,data.total)*100);$('progress-bar').style.width=`${p}%`;$('progress-percent').textContent=`${p.toFixed(1)}%`;
       $('progress-bytes').textContent=`${bytes(data.bytes)} / ${bytes(data.total)}`;$('progress-events').textContent=number(data.events);$('progress-rate').textContent=`${(data.bytes/1e6/Math.max(.01,data.elapsed)).toFixed(1)} MB/s`;break;
     }
+    case 'importCancelled':{
+      if(data.requestId!==loadRequestId)break;finishLoading();if(recoverImport('已取消開檔。'))break;
+      let last;try{last=localStorage.getItem('trace-studio-session');}catch{}if(last){beginLoading('正在還原上一份 Trace',false);send('restore',{id:last});}else loadDemo();break;
+    }
+    case 'importCancelUnavailable':if(data.requestId===loadRequestId){importCancelling=false;$('cancel').disabled=false;toast('開檔已完成或正在還原，請稍候。');}break;
     case 'ready':{
       if(data.requestId!==undefined&&data.requestId!==loadRequestId)break;
       const recovered=restoringRecovery?.id===data.info.id?restoringRecovery:null;restoringRecovery=null;importRecovery=null;
@@ -73,6 +84,7 @@ function handleMessage({data}){
       else restoreTraceView(data.info.id);
       updateInfo(data.restored);setView(recovered?.view||'timeline');updateLayout();if(recovered){$('tracks-scroll').scrollTop=recovered.scrollTop;renderLabels();if(state.detail)renderDetail();if(state.analysis)renderAnalysis();else $('analysis-status').textContent='可重新選擇範圍並開始分析。';}drawOverview();requestQuery();
       if(!recovered&&!data.info.source.demo)toast(data.memoryRestored?'已直接切換至小檔索引快取。':data.restored?'已從本機快取還原，不需重新解析。':`已完成索引：${number(data.info.count)} 筆事件，${data.info.importSeconds.toFixed(2)} 秒。`);
+      if(data.archive)toast(`封裝已保存 ${data.archive.imported} 份 Trace；${data.archive.skipped} 份略過、${data.archive.failed} 份失敗。${data.archive.complete?'':` 封裝未完整讀完：${data.archive.error}`}`);
       if(recovered)toast(`${recovered.notice} 已返回上一份 Trace。`);
       refreshSavedTraces();if(!recovered){const scroll=traceViews.get(data.info.id)?.scrollTop;if(Number.isFinite(scroll))$('tracks-scroll').scrollTop=Math.max(0,Math.min(1e8,scroll));renderLabels();requestQuery();}if(pendingNavigation?.id===data.info.id){const record=pendingNavigation.record;pendingNavigation=null;navigateRecord(record);}if(pendingFiles.length)loadFile(pendingFiles.shift());
       break;
@@ -128,7 +140,7 @@ function updateInfo(restored=false){
   $('analysis-group').innerHTML='<option value="all">全部</option>'+allGroups(state.groups).map(group=>`<option value="${esc(group.id)}">${esc(group.label)}${group.id.startsWith('counter-')?' · 數值曲線':''}</option>`).join('');setAnalysisBusy(false);
   renderEventRows($('insights-list'),i.top,'事件持續時間，非獨占 CPU 耗時。',false);
   const phases=Object.entries(i.phases).map(([ph,n])=>`<div class="info-line"><span>ph = ${esc(ph)}</span><span>${number(n)}</span></div>`).join('');
-  $('info-content').innerHTML=`<div class="info-panel"><h3>來源與儲存</h3>${infoLine('檔案',i.source.name)}${infoLine('原始大小',bytes(i.source.size))}${infoLine('索引＋事件快取',bytes(i.diskBytes+(i.relations?.bytes||0)))}${infoLine('關聯索引',number(i.relations?.count||0))}${infoLine('完整事件數',number(i.count))}<p>原始事件在本機磁碟保留。畫面會依解析度聚合密集事件；放大可繼續展開，點選可讀取原始 JSON。未經過網路上傳。</p></div><div class="info-panel"><h3>事件類型</h3>${phases}</div><div class="info-panel"><h3>解析品質</h3>${infoLine('無法繪製／metadata 過大',number(i.skipped))}${infoLine('未配對 B / E',number(i.unmatched))}${infoLine('逆序時間戳',number(i.outOfOrder))}${infoLine('名稱摘要超過字典上限',number(i.nameLimit))}<p class="${i.unmatched||i.skipped||i.outOfOrder?'warning':''}">X 完整事件、B/E 同步區段、I/i/R 即時事件、C counter 可視化。其他 phase 保留為標記。非同步事件尚未重建區段。逆序資料仍可查詢，但可能增加磁碟讀取。</p></div><div class="info-panel"><h3>位址與關聯</h3><p>自動辨識 args 中的 address / addr / ptr / pointer 與十六進位字串，按精確位址連結。另支援明確 defines / uses 及 s/t/f flow ID。相同位址不代表因果關係、相同配置生命週期或範圍重疊；大於安全整數的數值 address 請用字串記錄。</p><p>每事件最多 32 個關聯鍵，每次顯示最多 64 筆關聯。完整原始 args 仍可讀取。</p></div><div class="info-panel full"><h3>檔案 Metadata</h3><div class="json-tree">${tree(i.metadata)}</div></div><div class="info-panel full"><h3>大檔設計與目前邊界</h3><p>分段讀取 → Worker 解析 → OPFS 磁碟索引 → 可見軌道查詢 → Canvas 繪製。未將整份 JSON 或全部事件載入主執行緒。需要桌面 Chrome / Edge、HTTPS 與足夠的瀏覽器儲存額度。3 GB 檔案的實際載入時間取決於事件數、args 大小、硬碟、可用空間與瀏覽器；請參考 GitHub 中公開的測試結果。這版尚未支援 Perfetto protobuf、SQL、stack sampling 重建與跨檔比較。</p></div>`;
+  $('info-content').innerHTML=`<div class="info-panel"><h3>來源與儲存</h3>${infoLine('檔案',i.source.name)}${infoLine('原始大小',bytes(i.source.size))}${infoLine('索引＋事件快取',bytes(i.diskBytes+(i.relations?.bytes||0)))}${infoLine('關聯索引',number(i.relations?.count||0))}${infoLine('完整事件數',number(i.count))}${infoLine('瀏覽器',navigator.userAgent||'未提供')}<p>原始事件在本機磁碟保留。畫面會依解析度聚合密集事件；放大可繼續展開，點選可讀取原始 JSON。未經過網路上傳。</p></div><div class="info-panel"><h3>事件類型</h3>${phases}</div><div class="info-panel"><h3>解析品質</h3>${infoLine('無法繪製／metadata 過大',number(i.skipped))}${infoLine('未配對 B / E',number(i.unmatched))}${infoLine('逆序時間戳',number(i.outOfOrder))}${infoLine('名稱摘要超過字典上限',number(i.nameLimit))}<p class="${i.unmatched||i.skipped||i.outOfOrder?'warning':''}">X 完整事件、B/E 同步區段、I/i/R 即時事件、C counter 可視化。其他 phase 保留為標記。非同步事件尚未重建區段。逆序資料仍可查詢，但可能增加磁碟讀取。</p></div><div class="info-panel"><h3>位址與關聯</h3><p>自動辨識 args 中的 address / addr / ptr / pointer 與十六進位字串，按精確位址連結。另支援明確 defines / uses 及 s/t/f flow ID。相同位址不代表因果關係、相同配置生命週期或範圍重疊；大於安全整數的數值 address 請用字串記錄。</p><p>每事件最多 32 個關聯鍵，每次顯示最多 64 筆關聯。完整原始 args 仍可讀取。</p></div><div class="info-panel full"><h3>檔案 Metadata</h3><div class="json-tree">${tree(i.metadata)}</div></div><div class="info-panel full"><h3>大檔設計與目前邊界</h3><p>分段讀取 → Worker 解析 → OPFS 磁碟索引 → 可見軌道查詢 → Canvas 繪製。未將整份 JSON 或全部事件載入主執行緒。需要桌面 Chrome / Edge、HTTPS 與足夠的瀏覽器儲存額度。3 GB 檔案的實際載入時間取決於事件數、args 大小、硬碟、可用空間與瀏覽器；請參考 GitHub 中公開的測試結果。這版尚未支援 Perfetto protobuf、SQL、stack sampling 重建與跨檔比較。</p></div>`;
 }
 function infoLine(a,b){return `<div class="info-line"><span>${esc(a)}</span><span>${esc(b)}</span></div>`;}
 function tree(obj,depth=0){
@@ -176,7 +188,7 @@ function drawTimeline(){
   const ctx=canvasSetup(canvas,plotWidth,plotHeight),ruler=canvasSetup($('ruler'),plotWidth,rulerHeight),dark=document.body.classList.contains('dark');hitboxes=[];
   ctx.fillStyle=dark?'#1c2b22':'#fcfdfb';ctx.fillRect(0,0,plotWidth,plotHeight);
   if(!state.info)return;const step=tickStep(),origin=state.info.start;
-  for(let t=Math.ceil((state.start-origin)/step)*step+origin;t<=state.end;t+=step){const x=Math.round(xTime(t))+.5;ctx.strokeStyle=dark?'#2e3d31':'#ebeee7';ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,plotHeight);ctx.stroke();ruler.fillStyle=dark?'#b8c8ac':'#697b60';ruler.font='12px Consolas,monospace';ruler.fillText(formatTime(t-origin,true),x+5,Math.round(rulerHeight*.7));}
+  for(let t=Math.ceil((state.start-origin)/step)*step+origin;t<=state.end;t+=step){const x=Math.round(xTime(t))+.5;ctx.strokeStyle=dark?'#2e3d31':'#ebeee7';ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,plotHeight);ctx.stroke();ruler.fillStyle=dark?'#b8c8ac':'#697b60';ruler.font='12px Consolas,monospace';ruler.fillText(formatTimestamp(t-origin,step),x+5,Math.round(rulerHeight*.7));}
   for(const row of visibleLayout()){
     const y=row.y-scroll;ctx.strokeStyle=dark?'#344239':'#e7ece3';ctx.beginPath();ctx.moveTo(0,y+row.h-.5);ctx.lineTo(plotWidth,y+row.h-.5);ctx.stroke();
     if(row.type==='group'){
@@ -210,9 +222,9 @@ function drawTimeline(){
       hitboxes.push({x,y:py,w:Math.max(5,w),h:laneHeight,record:r});
     }
   }
-  if(state.showLinks&&state.selected&&state.links.length){const selectedRow=state.layout.find(r=>r.track?.id===state.selected.trackId);if(selectedRow){const sx=xTime(state.selected.ts),sy=selectedRow.y-scroll+17;ctx.save();ctx.strokeStyle=dark?'#ead291':'#b49b58';ctx.lineWidth=1.3;ctx.setLineDash([4,3]);for(const link of state.links.slice(0,16)){const row=state.layout.find(r=>r.track?.id===link.record.trackId)||state.layout.find(r=>r.type==='group'&&r.collapsed&&r.trackIds.includes(link.record.trackId));if(!row)continue;const x=xTime(link.record.ts),y=row.y-scroll+17;if(Math.max(sx,x)<0||Math.min(sx,x)>plotWidth)continue;ctx.beginPath();ctx.moveTo(sx,sy);ctx.bezierCurveTo(sx+(x-sx)/2,sy,sx+(x-sx)/2,y,x,y);ctx.stroke();ctx.setLineDash([]);ctx.fillStyle=dark?'#ead291':'#b49b58';ctx.beginPath();ctx.arc(x,y,3,0,Math.PI*2);ctx.fill();ctx.setLineDash([4,3]);}ctx.restore();}}
+  if(state.showLinks&&state.selected&&state.links.length){const selectedRow=state.layout.find(r=>r.track?.id===state.selected.trackId);if(selectedRow){const sx=xTime(state.selected.ts),sy=selectedRow.y-scroll+17;ctx.save();ctx.strokeStyle=dark?'#ead291':'#b49b58';ctx.lineWidth=1.3;ctx.setLineDash([4,3]);for(const link of selectRelationLines(state.links,state.selected,state.info.tracks,{mode:relationMode,start:state.start,end:state.end})){const row=state.layout.find(r=>r.track?.id===link.record.trackId)||state.layout.find(r=>r.type==='group'&&r.collapsed&&r.trackIds.includes(link.record.trackId));if(!row)continue;const x=xTime(link.record.ts),y=row.y-scroll+17;if(Math.max(sx,x)<0||Math.min(sx,x)>plotWidth)continue;ctx.setLineDash(link.relation.type==='address'?[4,3]:[]);ctx.beginPath();ctx.moveTo(sx,sy);ctx.bezierCurveTo(sx+(x-sx)/2,sy,sx+(x-sx)/2,y,x,y);ctx.stroke();ctx.setLineDash([]);ctx.fillStyle=dark?'#ead291':'#b49b58';ctx.beginPath();ctx.arc(x,y,3,0,Math.PI*2);ctx.fill();ctx.setLineDash([4,3]);}ctx.restore();}}
   if(state.area){const x1=xTime(state.area.start),x2=xTime(state.area.end);ctx.fillStyle='#8fb58c26';ctx.fillRect(x1,0,x2-x1,plotHeight);ctx.strokeStyle='#799d64';ctx.setLineDash([3,3]);for(const x of [x1,x2]){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,plotHeight);ctx.stroke();}ctx.setLineDash([]);}
-  $('window-time').textContent=`${formatTime(state.start-origin,true)} — ${formatTime(state.end-origin,true)}`;
+  $('window-time').textContent=formatTimeWindow(state.start,state.end,origin);
 }
 function drawOverview(){if(!state.info||state.view!=='timeline')return;const wrap=$('overview-wrap'),w=wrap.clientWidth,h=wrap.clientHeight;if(!w||!h)return;const ctx=canvasSetup($('overview'),w,h),bins=state.info.overview,max=Math.max(...bins,1),dark=document.body.classList.contains('dark');const bw=w/bins.length;
   bins.forEach((n,i)=>{const height=2+Math.pow(n/max,.55)*(h-4);ctx.fillStyle=dark?'#78976b':'#c0d0ad';ctx.fillRect(i*bw,h-height,Math.max(1,bw-1),height);ctx.fillStyle=dark?'#aec29a':'#95af7e';ctx.fillRect(i*bw,h-height,Math.max(1,bw-1),1);});const total=state.info.end-state.info.start;$('overview-window').style.left=`${(state.start-state.info.start)/total*100}%`;$('overview-window').style.width=`${(state.end-state.start)/total*100}%`;}
@@ -238,7 +250,11 @@ function renderDetail(){
   const d=state.detail;if(!d||!state.selected)return;const e=d.event,r=state.selected,t=state.info.tracks[r.trackId],name=missingEventName(e)?fallbackEventName(e,t,state.info.processes):e.name;$('selection-heading').textContent=name;$('selection-badge').textContent=r.n>1?`聚合 ${r.n} 筆 · 顯示代表事件`:'EVENT DETAILS';
   const extras=Object.fromEntries(Object.entries(e).filter(([key])=>!['name','ph','pid','tid','ts','dur','cat','args'].includes(key)));
   const links=d.links,linkType={address:'位址',symbol:'符號',flow:'Flow'};
-  const linkHTML=links?.keys.length?`<section class="relation-section"><div class="relation-top"><b>⌁ 位址與事件關聯 <small>${links.capped?'前 64 筆 / ':''}${number(links.total)} 筆候選</small></b><button class="text-button" id="show-relations">${state.showLinks?'隱藏連線':'顯示連線'}</button></div><div class="relation-keys">${links.keys.map(k=>`<span class="relation-key">${linkType[k.type]} ${esc(k.key)} <span style="opacity:.6">${esc(k.path)}</span></span>`).join('')}</div><div class="relation-list">${links.matches.map((m,i)=>`<button class="relation-item" data-relation="${i}"><span>${esc(m.record.label)}<small>${m.relation.type==='address'?'相同位址':`${esc(m.relation.role)} → ${esc(m.otherRole)}`} · TID ${esc(state.info.tracks[m.record.trackId]?.tid)}</small></span><span class="relation-time">${formatTime(m.record.ts-state.info.start,true)} ↗</span></button>`).join('')||'<span style="font-size:14px;color:var(--muted)">此 Trace 沒有其他具有相同鍵的事件。</span>'}</div><p style="font-size:12px;color:var(--muted);margin-bottom:0">相同位址是比對線索，未證明因果或同一記憶體生命週期。連線最多繪製 16 筆。</p></section>`:'<section class="relation-section"><span style="font-size:14px;color:var(--muted)">此事件未找到可辨識的 address / ptr、defines / uses 或標準 flow ID。</span></section>';
+  const linkHTML=links?.keys.length?`<section class="relation-section"><div class="relation-top"><b>⌁ 位址與事件關聯 <small>${links.capped?'前 64 筆 / ':''}${number(links.total)} 筆候選</small></b>
+    <label class="relation-mode">連線<select data-relation-mode aria-label="關聯連線顯示"><option value="compact" ${relationMode==='compact'?'selected':''}>精簡（最多 4）</option><option value="more" ${relationMode==='more'?'selected':''}>更多（最多 16）</option></select></label><button class="text-button" id="show-relations">${state.showLinks?'隱藏連線':'顯示連線'}</button></div>
+    <div class="relation-keys">${links.keys.map(k=>`<span class="relation-key">${linkType[k.type]} ${esc(k.key)} <span style="opacity:.6">${esc(k.path)}</span></span>`).join('')}</div>
+    <div class="relation-list">${links.matches.map((m,i)=>`<button class="relation-item" data-relation="${i}"><span>${esc(m.record.label)}<small>${m.relation.type==='address'?'相同位址':`${esc(m.relation.role)} → ${esc(m.otherRole)}`} · TID ${esc(state.info.tracks[m.record.trackId]?.tid)}</small></span><span class="relation-time">${formatTime(m.record.ts-state.info.start,true)} ↗</span></button>`).join('')||'<span style="font-size:14px;color:var(--muted)">此 Trace 沒有其他具有相同鍵的事件。</span>'}</div>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:0">虛線是同址候選；實線是 Flow／define-use 標記。精簡模式優先明確關係，同址只取目前視窗內同程序／已知核心的最近前後事件，最多 4 條。完整候選清單保留；位址相同尚未證明生命週期或因果。</p></section>`:'<section class="relation-section"><span style="font-size:14px;color:var(--muted)">此事件未找到可辨識的 address / ptr、defines / uses 或標準 flow ID。</span></section>';
   const custom=extensionHost.eventFields(e,{record:r,track:t}),extensionErrors=[...(extensionHost.startupErrors||[]),...custom.errors];
   const summary=[...eventSummary(e),...custom.fields],summaryHTML=summary.length?`<table class="event-fields"><caption>Trace 欄位摘要</caption><tbody>${summary.map(field=>`<tr title="${esc(field.path)}"><th scope="row">${esc(field.label)}</th><td>${esc(field.value)}</td></tr>`).join('')}</tbody></table>`:'';
   $('details-content').innerHTML=`<div class="event-summary"><h3>${esc(name)}</h3><span class="category-badge">${esc(e.cat||'uncategorized')} · ph=${esc(e.ph||'?')}</span><dl>${r.kind===2?`<dt>數值</dt><dd>${esc(formatCounterValue(r.value))}</dd>`:`<dt>持續時間</dt><dd>${formatTime(r.dur||0)}</dd>`}<dt>相對起點</dt><dd>${formatTime(r.ts-state.info.start)}</dd><dt>原始時間戳</dt><dd>${esc(e.ts)} µs</dd><dt>Process</dt><dd>${esc(state.info.processes[e.pid]||e.pid)}</dd><dt>軌道</dt><dd>${esc(t?trackName(t):e.tid)} · ${esc(e.tid)}</dd></dl></div><div>${summaryHTML}${argumentFactsHTML(e,d.facts)}${extensionErrors.map(error=>`<p class="warning">${esc(error.title)}：${esc(error.message)}</p>`).join('')}<details class="arguments-section" open><summary>原始 Arguments · ${Object.keys(e.args||{}).length} 欄位</summary><div class="json-tree">${Object.keys(e.args||{}).length?tree(e.args):'<span class="json-key">此事件沒有 args。</span>'}${Object.keys(extras).length?`<details open><summary>其他原始欄位</summary>${tree(extras)}</details>`:''}${d.endEvent?`<details open><summary>配對的 E 事件</summary>${tree(d.endEvent)}</details>`:''}</div></details><details class="raw-details" open><summary>完整原始 JSON</summary><pre>${esc(d.rawText)}</pre></details></div>${linkHTML}`;
@@ -347,6 +363,7 @@ $('toggle-sidebar').onclick=()=>{const collapsed=!document.body.classList.contai
 $('close-sidebar').onclick=()=>{applySidebar(true);try{localStorage.setItem('trace-studio-sidebar','collapsed');}catch{}};
 $('copy').onclick=async()=>{if(!state.detail){toast('請先選取事件。');return;}try{await navigator.clipboard.writeText(state.detail.rawText);toast('已複製原始事件 JSON。');}catch{toast('瀏覽器未允許剪貼簿存取，可展開原始 JSON 手動複製。');}};
 $('details-content').addEventListener('click',e=>{const argument=e.target.closest('[data-argument-focus]');if(argument){focusArguments(argument.dataset.argumentFocus);return;}const relation=e.target.closest('[data-relation]');if(relation){const r=state.links[Number(relation.dataset.relation)]?.record;if(r)navigateRecord(r);}if(e.target.closest('#show-relations')){state.showLinks=!state.showLinks;renderDetail();paint();}if(e.target.closest('#area-focus'))focusSelection();});
+$('details-content').addEventListener('change',e=>{if(e.target.matches('[data-relation-mode]')){relationMode=e.target.value==='more'?'more':'compact';paint();}});
 for(const id of ['search-results','insights-list'])$(id).addEventListener('click',e=>{const button=e.target.closest('[data-result]');if(button){const r=(button.dataset.source==='search'?searchResults:state.info.top)[Number(button.dataset.result)];navigateRecord(r);}});
 $('search-form').onsubmit=e=>{e.preventDefault();search();};
 function openHelp(){if(!$('help').open)$('help').showModal();}
@@ -362,10 +379,10 @@ async function refreshCaches(){cacheBusy=true;renderCaches();$('cache-status').t
 $('storage').onclick=()=>{$('cache-dialog').showModal();cachePage=0;refreshCaches();};
 $('refresh-cache').onclick=refreshCaches;
 $('cache-prev').onclick=()=>{cachePage=Math.max(0,cachePage-1);renderCaches();};$('cache-next').onclick=()=>{cachePage++;renderCaches();};
-$('cache-list').addEventListener('click',e=>{if(cacheBusy)return;const open=e.target.closest('[data-cache-open]'),remove=e.target.closest('[data-cache-remove]');if(open){$('cache-dialog').close();startWorker();beginLoading('正在開啟本機快取');send('restore',{id:open.dataset.cacheOpen});}else if(remove){cacheBusy=true;renderCaches();send('removeSession',{requestId:++cacheRequest,id:remove.dataset.cacheRemove});}});
+$('cache-list').addEventListener('click',e=>{if(cacheBusy)return;const open=e.target.closest('[data-cache-open]'),remove=e.target.closest('[data-cache-remove]');if(open){$('cache-dialog').close();beginLoading('正在開啟本機快取');send('restore',{id:open.dataset.cacheOpen});}else if(remove){cacheBusy=true;renderCaches();send('removeSession',{requestId:++cacheRequest,id:remove.dataset.cacheRemove});}});
 $('clear-unused').onclick=()=>{cacheBusy=true;renderCaches();send('clearUnused',{requestId:++cacheRequest});};
 $('clear-cache').onclick=()=>{cacheBusy=true;renderCaches();startWorker();send('clear');};
-function cancelImport(){pendingFiles=[];startWorker();finishLoading();if(recoverImport('已取消開檔。'))return;toast('已取消。未完成的快取可從左側「清除 Trace 快取」移除。');let last;try{last=localStorage.getItem('trace-studio-session');}catch{}if(last){beginLoading('正在還原上一份 Trace',false);send('restore',{id:last});}else loadDemo();}
+function cancelImport(){if(!importing||importCancelling)return;pendingFiles=[];importCancelling=true;$('cancel').disabled=true;$('loading-title').textContent='正在取消並清理未完成的索引…';send('cancelImport',{requestId:loadRequestId});}
 $('cancel').onclick=cancelImport;
 $('loading').addEventListener('cancel',e=>{e.preventDefault();cancelImport();});
 $('theme').onclick=()=>{document.body.classList.toggle('dark');try{localStorage.setItem('trace-studio-theme',document.body.classList.contains('dark')?'dark':'light');}catch{}paint();drawOverview();};
