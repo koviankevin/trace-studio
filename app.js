@@ -9,6 +9,7 @@ import {fallbackEventName,missingEventName} from './event-labels.js?v=0.4.0';
 import {comparisonHTML} from './comparison-view.js?v=0.7.0';
 import {selectRelationLines} from './relation-view.js?v=0.7.0';
 import {formatTimestamp,formatTimeWindow} from './time-format.js?v=0.7.0';
+import {RuntimeMetrics} from './runtime-metrics.js?v=0.8.0';
 const extensionHost=await loadExtensionHost();
 const $=id=>document.getElementById(id), esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const state={info:null,start:0,end:1,tracks:[],layout:[],rows:new Map(),groups:[],collapsed:new Set(),groupRows:new Map(),lanes:new Map(),density:'compact',pins:new Set(),expanded:new Set(),selected:null,detail:null,links:[],area:null,filter:'',view:'timeline',query:0,detailId:0,searchId:0,analysisId:0,analysis:null,analysisBusy:false,showLinks:true};
@@ -16,6 +17,7 @@ let worker,queryTimer,paintFrame,toastTimer,searchResults=[],commandIndex=0,filt
 let importRecovery=null,restoringRecovery=null,importCancelling=false;
 let cacheRequest=0,cacheEntries=[],cacheBusy=false,cachePage=0;
 const counterEdges=new Map();
+const runtimeMetrics=new RuntimeMetrics({visible:()=>document.visibilityState!=='hidden'});let displayedQuery=0;
 let relationMode='compact';
 let argumentFocus=null;
 let pendingFiles=[],loadRequestId=0,workspaceRequest=0,savedTraces=[],comparisonIds=new Set(),comparisonRequest=0,comparisonBusy=false,comparisonResult=null,pendingNavigation=null;
@@ -32,6 +34,7 @@ function forgetCaches(ids){try{if(ids.includes(localStorage.getItem('trace-studi
 function startWorker(){worker?.terminate();queryBusy=false;queryDirty=false;clearTimeout(queryTimer);queryTimer=null;const active=new Worker(new URL('./worker.js?v=0.7.1',import.meta.url),{type:'module'});worker=active;active.onmessage=event=>{if(worker===active)handleMessage(event);};active.postMessage({type:'cachePolicy',limitMB:cacheLimit});active.onerror=e=>{if(worker!==active)return;finishLoading();toast(`背景引擎錯誤：${e.message}`);};}
 function finishLoading(){importing=false;importCancelling=false;if($('loading').open)$('loading').close();}
 function beginLoading(title='正在讀取 Trace',remember=true){
+  if(runtimeMetrics.enabled)runtimeMetrics.reset();else runtimeMetrics.cancelPending();displayedQuery=0;
   saveTraceView();loadRequestId++;state.query++;state.detailId++;state.searchId++;setComparisonBusy(false);
   queryBusy=false;queryDirty=false;clearTimeout(queryTimer);queryTimer=null;
   if(remember&&state.info)importRecovery={id:state.info.id,start:state.start,end:state.end,filter:state.filter,view:state.view,pins:new Set(state.pins),expanded:new Set(state.expanded),collapsed:new Set(state.collapsed),lanes:new Map(state.lanes),selected:state.selected,detail:state.detail,links:state.links,area:state.area,analysis:state.analysis,detailsHidden:$('details').hidden,scrollTop:$('tracks-scroll').scrollTop};
@@ -62,6 +65,7 @@ function setComparisonBusy(busy){comparisonBusy=busy;$('run-comparison').disable
 function openComparison(){const id=state.detail?.facts?.ids.tflite;if(id!==undefined)$('comparison-id').value=id;setView('compare');refreshSavedTraces();}
 function handleMessage({data}){
   if(data.traceId&&data.traceId!==state.info?.id)return;
+  runtimeMetrics.sampleHeap();
   switch(data.type){
     case 'importCleanup':if(importCancelling)$('loading-title').textContent=data.stage==='closing'?'正在關閉未完成的索引…':'正在移除未完成的快取…';break;
     case 'progress':{
@@ -90,7 +94,7 @@ function handleMessage({data}){
       break;
     }
     case 'query':{
-      queryBusy=false;if(data.requestId===state.query){state.rows=new Map(data.rows.map(r=>[r.id,r.rows]));state.groupRows=new Map((data.groups||[]).map(r=>[r.id,r.bins]));
+      queryBusy=false;if(data.requestId===state.query){runtimeMetrics.received(data.requestId,data.ms);displayedQuery=data.requestId;state.rows=new Map(data.rows.map(r=>[r.id,r.rows]));state.groupRows=new Map((data.groups||[]).map(r=>[r.id,r.bins]));
         counterEdges.clear();for(const row of data.rows)counterEdges.set(row.id,{before:row.before,after:row.after});
         let changed=false;for(const item of data.rows){const lanes=Math.min(4,item.rows.reduce((max,r)=>Math.max(max,1+(r.lane||0)),1));if(lanes>(state.lanes.get(item.id)||1)){state.lanes.set(item.id,lanes);changed=true;}}
         $('render-info').textContent=`${data.ms.toFixed(1)} ms · ${number(data.rows.reduce((n,r)=>n+r.rows.length,0))} 節點`;
@@ -140,9 +144,16 @@ function updateInfo(restored=false){
   $('analysis-group').innerHTML='<option value="all">全部</option>'+allGroups(state.groups).map(group=>`<option value="${esc(group.id)}">${esc(group.label)}${group.id.startsWith('counter-')?' · 數值曲線':''}</option>`).join('');setAnalysisBusy(false);
   renderEventRows($('insights-list'),i.top,'事件持續時間，非獨占 CPU 耗時。',false);
   const phases=Object.entries(i.phases).map(([ph,n])=>`<div class="info-line"><span>ph = ${esc(ph)}</span><span>${number(n)}</span></div>`).join('');
-  $('info-content').innerHTML=`<div class="info-panel"><h3>來源與儲存</h3>${infoLine('檔案',i.source.name)}${infoLine('原始大小',bytes(i.source.size))}${infoLine('索引＋事件快取',bytes(i.diskBytes+(i.relations?.bytes||0)))}${infoLine('關聯索引',number(i.relations?.count||0))}${infoLine('完整事件數',number(i.count))}${infoLine('瀏覽器',navigator.userAgent||'未提供')}<p>原始事件在本機磁碟保留。畫面會依解析度聚合密集事件；放大可繼續展開，點選可讀取原始 JSON。未經過網路上傳。</p></div><div class="info-panel"><h3>事件類型</h3>${phases}</div><div class="info-panel"><h3>解析品質</h3>${infoLine('無法繪製／metadata 過大',number(i.skipped))}${infoLine('未配對 B / E',number(i.unmatched))}${infoLine('逆序時間戳',number(i.outOfOrder))}${infoLine('名稱摘要超過字典上限',number(i.nameLimit))}<p class="${i.unmatched||i.skipped||i.outOfOrder?'warning':''}">X 完整事件、B/E 同步區段、I/i/R 即時事件、C counter 可視化。其他 phase 保留為標記。非同步事件尚未重建區段。逆序資料仍可查詢，但可能增加磁碟讀取。</p></div><div class="info-panel"><h3>位址與關聯</h3><p>自動辨識 args 中的 address / addr / ptr / pointer 與十六進位字串，按精確位址連結。另支援明確 defines / uses 及 s/t/f flow ID。相同位址不代表因果關係、相同配置生命週期或範圍重疊；大於安全整數的數值 address 請用字串記錄。</p><p>每事件最多 32 個關聯鍵，每次顯示最多 64 筆關聯。完整原始 args 仍可讀取。</p></div><div class="info-panel full"><h3>檔案 Metadata</h3><div class="json-tree">${tree(i.metadata)}</div></div><div class="info-panel full"><h3>大檔設計與目前邊界</h3><p>分段讀取 → Worker 解析 → OPFS 磁碟索引 → 可見軌道查詢 → Canvas 繪製。未將整份 JSON 或全部事件載入主執行緒。需要桌面 Chrome / Edge、HTTPS 與足夠的瀏覽器儲存額度。3 GB 檔案的實際載入時間取決於事件數、args 大小、硬碟、可用空間與瀏覽器；請參考 GitHub 中公開的測試結果。這版尚未支援 Perfetto protobuf、SQL、stack sampling 重建與跨檔比較。</p></div>`;
+  $('info-content').innerHTML=`<div class="info-panel"><h3>來源與儲存</h3>${infoLine('檔案',i.source.name)}${infoLine('原始大小',bytes(i.source.size))}${infoLine('索引＋事件快取',bytes(i.diskBytes+(i.relations?.bytes||0)))}${infoLine('關聯索引',number(i.relations?.count||0))}${infoLine('完整事件數',number(i.count))}${infoLine('瀏覽器',navigator.userAgent||'未提供')}<p>原始事件在本機磁碟保留。畫面會依解析度聚合密集事件；放大可繼續展開，點選可讀取原始 JSON。未經過網路上傳。</p></div><div class="info-panel"><h3>事件類型</h3>${phases}</div><div class="info-panel"><h3>解析品質</h3>${infoLine('無法繪製／metadata 過大',number(i.skipped))}${infoLine('未配對 B / E',number(i.unmatched))}${infoLine('逆序時間戳',number(i.outOfOrder))}${infoLine('名稱摘要超過字典上限',number(i.nameLimit))}<p class="${i.unmatched||i.skipped||i.outOfOrder?'warning':''}">X 完整事件、B/E 同步區段、I/i/R 即時事件、C counter 可視化。其他 phase 保留為標記。非同步事件尚未重建區段。逆序資料仍可查詢，但可能增加磁碟讀取。</p></div><div class="info-panel"><h3>位址與關聯</h3><p>自動辨識 args 中的 address / addr / ptr / pointer 與十六進位字串，按精確位址連結。另支援明確 defines / uses 及 s/t/f flow ID。相同位址不代表因果關係、相同配置生命週期或範圍重疊；大於安全整數的數值 address 請用字串記錄。</p><p>每事件最多 32 個關聯鍵，每次顯示最多 64 筆關聯。完整原始 args 仍可讀取。</p></div><div class="info-panel full"><h3>檔案 Metadata</h3><div class="json-tree">${tree(i.metadata)}</div></div><div class="info-panel full"><h3>大檔設計與目前邊界</h3><p>分段讀取 → Worker 解析 → OPFS 磁碟索引 → 可見軌道查詢 → Canvas 繪製。未將整份 JSON 或全部事件載入主執行緒。需要桌面 Chrome / Edge、HTTPS 與足夠的瀏覽器儲存額度。3 GB 檔案的實際載入時間取決於事件數、args 大小、硬碟、可用空間與瀏覽器；請參考 GitHub 中公開的測試結果。目前支援最多三份 Trace 的 TfliteID／圖版本統計比較；尚未支援 Perfetto protobuf、SQL 與 stack sampling 重建。</p></div>`;
 }
 function infoLine(a,b){return `<div class="info-line"><span>${esc(a)}</span><span>${esc(b)}</span></div>`;}
+function runtimeReport(){return {...runtimeMetrics.snapshot(),trace:state.info?{events:state.info.count,tracks:state.info.tracks.length,inputBytes:state.info.source.size,cacheBytes:state.info.diskBytes}:null,viewport:{width:innerWidth,height:innerHeight,pixelRatio:devicePixelRatio},visibility:document.visibilityState,browser:navigator.userAgent||null};}
+function renderRuntimeMetrics(){const report=runtimeReport(),ms=value=>value===null?'尚無樣本':`${value.toFixed(1)} ms`;
+  $('runtime-json').value=JSON.stringify(report,null,2);
+  $('runtime-toggle').textContent=report.enabled?'停止記錄':'開始記錄';$('runtime-toggle').setAttribute('aria-pressed',String(report.enabled));$('runtime-count').textContent=number(report.completedFrames);
+  $('runtime-status').textContent=report.enabled?'記錄中：切回時間軸縮放或平移，再回來查看。':report.completedFrames?'已停止記錄，保留本次結果；可複製或展開 JSON 查看。':'手動開啟後只記錄本機耗時與數量；切換 Trace 會重新計數。';
+  $('runtime-results').innerHTML=infoLine('Canvas 更新 P50 / P95',`${ms(report.canvas.medianMs)} / ${ms(report.canvas.p95Ms)}`)+infoLine('Worker 查詢 P50 / P95',`${ms(report.worker.medianMs)} / ${ms(report.worker.p95Ms)}`)+infoLine('查詢往返 P50 / P95',`${ms(report.roundTrip.medianMs)} / ${ms(report.roundTrip.p95Ms)}`)+infoLine('主頁長任務 ≥50 ms',report.longTasks.supported?`${report.longTasks.count} 次 · 最長 ${ms(report.longTasks.maxMs)}`:'瀏覽器未提供')+infoLine('JS heap 抽樣最大值',report.heap.maxSampledBytes===null?'瀏覽器未提供':bytes(report.heap.maxSampledBytes))+infoLine('採樣視窗 / 合併更新 / 背景略過',`${report.canvas.samples} / ${report.coalescedIntents} / ${report.hiddenOmitted}`);
+}
 function tree(obj,depth=0){
   if(obj===null||typeof obj!=='object')return `<span class="json-value">${esc(typeof obj==='string'?obj:JSON.stringify(obj))}</span>`;
   if(depth>12)return `<span class="json-value">結構深度超過 12 層，請展開下方原始 JSON。</span>`;
@@ -152,7 +163,7 @@ function tree(obj,depth=0){
     const text=typeof value==='string'?value:JSON.stringify(value);return `<div class="json-leaf"><span class="json-key">${esc(key)}</span><span class="json-value ${address?'address':''}">${esc(text?.length>16000?text.slice(0,16000)+'…（完整內容見原始 JSON）':text)}</span></div>`;
   }).join('')+(entries.length>200?'<p>前 200 個欄位；完整資料請查看原始 JSON。</p>':'');
 }
-function setView(view){state.view=view;document.body.classList.toggle('timeline-workspace',view==='timeline');document.querySelectorAll('.view').forEach(e=>e.classList.toggle('active',e.id===`${view}-view`));document.querySelectorAll('.nav').forEach(e=>e.classList.toggle('active',e.dataset.view===view));$('breadcrumb').textContent=({timeline:'時間軸',events:'事件搜尋',insights:'Trace 分析',info:'Trace 資訊',compare:'Trace 比較'})[view];if(view==='timeline'){measure();requestQuery();}if(view==='events')$('search-input').focus();}
+function setView(view){state.view=view;document.body.classList.toggle('timeline-workspace',view==='timeline');document.querySelectorAll('.view').forEach(e=>e.classList.toggle('active',e.id===`${view}-view`));document.querySelectorAll('.nav').forEach(e=>e.classList.toggle('active',e.dataset.view===view));$('breadcrumb').textContent=({timeline:'時間軸',events:'事件搜尋',insights:'Trace 分析',info:'Trace 資訊',compare:'Trace 比較'})[view];if(view==='timeline'){measure();requestQuery();}if(view==='events')$('search-input').focus();if(view==='info')renderRuntimeMetrics();}
 function updateLayout(){
   const scroll=$('tracks-scroll'),oldTop=scroll.scrollTop,anchor=state.layout.find(r=>r.y+r.h>oldTop),offset=anchor?oldTop-anchor.y:0;
   const result=makeTrackLayout(state.groups,{collapsed:state.collapsed,filter:state.filter,pins:state.pins,expanded:state.expanded,density:state.density,lanes:state.lanes});state.layout=result.rows;
@@ -170,8 +181,8 @@ function renderLabels(){
     const {track:t,y,h}=row;return `<div class="track-label" style="top:${y}px;height:${h}px;padding-left:${8+row.depth*12}px" data-track="${t.id}" title="${esc(t.name)} · PID ${esc(t.pid)} · TID ${esc(t.tid)} · ${number(t.count)} events；雙擊展開高度"><div class="track-label-top"><i class="track-color" style="background:${palette[t.id%palette.length]}"></i><span class="track-title">${esc(row.displayName)}</span><button class="pin ${state.pins.has(t.id)?'pinned':''}" data-pin="${t.id}" title="${state.pins.has(t.id)?'取消釘選':'釘選軌道'}" aria-label="釘選 ${esc(t.name)}">⌖</button></div><div class="track-meta"><span style="line-height:2">${number(t.count)} ${t.kind==='counter'?'samples':'events'}</span></div></div>`;
   }).join('');
 }
-function requestQuery(){paint();if(!state.info||state.view!=='timeline'||importing)return;if(queryBusy){queryDirty=true;return;}if(queryTimer)return;queryTimer=setTimeout(()=>{queryTimer=null;if(!state.info||importing)return;state.query++;queryBusy=true;const visible=visibleLayout();send('query',{requestId:state.query,start:state.start,end:state.end,trackIds:visible.filter(r=>r.type==='track').map(r=>r.track.id),groups:visible.filter(r=>r.type==='group'&&r.collapsed).map(r=>({id:r.id,trackIds:r.trackIds})),width:Math.ceil(plotWidth)});},25);}
-function setRange(start,end){if(!state.info)return;const total=state.info.end-state.info.start,span=Math.max(.1,Math.min(total,end-start));if(start<state.info.start)start=state.info.start;if(start+span>state.info.end)start=state.info.end-span;state.start=start;state.end=start+span;requestQuery();drawOverview();}
+function requestQuery(){paint();if(!state.info||state.view!=='timeline'||importing)return;if(queryBusy){queryDirty=true;return;}if(queryTimer)return;queryTimer=setTimeout(()=>{queryTimer=null;if(!state.info||importing)return;state.query++;queryBusy=true;runtimeMetrics.sent(state.query);const visible=visibleLayout();send('query',{requestId:state.query,start:state.start,end:state.end,trackIds:visible.filter(r=>r.type==='track').map(r=>r.track.id),groups:visible.filter(r=>r.type==='group'&&r.collapsed).map(r=>({id:r.id,trackIds:r.trackIds})),width:Math.ceil(plotWidth)});},25);}
+function setRange(start,end){if(!state.info)return;const total=state.info.end-state.info.start,span=Math.max(.1,Math.min(total,end-start));if(start<state.info.start)start=state.info.start;if(start+span>state.info.end)start=state.info.end-span;if(start!==state.start||start+span!==state.end)runtimeMetrics.intent();state.start=start;state.end=start+span;requestQuery();drawOverview();}
 function zoom(factor,anchor=.5){const span=state.end-state.start,newSpan=span*factor,center=state.start+span*anchor;setRange(center-newSpan*anchor,center+newSpan*(1-anchor));}
 function pan(fraction){const delta=(state.end-state.start)*fraction;setRange(state.start+delta,state.end+delta);}
 function fitAll(){if(state.info)setRange(state.info.start,state.info.end);}
@@ -224,7 +235,7 @@ function drawTimeline(){
   }
   if(state.showLinks&&state.selected&&state.links.length){const selectedRow=state.layout.find(r=>r.track?.id===state.selected.trackId);if(selectedRow){const sx=xTime(state.selected.ts),sy=selectedRow.y-scroll+17;ctx.save();ctx.strokeStyle=dark?'#ead291':'#b49b58';ctx.lineWidth=1.3;ctx.setLineDash([4,3]);for(const link of selectRelationLines(state.links,state.selected,state.info.tracks,{mode:relationMode,start:state.start,end:state.end})){const row=state.layout.find(r=>r.track?.id===link.record.trackId)||state.layout.find(r=>r.type==='group'&&r.collapsed&&r.trackIds.includes(link.record.trackId));if(!row)continue;const x=xTime(link.record.ts),y=row.y-scroll+17;if(Math.max(sx,x)<0||Math.min(sx,x)>plotWidth)continue;ctx.setLineDash(link.relation.type==='address'?[4,3]:[]);ctx.beginPath();ctx.moveTo(sx,sy);ctx.bezierCurveTo(sx+(x-sx)/2,sy,sx+(x-sx)/2,y,x,y);ctx.stroke();ctx.setLineDash([]);ctx.fillStyle=dark?'#ead291':'#b49b58';ctx.beginPath();ctx.arc(x,y,3,0,Math.PI*2);ctx.fill();ctx.setLineDash([4,3]);}ctx.restore();}}
   if(state.area){const x1=xTime(state.area.start),x2=xTime(state.area.end);ctx.fillStyle='#8fb58c26';ctx.fillRect(x1,0,x2-x1,plotHeight);ctx.strokeStyle='#799d64';ctx.setLineDash([3,3]);for(const x of [x1,x2]){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,plotHeight);ctx.stroke();}ctx.setLineDash([]);}
-  $('window-time').textContent=formatTimeWindow(state.start,state.end,origin);
+  $('window-time').textContent=formatTimeWindow(state.start,state.end,origin);if(runtimeMetrics.frame(displayedQuery))$('runtime-count').textContent=number(runtimeMetrics.frameCount);
 }
 function drawOverview(){if(!state.info||state.view!=='timeline')return;const wrap=$('overview-wrap'),w=wrap.clientWidth,h=wrap.clientHeight;if(!w||!h)return;const ctx=canvasSetup($('overview'),w,h),bins=state.info.overview,max=Math.max(...bins,1),dark=document.body.classList.contains('dark');const bw=w/bins.length;
   bins.forEach((n,i)=>{const height=2+Math.pow(n/max,.55)*(h-4);ctx.fillStyle=dark?'#78976b':'#c0d0ad';ctx.fillRect(i*bw,h-height,Math.max(1,bw-1),height);ctx.fillStyle=dark?'#aec29a':'#95af7e';ctx.fillRect(i*bw,h-height,Math.max(1,bw-1),1);});const total=state.info.end-state.info.start;$('overview-window').style.left=`${(state.start-state.info.start)/total*100}%`;$('overview-window').style.width=`${(state.end-state.start)/total*100}%`;}
@@ -326,14 +337,14 @@ $('timeline').addEventListener('pointerup',e=>{if(!pointer)return;const p=localP
 $('timeline').addEventListener('pointercancel',()=>pointer=null);$('timeline').addEventListener('pointerleave',()=>$('tooltip').hidden=true);
 $('timeline').addEventListener('dblclick',()=>focusSelection());
 $('tracks-scroll').addEventListener('wheel',e=>{if(!state.info)return;if(e.ctrlKey||e.metaKey){e.preventDefault();zoom(1-wheelZoomRatio(e.deltaY),Math.max(0,Math.min(1,(e.clientX-$('timeline').getBoundingClientRect().left)/plotWidth)));}else if(e.shiftKey||Math.abs(e.deltaX)>Math.abs(e.deltaY)){e.preventDefault();pan((e.deltaX||e.deltaY)/plotWidth);}},{passive:false});
-$('tracks-scroll').addEventListener('scroll',()=>{renderLabels();requestQuery();},{passive:true});
+$('tracks-scroll').addEventListener('scroll',()=>{runtimeMetrics.intent();renderLabels();requestQuery();},{passive:true});
 $('overview-wrap').addEventListener('pointerdown',e=>{if(!state.info)return;overviewPointer={x:e.clientX,start:state.start,span:state.end-state.start};e.currentTarget.setPointerCapture(e.pointerId);const r=e.currentTarget.getBoundingClientRect(),t=state.info.start+(e.clientX-r.left)/r.width*(state.info.end-state.info.start);setRange(t-overviewPointer.span/2,t+overviewPointer.span/2);overviewPointer.start=state.start;});
 $('overview-wrap').addEventListener('pointermove',e=>{if(!overviewPointer)return;const delta=(e.clientX-overviewPointer.x)/e.currentTarget.clientWidth*(state.info.end-state.info.start);setRange(overviewPointer.start+delta,overviewPointer.start+delta+overviewPointer.span);});
 for(const evt of ['pointerup','pointercancel'])$('overview-wrap').addEventListener(evt,()=>overviewPointer=null);
-function toggleGroup(id){if(state.collapsed.has(id))state.collapsed.delete(id);else state.collapsed.add(id);updateLayout();}
-$('track-labels').addEventListener('click',e=>{const group=e.target.closest('[data-group]');if(group){toggleGroup(group.dataset.group);return;}const pin=e.target.closest('[data-pin]');if(pin){const id=Number(pin.dataset.pin);if(state.pins.has(id))state.pins.delete(id);else state.pins.add(id);updateLayout();$('tracks-scroll').scrollTop=0;}});
-$('track-labels').addEventListener('dblclick',e=>{const label=e.target.closest('[data-track]');if(label){const id=Number(label.dataset.track);if(state.expanded.has(id))state.expanded.delete(id);else state.expanded.add(id);updateLayout();}});
-$('track-filter').addEventListener('input',e=>{state.filter=e.target.value;updateLayout();});$('reset-filter').onclick=()=>{$('track-filter').value='';state.filter='';updateLayout();};
+function toggleGroup(id){runtimeMetrics.intent();if(state.collapsed.has(id))state.collapsed.delete(id);else state.collapsed.add(id);updateLayout();}
+$('track-labels').addEventListener('click',e=>{const group=e.target.closest('[data-group]');if(group){toggleGroup(group.dataset.group);return;}const pin=e.target.closest('[data-pin]');if(pin){const id=Number(pin.dataset.pin);runtimeMetrics.intent();if(state.pins.has(id))state.pins.delete(id);else state.pins.add(id);updateLayout();$('tracks-scroll').scrollTop=0;}});
+$('track-labels').addEventListener('dblclick',e=>{const label=e.target.closest('[data-track]');if(label){const id=Number(label.dataset.track);runtimeMetrics.intent();if(state.expanded.has(id))state.expanded.delete(id);else state.expanded.add(id);updateLayout();}});
+$('track-filter').addEventListener('input',e=>{runtimeMetrics.intent();state.filter=e.target.value;updateLayout();});$('reset-filter').onclick=()=>{runtimeMetrics.intent();$('track-filter').value='';state.filter='';updateLayout();};
 document.querySelectorAll('.nav').forEach(e=>e.onclick=()=>{setView(e.dataset.view);if(innerWidth<=900)applySidebar(true);});
 $('open').onclick=()=>$('file').click();$('file').onchange=e=>{loadFiles(e.target.files);e.target.value='';};$('demo').onclick=loadDemo;
 $('add-traces').onclick=()=>$('file').click();$('trace-tabs').onclick=e=>{const tab=e.target.closest('[data-trace-open]');if(tab)openSavedTrace(tab.dataset.traceOpen);};
@@ -345,6 +356,11 @@ $('cancel-comparison').onclick=()=>send('cancelAnalysis');
 $('comparison-results').onclick=e=>{const operator=e.target.closest('[data-compare-id]');if(operator){$('comparison-id').value=operator.dataset.compareId;$('comparison-form').onsubmit({preventDefault(){}});return;}const button=e.target.closest('[data-compare-member]');if(!button||!comparisonResult)return;const [traceIndex,memberIndex]=button.dataset.compareMember.split(':').map(Number),trace=comparisonResult.traces[traceIndex],record=trace?.members?.[memberIndex]?.record;if(record)openSavedTrace(trace.id,record);};
 $('export-comparison').onclick=()=>{if(!comparisonResult)return;const url=URL.createObjectURL(new Blob([JSON.stringify(comparisonResult,null,2)],{type:'application/json'})),link=document.createElement('a');link.href=url;link.download='trace-comparison.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
 window.addEventListener('pagehide',saveTraceView);
+$('runtime-toggle').onclick=()=>{if(runtimeMetrics.enabled)runtimeMetrics.stop();else runtimeMetrics.start();renderRuntimeMetrics();};
+$('runtime-reset').onclick=()=>{runtimeMetrics.reset();renderRuntimeMetrics();};
+$('runtime-refresh').onclick=renderRuntimeMetrics;
+document.addEventListener('visibilitychange',()=>runtimeMetrics.visibilityChanged());
+$('runtime-copy').onclick=async()=>{const text=JSON.stringify(runtimeReport(),null,2);$('runtime-json').value=text;try{await navigator.clipboard.writeText(text);toast('效能報告已複製，不含檔名或事件內容。');}catch{toast('無法寫入剪貼簿，請展開效能報告 JSON 手動複製。');}};
 $('zoom-in').onclick=()=>zoom(.65);$('zoom-out').onclick=()=>zoom(1/.65);$('fit').onclick=fitAll;$('focus-selection').onclick=focusSelection;
 $('toggle-details').onclick=()=>$('details').hidden=!$('details').hidden;
 $('close-details').onclick=()=>$('details').hidden=true;
@@ -356,10 +372,10 @@ $('details-resize').addEventListener('pointerdown',e=>{drawerDrag={y:e.clientY,h
 $('details-resize').addEventListener('pointermove',e=>{if(drawerDrag)resizeDrawer(drawerDrag.height+drawerDrag.y-e.clientY);});
 for(const event of ['pointerup','pointercancel'])$('details-resize').addEventListener(event,()=>drawerDrag=null);
 $('details-resize').addEventListener('keydown',e=>{if(e.key==='ArrowUp'||e.key==='ArrowDown'){e.preventDefault();e.stopPropagation();resizeDrawer($('details').getBoundingClientRect().height+(e.key==='ArrowUp'?20:-20));}});
-$('expand-groups').onclick=()=>{state.collapsed.clear();updateLayout();};
-$('collapse-groups').onclick=()=>{state.collapsed=new Set(allGroups(state.groups).map(group=>group.id));updateLayout();$('tracks-scroll').scrollTop=0;};
+$('expand-groups').onclick=()=>{runtimeMetrics.intent();state.collapsed.clear();updateLayout();};
+$('collapse-groups').onclick=()=>{runtimeMetrics.intent();state.collapsed=new Set(allGroups(state.groups).map(group=>group.id));updateLayout();$('tracks-scroll').scrollTop=0;};
 function applyDensity(){document.body.classList.toggle('density-compact',state.density==='compact');$('density-toggle').textContent=state.density==='compact'?'緊湊':'舒適';$('density-toggle').setAttribute('aria-pressed',String(state.density==='compact'));updateLayout();}
-$('density-toggle').onclick=()=>{state.density=state.density==='compact'?'comfortable':'compact';try{localStorage.setItem('trace-studio-density',state.density);}catch{}applyDensity();};
+$('density-toggle').onclick=()=>{runtimeMetrics.intent();state.density=state.density==='compact'?'comfortable':'compact';try{localStorage.setItem('trace-studio-density',state.density);}catch{}applyDensity();};
 function applySidebar(collapsed){document.body.classList.toggle('sidebar-collapsed',collapsed);$('toggle-sidebar').setAttribute('aria-expanded',String(!collapsed));$('toggle-sidebar').setAttribute('aria-label',collapsed?'展開側欄':'收合側欄');$('toggle-sidebar').title=collapsed?'展開側欄':'收合側欄';}
 $('toggle-sidebar').onclick=()=>{const collapsed=!document.body.classList.contains('sidebar-collapsed');applySidebar(collapsed);try{localStorage.setItem('trace-studio-sidebar',collapsed?'collapsed':'expanded');}catch{}};
 $('close-sidebar').onclick=()=>{applySidebar(true);try{localStorage.setItem('trace-studio-sidebar','collapsed');}catch{}};
