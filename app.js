@@ -6,7 +6,7 @@ import {loadExtensionHost} from './extensions/runtime.js';
 import {counterPlot,formatCounterValue} from './counter-plot.js?v=0.3.2';
 import {extractArgumentFacts} from './argument-facts.js?v=0.4.0';
 import {fallbackEventName,missingEventName} from './event-labels.js?v=0.4.0';
-import {comparisonHTML} from './comparison-view.js?v=0.5.0';
+import {comparisonHTML} from './comparison-view.js?v=0.6.0';
 const extensionHost=await loadExtensionHost();
 const $=id=>document.getElementById(id), esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const state={info:null,start:0,end:1,tracks:[],layout:[],rows:new Map(),groups:[],collapsed:new Set(),groupRows:new Map(),lanes:new Map(),density:'compact',pins:new Set(),expanded:new Set(),selected:null,detail:null,links:[],area:null,filter:'',view:'timeline',query:0,detailId:0,searchId:0,analysisId:0,analysis:null,analysisBusy:false,showLinks:true};
@@ -24,12 +24,13 @@ function formatTime(us,short=false){const n=Math.abs(us);if(n>=1e6)return `${(us
 function bytes(n){return n>=1e9?`${(n/1e9).toFixed(2)} GB`:n>=1e6?`${(n/1e6).toFixed(1)} MB`:`${(n/1e3).toFixed(0)} KB`;}
 function number(n){return n.toLocaleString('en-US');}
 function toast(message){$('toast').textContent=message;$('toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').hidden=true,6500);}
-function send(type,data={}){if(['import','restore','demo','hardwareDemo'].includes(type))data={requestId:loadRequestId,...data};worker.postMessage({type,...data});}
+function send(type,data={}){if(['import','restore','demo','hardwareDemo'].includes(type))data={requestId:loadRequestId,...data};if(['query','detail','neighbor','search','analysis'].includes(type))data={traceId:state.info?.id,...data};worker.postMessage({type,...data});}
 function forgetCaches(ids){try{if(ids.includes(localStorage.getItem('trace-studio-session'))){if(state.info&&!ids.includes(state.info.id))localStorage.setItem('trace-studio-session',state.info.id);else localStorage.removeItem('trace-studio-session');}}catch{}}
-function startWorker(){worker?.terminate();queryBusy=false;queryDirty=false;clearTimeout(queryTimer);queryTimer=null;const active=new Worker(new URL('./worker.js?v=0.5.0',import.meta.url),{type:'module'});worker=active;active.onmessage=event=>{if(worker===active)handleMessage(event);};active.postMessage({type:'cachePolicy',limitMB:cacheLimit});active.onerror=e=>{if(worker!==active)return;finishLoading();toast(`背景引擎錯誤：${e.message}`);};}
+function startWorker(){worker?.terminate();queryBusy=false;queryDirty=false;clearTimeout(queryTimer);queryTimer=null;const active=new Worker(new URL('./worker.js?v=0.6.0',import.meta.url),{type:'module'});worker=active;active.onmessage=event=>{if(worker===active)handleMessage(event);};active.postMessage({type:'cachePolicy',limitMB:cacheLimit});active.onerror=e=>{if(worker!==active)return;finishLoading();toast(`背景引擎錯誤：${e.message}`);};}
 function finishLoading(){importing=false;if($('loading').open)$('loading').close();}
 function beginLoading(title='正在讀取 Trace',remember=true){
   saveTraceView();loadRequestId++;state.query++;state.detailId++;state.searchId++;setComparisonBusy(false);
+  queryBusy=false;queryDirty=false;clearTimeout(queryTimer);queryTimer=null;
   if(remember&&state.info)importRecovery={id:state.info.id,start:state.start,end:state.end,filter:state.filter,view:state.view,pins:new Set(state.pins),expanded:new Set(state.expanded),collapsed:new Set(state.collapsed),lanes:new Map(state.lanes),selected:state.selected,detail:state.detail,links:state.links,area:state.area,analysis:state.analysis,detailsHidden:$('details').hidden,scrollTop:$('tracks-scroll').scrollTop};
   importing=true;state.info=null;state.rows.clear();state.selected=null;state.links=[];state.area=null;state.detail=null;
   counterEdges.clear();
@@ -57,6 +58,7 @@ function renderSavedTraces(){
 function setComparisonBusy(busy){comparisonBusy=busy;$('run-comparison').disabled=busy;$('cancel-comparison').hidden=!busy;$('export-comparison').disabled=busy||!comparisonResult;}
 function openComparison(){const id=state.detail?.facts?.ids.tflite;if(id!==undefined)$('comparison-id').value=id;setView('compare');refreshSavedTraces();}
 function handleMessage({data}){
+  if(data.traceId&&data.traceId!==state.info?.id)return;
   switch(data.type){
     case 'progress':{
       const p=Math.min(99.9,data.bytes/Math.max(1,data.total)*100);$('progress-bar').style.width=`${p}%`;$('progress-percent').textContent=`${p.toFixed(1)}%`;
@@ -99,10 +101,11 @@ function handleMessage({data}){
     case 'unusedCleared':refreshSavedTraces();if(data.requestId===cacheRequest){forgetCaches(data.removed);cacheBusy=false;cacheEntries=data.sessions;renderCaches();$('cache-status').textContent=`已清除 ${data.removed.length} 份；保留目前及使用中／無法清理的 ${data.skipped.length} 份。`;}break;
     case 'cleared':try{if(data.removed?.includes(localStorage.getItem('trace-studio-session')))localStorage.removeItem('trace-studio-session');}catch{}state.info=null;importRecovery=null;restoringRecovery=null;cacheBusy=false;$('cache-dialog').close();toast(`已清除 ${data.removed?.length||0} 份快取，保留 ${data.skipped?.length||0} 份使用中／無法清理的快取。`);loadDemo();break;
     case 'error':{
+      const expected={query:state.query,search:state.searchId,detail:state.detailId,analysis:state.analysisId,compare:comparisonRequest}[data.operation];if(expected!==undefined&&data.requestId!==expected)break;
       if(['import','restore','hardwareDemo','demo'].includes(data.operation)&&data.requestId!==undefined&&data.requestId!==loadRequestId)break;
       if(['import','restore','hardwareDemo','demo'].includes(data.operation)){pendingFiles=[];pendingNavigation=null;}
       if(data.operation==='compare'&&data.requestId===comparisonRequest){setComparisonBusy(false);$('comparison-status').textContent=data.message;}
-      finishLoading();toast(data.message);
+      if(['import','restore','hardwareDemo','demo'].includes(data.operation))finishLoading();toast(data.message);
       if(data.operation==='query'){queryBusy=false;queryDirty=false;}
       if(['sessions','removeSession','clearUnused','clear'].includes(data.operation)){cacheBusy=false;renderCaches();$('cache-status').textContent=data.message;}
       if(data.operation==='analysis'&&data.requestId===state.analysisId){setAnalysisBusy(false);$('analysis-status').textContent=data.message;}
@@ -320,10 +323,10 @@ $('open').onclick=()=>$('file').click();$('file').onchange=e=>{loadFiles(e.targe
 $('add-traces').onclick=()=>$('file').click();$('trace-tabs').onclick=e=>{const tab=e.target.closest('[data-trace-open]');if(tab)openSavedTrace(tab.dataset.traceOpen);};
 $('open-comparison').onclick=openComparison;$('refresh-traces').onclick=refreshSavedTraces;
 $('trace-cache-limit').value=String(cacheLimit);$('trace-cache-limit').onchange=e=>{if(comparisonBusy){e.target.value=String(cacheLimit);toast('請先完成或取消比較。');return;}cacheLimit=Number(e.target.value);try{localStorage.setItem('trace-studio-cache-limit',String(cacheLimit));}catch{}send('cachePolicy',{limitMB:cacheLimit});refreshSavedTraces();};
-$('comparison-sources').onchange=e=>{const id=e.target.dataset.comparisonId;if(!id)return;if(e.target.checked)comparisonIds.add(id);else comparisonIds.delete(id);};
-$('comparison-form').onsubmit=e=>{e.preventDefault();if(comparisonBusy||importing)return;if(state.analysisBusy){toast('請先完成或取消 Trace 分析。');return;}const ids=[...comparisonIds].filter(id=>savedTraces.some(item=>item.id===id));if(ids.length<2||ids.length>4){toast('請選擇 2–4 份 Trace。');return;}comparisonResult=null;setComparisonBusy(true);$('comparison-results').innerHTML='';$('comparison-status').textContent='正在背景比較，可切回時間軸繼續操作。';send('compare',{requestId:++comparisonRequest,ids,tfliteId:$('comparison-id').value});};
+$('comparison-sources').onchange=e=>{const id=e.target.dataset.comparisonId;if(!id)return;if(e.target.checked){if([...comparisonIds].filter(id=>savedTraces.some(item=>item.id===id)).length>=3){e.target.checked=false;toast('最多比較三份 Trace。');return;}comparisonIds.add(id);}else comparisonIds.delete(id);};
+$('comparison-form').onsubmit=e=>{e.preventDefault();if(comparisonBusy||importing)return;if(state.analysisBusy){toast('請先完成或取消 Trace 分析。');return;}const ids=[...comparisonIds].filter(id=>savedTraces.some(item=>item.id===id));if(ids.length<2||ids.length>3){toast('請選擇 2–3 份 Trace。');return;}saveTraceView();const scopes={};if($('comparison-range').value==='saved')for(const id of ids){const view=traceViews.get(id);if(!view){toast('請先開啟各份 Trace 並調整要比較的時間範圍。');return;}scopes[id]={start:view.start,end:view.end};}comparisonResult=null;setComparisonBusy(true);$('comparison-results').innerHTML='';$('comparison-status').textContent='正在背景比較，可切回時間軸繼續操作。';send('compare',{requestId:++comparisonRequest,ids,scopes,sourceNames:Object.fromEntries(savedTraces.map(item=>[item.id,item.name])),tfliteId:$('comparison-id').value});};
 $('cancel-comparison').onclick=()=>send('cancelAnalysis');
-$('comparison-results').onclick=e=>{const button=e.target.closest('[data-compare-member]');if(!button||!comparisonResult)return;const [traceIndex,memberIndex]=button.dataset.compareMember.split(':').map(Number),trace=comparisonResult.traces[traceIndex],record=trace?.members?.[memberIndex]?.record;if(record)openSavedTrace(trace.id,record);};
+$('comparison-results').onclick=e=>{const operator=e.target.closest('[data-compare-id]');if(operator){$('comparison-id').value=operator.dataset.compareId;$('comparison-form').onsubmit({preventDefault(){}});return;}const button=e.target.closest('[data-compare-member]');if(!button||!comparisonResult)return;const [traceIndex,memberIndex]=button.dataset.compareMember.split(':').map(Number),trace=comparisonResult.traces[traceIndex],record=trace?.members?.[memberIndex]?.record;if(record)openSavedTrace(trace.id,record);};
 $('export-comparison').onclick=()=>{if(!comparisonResult)return;const url=URL.createObjectURL(new Blob([JSON.stringify(comparisonResult,null,2)],{type:'application/json'})),link=document.createElement('a');link.href=url;link.download='trace-comparison.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
 window.addEventListener('pagehide',saveTraceView);
 $('zoom-in').onclick=()=>zoom(.65);$('zoom-out').onclick=()=>zoom(1/.65);$('fit').onclick=fitAll;$('focus-selection').onclick=focusSelection;
