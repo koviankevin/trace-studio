@@ -1,0 +1,71 @@
+{
+  "version": "0.7.1",
+  "environment": "Windows, ChatGPT in-app browser Chromium 156",
+  "pairedJump": {
+    "durationUs": 30000,
+    "beginArgsPreserved": true,
+    "endArgsPreserved": true,
+    "eOnlySymbolRelation": true,
+    "duplicateCandidates": 1
+  },
+  "keyboard": {
+    "qToggle": true,
+    "ctrlPFocus": "track-filter",
+    "inputText": "wads",
+    "commandPaletteKeyboard": true,
+    "escapeClearsSelection": true,
+    "heldZoom400ms": true
+  },
+  "nativeModifierDrag": "unverified: tool did not hold Shift across drag; resulting ordinary range selection was observed",
+  "busyEntry": "paired-relations.json\n2 KB · 其他分頁使用中 · 2026/10/29 下午9:36:45\n開啟\n清除",
+  "busyOpenDisabled": true,
+  "multiTabRestore": {
+    "afterOwnerClosed": true,
+    "file": "paired-relations.json",
+    "events": "4",
+    "notice": "已從本機快取還原，不需重新解析。"
+  },
+  "counterJump": {
+    "details": "Power\nuncategorized · ph=C\n數值\n42\n相對起點\n10.000 ms\n原始時間戳\n10000 µs\nProcess\n1\n軌道\nPower · watts · 2\n原始 Arguments · 2 欄位\nwatts\n42\naddress\n0x2000\n完整原始 JSON\n{\"ph\":\"C\",\"name\":\"Power\",\"pid\":1,\"tid\":2,\"ts\":10000,\"args\":{\"watts\":42,\"address\":\"0x2000\"}}\n⌁ 位址與事件關聯 2 筆候選\n連線\n精簡（最多 4）\n更多（最多 16）\n隱藏連線\n位址 0x2000 args.address\nsensor-update\n相同位址 · TID 1\n0.00 µs ↗\nPower · watts\n相同位址 · TID 2\n20.0 ms ↗\n\n虛線是同址候選；實線是 Flow／define-use 標記。精簡模式優先明確關係，同址只取目前視窗內同程序／已知核心的最近前後事件，最多 4 條。完整候選清單保留；位址相同尚未證明生命週期或因果。"
+  },
+  "viewport800": {
+    "clientWidth": 800,
+    "scrollWidth": 800
+  },
+  "drawerKeyboard": {
+    "before": 140,
+    "after": 160,
+    "value": "160"
+  },
+  "analysisExportClickedAt": "2026-10-29T13:49:49.536Z",
+  "exports": {
+    "analysis": {
+      "downloadedFileVerified": true,
+      "source": "counter-relations.json",
+      "slices": 1,
+      "counterSamples": 2,
+      "totalUs": 2000
+    },
+    "comparison": {
+      "downloadedFileVerified": true,
+      "tfliteIds": [
+        "7",
+        "8"
+      ],
+      "totalUs": [
+        18000,
+        13500,
+        9000
+      ]
+    }
+  },
+  "recordedAt": "2026-10-29T14:05:46.708Z",
+  "sourceHashes": {
+    "core.js": "7cf9690fe79af52c5764a8bcaf38c8f1ca92b9ba0942cb2f72e209a57c095d8c",
+    "relations.js": "0a6539ec334878b123070d1b4171a739f07dd3005286ae027e398474cbe7c714",
+    "worker.js": "b8b0769f3a1a6c10b7c300d079b372686b129866307e3aaab8f04cd18fce89de",
+    "app.js": "52ae7f257dea71854ec8b94d3c9755f65603d115751b9c3dd761da6fa50d5a62",
+    "index.html": "e467251833abf2e71b9172f4a21c522995b73e430c56331474c9fd3e1b831481"
+  },
+  "provenance": "Synthetic fixtures only. UI observations and downloaded artifact assertions; not a standalone Chrome/Edge, peak-memory or interaction-percentile benchmark. Drawer check used the recorded app source; earlier keyboard and paired checks preceded the additive drawer accessibility change."
+}

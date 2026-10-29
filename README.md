@@ -4,7 +4,7 @@
 
 **[開啟時跡](https://koviankevin.github.io/trace-studio/)** · [操作參考](https://perfetto.dev/docs/visualization/perfetto-ui) · [效能測試](docs/PERFORMANCE.md)
 
-目前為 v0.7.0。已有自動化測試，以及 Windows Chromium 瀏覽器的實際 File／OPFS、三版本比較與 3 GB 合成資料驗收；詳細範圍與未完成項目見[驗證紀錄](docs/VERIFICATION.md)。尚未證實比 Chrome tracing 或 Perfetto 更快；本專案的目標是在熟悉的操作上提供更清楚的資訊與大檔路徑。
+目前為 v0.7.1。已有自動化測試，以及 Windows Chromium 瀏覽器的實際 File／OPFS、三版本比較與 3 GB 合成資料驗收；詳細範圍與未完成項目見[驗證紀錄](docs/VERIFICATION.md)。尚未證實比 Chrome tracing 或 Perfetto 更快；本專案的目標是在熟悉的操作上提供更清楚的資訊與大檔路徑。
 
 ## 使用
 
@@ -28,6 +28,7 @@
 - 可拖曳高度的下方事件詳情，集中顯示 trace 提供的 Core／Flow／Op ID、shape、tile、記憶體流量與來源建議。
 - 事件名稱搜尋、最長 20 筆事件、完整原始欄位與 args、metadata、複製原始事件 JSON。
 - 精確 address 關聯、標準 flow ID 與明確 defines / uses 關聯；點選跳轉及時間軸連線。預設「精簡」最多 4 條，優先明確關聯，位址只選同程序／已知核心且在視窗內最近的前後候選；「更多」最多 16 條，亦可隱藏。清單仍保留最多 64 個候選，虛線只代表位址相同，不代表已證明的因果。
+- B/E 關聯跳轉保留完整區段與兩端 Args，只列一次；E 端才出現的關聯鍵也可查找。曲線樣本跳轉保留實際數值。既有本機索引直接套用，不必重新匯入。
 - 亮色與深色模式、指令選單與核心 Perfetto 操作。
 - 背景 Trace 分析：完整 trace／目前範圍／指定群組、事件與各核心累計時間、長事件定位、近似 P95、取消及 JSON 匯出。
 - 數值曲線集中分組；事件依名稱規則以淡色區分計算、搬移、等待、框架等，選取外框另外標示。

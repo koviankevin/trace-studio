@@ -1,5 +1,5 @@
-import {TraceJSONReader,TraceIndex,demoTrace,LIMITS} from './core.js?v=0.4.0';
-import {RelationIndex} from './relations.js?v=0.7.0';
+import {TraceJSONReader,TraceIndex,demoTrace,LIMITS} from './core.js?v=0.7.1';
+import {RelationIndex} from './relations.js?v=0.7.1';
 import {summarizeGroups} from './track-layout.js?v=0.4.0';
 import {hardwareDemo} from './hardware-demo.js?v=0.4.0';
 import {analyzeTrace,scanTraceIndex} from './analysis.js?v=0.4.0';
@@ -150,7 +150,7 @@ onmessage=async({data})=>{
       if(cancelled()){const error=new Error('分析已取消');error.name='AbortError';throw error;}result.analysisSeconds=(performance.now()-started)/1000;send('analysis',{requestId,result});}
     else if(type==='compare'){const token=++analysisToken,cancelled=()=>analysisToken!==token;const result=await compareTraces(data.ids,data.tfliteId,{openTrace:comparisonTrace,scopes:data.scopes,sourceNames:data.sourceNames,cancelled,onProgress:progress=>send('comparisonProgress',{requestId,...progress})});send('comparison',{requestId,result});}
     else if(type==='cancelAnalysis'){analysisToken++;}
-    else if(type==='detail'&&db){const detail=db.detail(data.record);send('detail',{requestId,...detail,facts:extractRecordFacts(detail),links:relations.find(detail.event,data.record)});}
+    else if(type==='detail'&&db){const detail=db.detail(data.record);send('detail',{requestId,...detail,facts:extractRecordFacts(detail),links:relations.find(detail.event,data.record,detail.endEvent)});}
     else if(type==='search'&&db){const result=await db.search(data.term,100,scanned=>send('searchProgress',{requestId,scanned}));send('search',{requestId,...result});}
     else if(type==='neighbor'&&db){
       send('neighbor',{requestId,record:db.neighbor(data.record,data.direction)});

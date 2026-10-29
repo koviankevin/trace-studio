@@ -80,6 +80,27 @@ test('relation index resolves exact addresses, defs/uses and standard flow IDs a
   const {db,links}=build(events);const record=db.query({start:0,end:10,trackIds:[0],width:1000})[0].rows[0];const result=links.find(events[0],record);assert.equal(result.matches.length,1);assert.equal(result.matches[0].record.label,'Read');assert.equal(result.matches[0].record.dur,4);
   const flow=db.query({start:100,end:100,trackIds:[0]})[0].rows[0];assert.equal(links.find(events[3],flow).matches[0].record.label,'End');
 });
+
+test('B/E relation jumps preserve complete duration and both endpoint args, including restored indexes',()=>{
+  const events=[{name:'producer',ph:'X',pid:1,tid:1,ts:0,dur:5,args:{defines:'tensor',address:'0x1000'}},{name:'paired consumer',ph:'B',pid:1,tid:2,ts:10,args:{address:'0x1000',begin:'kept'}},{ph:'E',pid:1,tid:2,ts:40,args:{uses:'tensor',end:'kept'}}];
+  const built=build(events);
+  for(const restored of [false,true]){
+    const db=restored?new TraceIndex(built.raw,built.index).restore(JSON.parse(JSON.stringify(built.manifest))):built.db;
+    const links=restored?new RelationIndex(built.linkFile,db):built.links;if(restored)links.restore(JSON.parse(JSON.stringify(built.linkManifest)));
+    const source=db.query({start:0,end:5,trackIds:[0],width:1000})[0].rows[0],matches=links.find(events[0],source).matches;
+    assert.equal(matches.length,1,'B and E are one logical span, not two point candidates');const target=matches[0].record;
+    assert.equal(target.dur,30);assert.equal(target.label,'paired consumer');assert.equal(db.detail(target).endEvent.args.end,'kept');assert.equal(db.detail(target).event.args.begin,'kept');
+    const paired=db.query({start:10,end:40,trackIds:[1],width:1000})[0].rows[0],detail=db.detail(paired),reverse=links.find(detail.event,paired,detail.endEvent);
+    assert.equal(reverse.matches.length,1);assert.equal(reverse.matches[0].record.offset,source.offset);assert(reverse.keys.some(key=>key.type==='symbol'),'E-only keys must be discoverable from the complete span');
+  }
+});
+
+test('paired relation resolution uses raw identity across blocks and tied timestamps',()=>{
+  const events=[{name:'producer',ph:'X',pid:1,tid:1,ts:0,dur:1,args:{defines:'needle'}}];
+  for(let i=0;i<8192;i++)events.push({ph:'B',name:'paired',pid:1,tid:2,ts:100+i%32,args:{index:i}},{ph:'E',pid:1,tid:2,ts:10000+i%32,args:{...(i===8190?{uses:'needle'}:{}),index:i}});
+  const {db,links}=build(events),source=db.query({start:0,end:1,trackIds:[0],width:100})[0].rows[0],match=links.find(events[0],source).matches[0].record,detail=db.detail(match);
+  assert.equal(match.dur,9900);assert.equal(detail.event.args.index,8190);assert.equal(detail.endEvent.args.index,8190);assert.equal(match.ts,130);
+});
 test('dense queries are bounded by viewport resolution and event buffers stay bounded',()=>{
   const raw=new MemoryFile(),index=new MemoryFile(),db=new TraceIndex(raw,index);
   for(let i=0;i<50000;i++){const e={ph:'X',name:'task',ts:i,dur:.1,pid:1,tid:i%16};db.ingest(e,JSON.stringify(e));assert(db.buffered<LIMITS.bufferedEvents);}
@@ -128,7 +149,7 @@ test('counter context uses the last preceding and first following sample, includ
 test('address links to counter events resolve to a visible numeric track',()=>{
   const events=[{ph:'C',name:'Power',pid:1,tid:1,ts:10,args:{watts:42,address:'0x1234'}},{ph:'X',name:'Related operation',pid:1,tid:2,ts:20,dur:5,args:{ptr:'0x1234'}}];
   const {db,links,manifest}=build(events),track=manifest.tracks.find(t=>t.kind==='slice'&&t.count),record=db.query({start:0,end:30,trackIds:[track.id],width:100})[0].rows[0];
-  const match=links.find(events[1],record).matches[0].record;assert(manifest.tracks[match.trackId].count>0);assert.equal(manifest.tracks[match.trackId].kind,'counter');assert.equal(db.detail(match).event.args.watts,42);
+  const match=links.find(events[1],record).matches[0].record;assert(manifest.tracks[match.trackId].count>0);assert.equal(manifest.tracks[match.trackId].kind,'counter');assert.equal(db.detail(match).event.args.watts,42);assert.equal(match.kind,2);assert.equal(match.value,42);
 });
 test('demo includes actual linkable addresses and a selected long event',()=>{const {db,links,manifest}=build(demoTrace().traceEvents);const top=manifest.top[0];assert.equal(db.detail(top).event.name,'Checkout interaction');assert.equal(links.find(db.detail(top).event,top).matches.length,3);});
 

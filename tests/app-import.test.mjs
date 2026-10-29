@@ -14,7 +14,7 @@ test('application startup and file selection reach the loaded timeline',async()=
   const html=await readFile(new URL('../dist/index.html',import.meta.url),'utf8');
   const classList=()=>{const values=new Set();return {contains:x=>values.has(x),add:x=>values.add(x),toggle(x,on){if(on??!values.has(x))values.add(x);else values.delete(x);}};};
   const canvasLabels=[],canvas=new Proxy({measureText:text=>({width:String(text).length*7}),fillText:text=>canvasLabels.push(text)},{get:(o,k)=>o[k]||(()=>{})});
-  function element(id){return {id,style:{setProperty(){}},classList:classList(),dataset:{},value:'',textContent:'',innerHTML:'',hidden:false,open:false,scrollTop:0,clientWidth:1100,clientHeight:400,parentElement:{clientHeight:30},handlers:{},addEventListener(type,fn){this.handlers[type]=fn;},setAttribute(){},setPointerCapture(){},getBoundingClientRect:()=>({width:1100,height:400,left:0,top:0}),getContext:()=>canvas,showModal(){this.open=true;},close(){this.open=false;},click(){this.onclick?.();},focus(){}};}
+  function element(id){return {id,style:{setProperty(){}},classList:classList(),dataset:{},value:'',textContent:'',innerHTML:'',hidden:false,open:false,scrollTop:0,clientWidth:1100,clientHeight:400,parentElement:{clientHeight:30},handlers:{},addEventListener(type,fn){const previous=this.handlers[type];this.handlers[type]=previous?event=>{previous(event);fn(event);}:fn;},setAttribute(){},setPointerCapture(){},getBoundingClientRect:()=>({width:1100,height:400,left:0,top:0}),getContext:()=>canvas,showModal(){this.open=true;},close(){this.open=false;},click(){this.onclick?.();},focus(){}};}
   const elements=new Map([...html.matchAll(/id="([^"]+)"/g)].map(m=>[m[1],element(m[1])]));
   elements.get('analysis-threshold').value='1';elements.get('analysis-scope').value='all';elements.get('analysis-group').value='all';elements.get('include-arguments').checked=true;
   const storage=new Map();
@@ -58,7 +58,11 @@ test('application startup and file selection reach the loaded timeline',async()=
     await until(()=>elements.get('details-content').innerHTML.includes('完整原始 JSON'));
     assert.equal(elements.get('selection-heading').textContent,'2');
     elements.get('track-filter').value='CORE';elements.get('track-filter').handlers.input({target:elements.get('track-filter')});
-    elements.get('zoom-in').click();draw();const priorWindow=elements.get('window-time').textContent;
+    elements.get('zoom-in').click();draw();const beforePan=elements.get('window-time').textContent;
+    elements.get('timeline').handlers.pointerdown({button:0,clientX:500,clientY:104,pointerId:2,shiftKey:true});elements.get('timeline').handlers.pointermove({clientX:400,clientY:104});elements.get('timeline').handlers.pointerup({clientX:400,clientY:104});draw();
+    assert.notEqual(elements.get('window-time').textContent,beforePan,'Shift drag must pan the existing time window');
+    const beforeWheel=elements.get('window-time').textContent;let wheelPrevented=false;elements.get('tracks-scroll').handlers.wheel({ctrlKey:true,deltaY:-120,clientX:400,preventDefault(){wheelPrevented=true;}});draw();
+    assert(wheelPrevented);assert.notEqual(elements.get('window-time').textContent,beforeWheel,'Ctrl wheel must zoom without browser page scrolling');const priorWindow=elements.get('window-time').textContent;
     // Cancel before a new worker can finish the next import, including Esc.
     input.files=[new File(['[]'],'cancelled.json')];input.onchange({target:input});
     let prevented=false;elements.get('loading').handlers.cancel({preventDefault(){prevented=true;}});

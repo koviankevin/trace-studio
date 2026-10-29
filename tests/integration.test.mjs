@@ -20,6 +20,17 @@ test('real worker message protocol: demo, viewport, detail, relation, search and
     reply=next(worker,'detail',5);worker.postMessage({type:'detail',requestId:5,record:info.top[0]});assert.equal((await reply).links.matches.length,3);
   }finally{await worker?.terminate();await removeTestRoot(root);}
 });
+
+test('worker resolves paired relation jumps and E-only keys after a disk restore',async()=>{
+  const root=await mkdtemp(join(tmpdir(),'trace-studio-test-'));let worker;
+  try{
+    worker=new Worker(new URL('./worker-harness.mjs',import.meta.url),{workerData:{root}});await next(worker,'initialized');let reply=next(worker,'ready');worker.postMessage({type:'import',file:new File([JSON.stringify([{ph:'X',name:'producer',pid:1,tid:1,ts:0,dur:5,args:{defines:'tensor'}},{ph:'B',name:'paired consumer',pid:1,tid:2,ts:10,args:{address:'0x1000'}},{ph:'E',pid:1,tid:2,ts:40,args:{uses:'tensor',end:'kept'}}])],'paired.json')});const info=(await reply).info;
+    await worker.terminate();worker=new Worker(new URL('./worker-harness.mjs',import.meta.url),{workerData:{root}});await next(worker,'initialized');reply=next(worker,'ready');worker.postMessage({type:'restore',id:info.id});await reply;
+    reply=next(worker,'query',1);worker.postMessage({type:'query',requestId:1,start:0,end:5,trackIds:[0],width:1000});const source=(await reply).rows[0].rows[0];
+    reply=next(worker,'detail',2);worker.postMessage({type:'detail',requestId:2,record:source});const link=(await reply).links.matches[0];assert.equal(link.record.label,'paired consumer');assert.equal(link.record.dur,30);
+    reply=next(worker,'detail',3);worker.postMessage({type:'detail',requestId:3,record:link.record});const paired=await reply;assert.equal(paired.endEvent.args.end,'kept');assert.equal(paired.links.matches.length,1);assert.equal(paired.links.matches[0].record.offset,source.offset);
+  }finally{await worker?.terminate();await removeTestRoot(root);}
+});
 test('worker streams gzip and reports malformed input without a successful import',async()=>{
   const root=await mkdtemp(join(tmpdir(),'trace-studio-test-'));const worker=new Worker(new URL('./worker-harness.mjs',import.meta.url),{workerData:{root}});
   try{
@@ -177,7 +188,7 @@ test('application element references and local assets exist; engine benchmark ha
   const ids=new Set([...html.matchAll(/id="([^"]+)"/g)].map(m=>m[1]));const dynamic=new Set(['area-focus','show-relations']);
   for(const m of app.matchAll(/\$\('([^']+)'\)/g))assert(ids.has(m[1])||dynamic.has(m[1]),`Missing #${m[1]}`);
   for(const asset of ['style.css','workspace.css','app.js','worker.js','core.js','relations.js','navigation.js','track-layout.js','event-summary.js','event-colors.js','analysis.js','session-store.js','counter-plot.js','argument-analysis.js','argument-facts.js','event-labels.js','trace-cache.js','trace-comparison.js','comparison-view.js','relation-view.js','tar-stream.js','trace-selection.js','time-format.js','extensions/runtime.js','extensions/custom.js','extensions/example.js','hardware-demo.js','icon.svg'])assert((await readFile(new URL(asset,base))).length>0);
-  const benchmark=JSON.parse(await readFile(new URL('../docs/benchmark-2026-10-29-v0.7.0.json',import.meta.url),'utf8'));
+  const benchmark=JSON.parse(await readFile(new URL('../docs/benchmark-2026-10-29-v0.7.1.json',import.meta.url),'utf8'));
   for(const [file,expected]of Object.entries(benchmark.sourceHashes))assert.equal(createHash('sha256').update(await readFile(new URL(file,base))).digest('hex'),expected,`Rerun benchmark after changing ${file}`);
-  const counters=JSON.parse(await readFile(new URL('../docs/counter-benchmark-2026-10-29-v0.4.0.json',import.meta.url),'utf8'));assert.equal(counters.sourceHashes['core.js'],benchmark.sourceHashes['core.js']);
+  const counters=JSON.parse(await readFile(new URL('../docs/counter-benchmark-2026-10-29-v0.7.1.json',import.meta.url),'utf8'));assert.equal(counters.sourceHashes['core.js'],benchmark.sourceHashes['core.js']);
 });

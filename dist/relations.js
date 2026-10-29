@@ -1,5 +1,5 @@
 // Equality links are candidates, never proof of memory ownership or causality.
-import {hash} from './core.js?v=0.4.0';
+import {hash} from './core.js?v=0.7.1';
 import {fallbackEventName,missingEventName} from './event-labels.js?v=0.4.0';
 export function normalizeAddress(value){
   if(typeof value==='number'){if(!Number.isSafeInteger(value)||value<0)return null;value=String(value);}
@@ -33,6 +33,7 @@ export function extractRelations(event){
   return out;
 }
 const SIZE=40;
+function spanRelations(event,endEvent){const seen=new Set();return [...extractRelations(event),...(endEvent?extractRelations(endEvent):[])].filter(key=>{if(seen.has(key.identity))return false;seen.add(key.identity);return true;});}
 export class RelationIndex{
   constructor(handle,trace){this.handle=handle;this.trace=trace;this.offset=0;this.buffers=Array.from({length:64},()=>[]);this.blocks=[];this.count=0;this.buffered=0;this.types={};}
   add(event,ref){for(const relation of extractRelations(event)){
@@ -49,8 +50,9 @@ export class RelationIndex{
   }
   finish(){for(let i=0;i<64;i++)this.flush(i);this.handle.flush?.();return {blocks:this.blocks,count:this.count,bytes:this.offset,types:this.types};}
   restore(m){this.blocks=m.blocks;this.count=m.count;this.offset=m.bytes;this.types=m.types;}
-  find(event,ref){
-    const keys=extractRelations(event).sort((a,b)=>Number(a.type==='address')-Number(b.type==='address')),matches=[],seen=new Set();let total=0;
+  find(event,ref,endEvent){
+    if(endEvent===undefined&&ref.endLength)endEvent=this.trace.detail(ref).endEvent;
+    const keys=spanRelations(event,endEvent).sort((a,b)=>Number(a.type==='address')-Number(b.type==='address')),matches=[],seen=new Set();let total=0,capped=false;
     for(const key of keys){const h=hash(key.identity),h2=hash('second:'+key.identity);
       for(const b of this.blocks){if(b.bucket!==h%64||h<b.min||h>b.max)continue;
         const bytes=new Uint8Array(b.count*SIZE);let n=0;
@@ -61,14 +63,15 @@ export class RelationIndex{
           const o=i*SIZE;if(v.getUint32(o+4,true)!==h2)continue;
           const offset=v.getFloat64(o+8,true);if(offset===ref.offset)continue;total++;
           // Bound raw reads and results for frequently reused addresses.
-          if(matches.length>=64||seen.has(offset))continue;
-          const record={offset,length:v.getUint32(o+16,true),trackId:v.getUint32(o+20,true),ts:v.getFloat64(o+24,true),dur:v.getFloat64(o+32,true)};
-          const {event:other}=this.trace.detail(record);
-          const verified=extractRelations(other).find(r=>r.identity===key.identity);if(!verified)continue;
-          seen.add(offset);matches.push({record:{...record,label:missingEventName(other)?fallbackEventName(other,this.trace.tracks[record.trackId],this.trace.processes):other.name},relation:key,otherRole:verified.role,phase:other.ph});
+          if(seen.has(offset))continue;if(matches.length>=64){capped=true;continue;}
+          let record={offset,length:v.getUint32(o+16,true),trackId:v.getUint32(o+20,true),ts:v.getFloat64(o+24,true),dur:v.getFloat64(o+32,true)};
+          let detail=this.trace.detail(record);const resolved=this.trace.resolveRecord(record,detail.event.ph);
+          if(resolved!==record){record=resolved;if(record.offset===ref.offset||seen.has(record.offset)){seen.add(offset);continue;}detail=this.trace.detail(record);}
+          const other=detail.event,verified=spanRelations(other,detail.endEvent).find(r=>r.identity===key.identity);if(!verified)continue;
+          seen.add(offset);seen.add(record.offset);matches.push({record:{...record,label:record.kind===2?this.trace.displayName(record,record.trackId,other):missingEventName(other)?fallbackEventName(other,this.trace.tracks[record.trackId],this.trace.processes):other.name},relation:key,otherRole:verified.role,phase:other.ph});
         }
       }
     }
-    matches.sort((a,b)=>a.record.ts-b.record.ts);return {keys,matches,total,capped:total>matches.length};
+    matches.sort((a,b)=>a.record.ts-b.record.ts);return {keys,matches,total:matches.length,indexHits:total,capped};
   }
 }
