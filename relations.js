@@ -34,6 +34,21 @@ export function extractRelations(event){
 }
 const SIZE=40;
 function spanRelations(event,endEvent){const seen=new Set();return [...extractRelations(event),...(endEvent?extractRelations(endEvent):[])].filter(key=>{if(seen.has(key.identity))return false;seen.add(key.identity);return true;});}
+// Retain only a bounded set of nearby raw references. The root is the worst.
+class NearbyCandidates{
+  constructor(limit){this.limit=limit;this.rows=[];this.offsets=new Map();this.omitted=0;}
+  compare(a,b){return a.gap-b.gap||a.distance-b.distance||a.record.offset-b.record.offset;}
+  swap(a,b){[this.rows[a],this.rows[b]]=[this.rows[b],this.rows[a]];}
+  add(candidate){if(this.offsets.has(candidate.record.offset))return;const rows=this.rows;
+    if(rows.length<this.limit){rows.push(candidate);this.offsets.set(candidate.record.offset,candidate);let at=rows.length-1;while(at){const parent=(at-1)>>1;if(this.compare(rows[parent],rows[at])>=0)break;this.swap(parent,at);at=parent;}return;}
+    this.omitted++;if(this.compare(candidate,rows[0])>=0)return;
+    this.offsets.delete(rows[0].record.offset);rows[0]=candidate;this.offsets.set(candidate.record.offset,candidate);let at=0;
+    while(true){let child=at*2+1;if(child>=rows.length)break;if(child+1<rows.length&&this.compare(rows[child+1],rows[child])>0)child++;if(this.compare(rows[at],rows[child])>=0)break;this.swap(at,child);at=child;}
+  }
+  sorted(){return [...this.rows].sort((a,b)=>this.compare(a,b));}
+}
+const LOOKUP_LIMITS={results:64,indexCandidates:256,rawCandidates:256};
+const abortLookup=cancelled=>{if(cancelled()){const error=Error('關聯查找已取消');error.name='AbortError';throw error;}};
 export class RelationIndex{
   constructor(handle,trace){this.handle=handle;this.trace=trace;this.offset=0;this.buffers=Array.from({length:64},()=>[]);this.blocks=[];this.count=0;this.buffered=0;this.types={};}
   add(event,ref){for(const relation of extractRelations(event)){
@@ -50,29 +65,49 @@ export class RelationIndex{
   }
   finish(){for(let i=0;i<64;i++)this.flush(i);this.handle.flush?.();return {blocks:this.blocks,count:this.count,bytes:this.offset,types:this.types};}
   restore(m){this.blocks=m.blocks;this.count=m.count;this.offset=m.bytes;this.types=m.types;}
-  find(event,ref,endEvent){
-    if(endEvent===undefined&&ref.endLength)endEvent=this.trace.detail(ref).endEvent;
-    const keys=spanRelations(event,endEvent).sort((a,b)=>Number(a.type==='address')-Number(b.type==='address')),matches=[],seen=new Set();let total=0,capped=false;
+  *_lookup(event,ref,endEvent,{cancelled=()=>false}={}){
+    abortLookup(cancelled);if(endEvent===undefined&&ref.endLength)endEvent=this.trace.detail(ref).endEvent;
+    const keys=spanRelations(event,endEvent).sort((a,b)=>Number(a.type==='address')-Number(b.type==='address')),matches=[],seen=new Set([ref.offset]),nearby=new NearbyCandidates(LOOKUP_LIMITS.indexCandidates);
+    let total=0,scanned=0,rawChecked=0,capped=false,verificationCapped=false;
+    const verify=record=>{
+      if(seen.has(record.offset))return;
+      if(rawChecked>=LOOKUP_LIMITS.rawCandidates){verificationCapped=true;capped=true;return;}rawChecked++;
+      let detail=this.trace.detail(record);const resolved=this.trace.resolveRecord(record,detail.event.ph);
+      if(resolved!==record){const alias=record.offset;record=resolved;if(seen.has(record.offset)){seen.add(alias);return;}if(alias!==record.offset)seen.add(alias);detail=this.trace.detail(record);}
+      const other=detail.event,otherKeys=spanRelations(other,detail.endEvent),associations=keys.flatMap(relation=>{const target=otherKeys.find(candidate=>candidate.identity===relation.identity);return target?[{relation,otherRole:target.role}]:[];});
+      if(!associations.length)return;seen.add(record.offset);
+      matches.push({record:{...record,label:record.kind===2?this.trace.displayName(record,record.trackId,other):missingEventName(other)?fallbackEventName(other,this.trace.tracks[record.trackId],this.trace.processes):other.name},...associations[0],associations,phase:other.ph});
+    };
     for(const key of keys){const h=hash(key.identity),h2=hash('second:'+key.identity);
-      for(const b of this.blocks){if(b.bucket!==h%64||h<b.min||h>b.max)continue;
+      for(const b of this.blocks){abortLookup(cancelled);if(b.bucket!==h%64||h<b.min||h>b.max)continue;
         const bytes=new Uint8Array(b.count*SIZE);let n=0;
         while(n<bytes.length){const got=this.handle.read(bytes.subarray(n),{at:b.at+n});if(!got)throw Error('關聯索引讀取失敗');n+=got;}
         const v=new DataView(bytes.buffer);let low=0,high=b.count;
         while(low<high){const mid=(low+high)>>>1;if(v.getUint32(mid*SIZE,true)<h)low=mid+1;else high=mid;}
         for(let i=low;i<b.count&&v.getUint32(i*SIZE,true)===h;i++){
-          const o=i*SIZE;if(v.getUint32(o+4,true)!==h2)continue;
+          const o=i*SIZE;if(v.getUint32(o+4,true)!==h2)continue;scanned++;
           const offset=v.getFloat64(o+8,true);if(offset===ref.offset)continue;total++;
-          // Bound raw reads and results for frequently reused addresses.
-          if(seen.has(offset))continue;if(matches.length>=64){capped=true;continue;}
-          let record={offset,length:v.getUint32(o+16,true),trackId:v.getUint32(o+20,true),ts:v.getFloat64(o+24,true),dur:v.getFloat64(o+32,true)};
-          let detail=this.trace.detail(record);const resolved=this.trace.resolveRecord(record,detail.event.ph);
-          if(resolved!==record){record=resolved;if(record.offset===ref.offset||seen.has(record.offset)){seen.add(offset);continue;}detail=this.trace.detail(record);}
-          const other=detail.event,otherKeys=spanRelations(other,detail.endEvent),verified=otherKeys.find(r=>r.identity===key.identity);if(!verified)continue;
-          const associations=keys.flatMap(relation=>{const target=otherKeys.find(candidate=>candidate.identity===relation.identity);return target?[{relation,otherRole:target.role}]:[];});
-          seen.add(offset);seen.add(record.offset);matches.push({record:{...record,label:record.kind===2?this.trace.displayName(record,record.trackId,other):missingEventName(other)?fallbackEventName(other,this.trace.tracks[record.trackId],this.trace.processes):other.name},relation:key,otherRole:verified.role,associations,phase:other.ph});
+          if(!seen.has(offset)){
+            const record={offset,length:v.getUint32(o+16,true),trackId:v.getUint32(o+20,true),ts:v.getFloat64(o+24,true),dur:v.getFloat64(o+32,true)};
+            if(key.type==='address'){const gap=Math.max(0,ref.ts-(record.ts+record.dur),record.ts-(ref.ts+ref.dur));nearby.add({record,gap,distance:Math.abs(record.ts-ref.ts)});}
+            else if(matches.length<LOOKUP_LIMITS.results){verify(record);yield {scanned,rawChecked};abortLookup(cancelled);}else capped=true;
+          }
+          if(!(scanned%256)){yield {scanned,rawChecked};abortLookup(cancelled);}
         }
+        yield {scanned,rawChecked};abortLookup(cancelled);
       }
     }
-    matches.sort((a,b)=>a.record.ts-b.record.ts);return {keys,matches,total:matches.length,indexHits:total,capped};
+    for(const candidate of nearby.sorted()){
+      abortLookup(cancelled);if(seen.has(candidate.record.offset))continue;if(matches.length>=LOOKUP_LIMITS.results){capped=true;break;}
+      verify(candidate.record);yield {scanned,rawChecked};abortLookup(cancelled);if(verificationCapped)break;
+    }
+    const sampled=nearby.omitted>0||verificationCapped;capped ||=sampled;matches.sort((a,b)=>a.record.ts-b.record.ts);
+    return {keys,matches,total:matches.length,indexHits:total,capped,sampled,rawChecked,limits:{...LOOKUP_LIMITS},strategy:'explicit-first-nearby-address'};
+  }
+  find(event,ref,endEvent){const scan=this._lookup(event,ref,endEvent);let step;do{step=scan.next();}while(!step.done);return step.value;}
+  async findAsync(event,ref,endEvent,{cancelled=()=>false,timeBudgetMs=8,yieldNow=()=>new Promise(resolve=>setTimeout(resolve,0)),onProgress=()=>{}}={}){
+    if(!Number.isFinite(timeBudgetMs)||timeBudgetMs<0||timeBudgetMs>50)throw Error('關聯查找時間預算無效');
+    const scan=this._lookup(event,ref,endEvent,{cancelled});let last=performance.now();
+    try{while(true){abortLookup(cancelled);const step=scan.next();if(step.done)return step.value;if(performance.now()-last>=timeBudgetMs){onProgress(step.value);await yieldNow();abortLookup(cancelled);last=performance.now();}}}finally{scan.return();}
   }
 }

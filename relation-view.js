@@ -15,12 +15,13 @@ export function groupRelationCandidates(links,tracks,processes={}){
   return [...groups.values()].map(group=>({...group,trackCount:group.trackIds.size}));
 }
 
-export function selectRelationLines(links,selected,tracks,{mode='compact',start=-Infinity,end=Infinity,width=Infinity,focus=null}={}){
+export function selectRelationLines(links,selected,tracks,{mode='manual',start=-Infinity,end=Infinity,width=Infinity,focus=null}={}){
   if(!selected||mode==='off')return [];
   const visible=link=>link.record.ts<=end&&link.record.ts+link.record.dur>=start;
   const seen=new Set([relationRecordKey(selected)]),unique=[...links].sort((a,b)=>Number(strong(b))-Number(strong(a))).filter(link=>{const key=relationRecordKey(link.record);if(seen.has(key)||!visible(link))return false;seen.add(key);return true;});
   // Explicitly inspecting a candidate bypasses overview suppression, one line only.
   if(focus)return unique.filter(link=>relationRecordKey(link.record)===focus).slice(0,1);
+  if(mode==='manual')return [];
   const pixels=record=>record.dur>0?record.dur/(end-start)*width:5;
   if(mode!=='more'&&(selected.ts>end||selected.ts+selected.dur<start||Number.isFinite(width)&&pixels(selected)<4))return [];
   const gap=link=>Math.max(0,selected.ts-(link.record.ts+link.record.dur),link.record.ts-(selected.ts+selected.dur));
