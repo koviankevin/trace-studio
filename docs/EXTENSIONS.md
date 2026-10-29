@@ -80,6 +80,9 @@ export default {
 | `dist/analysis.js` | 基本統計及有界索引掃描；主 UI 不知道磁碟格式。 |
 | `dist/argument-facts.js` | 純函式解析 ID、Identity、MemoryRanges，保留來源路徑、衝突及端點依據；可擴充欄位別名。 |
 | `dist/argument-analysis.js` | 按需掃描原始 Args、同 ID 集合與記憶體範圍候選、分頁及取消。 |
+| `dist/trace-cache.js` | 閒置索引的資料量／份數限制；淘汰回傳的 context 由 Worker 關閉 handle 與 lease。 |
+| `dist/trace-comparison.js` | `compareTraces(ids, tfliteId, {openTrace,cancelled,onProgress})`，依序掃描並保留各檔案結果／錯誤。 |
+| `dist/comparison-view.js` | 比較報表的純 HTML 呈現，呼叫端提供 escaping 與格式化；不接觸磁碟。 |
 | `dist/event-labels.js` | 缺名事件的短 TID 顯示規則；不改原始 JSON。 |
 | `dist/event-summary.js` | 內建硬體欄位對照；只顯示來源提供的資料。 |
 | `dist/event-colors.js` | 內建依名稱規則分類的淡色配色。 |

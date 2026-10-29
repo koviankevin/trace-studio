@@ -1,5 +1,7 @@
 # 3 GB 引擎基準測試
 
+v0.5.0 增加多檔切換、索引快取與同 TfliteID 比較，`core.js`／`relations.js` 與下列 v0.4.0 基準來源完全相同，沿用既有量測並由測試核對 SHA-256。此基準不涵蓋多份索引同時保留的記憶體或跨檔 Args 全掃描成本；這些仍需真實瀏覽器驗收。
+
 2026-10-29，v0.4.0 重新測試同一份 `dist/core.js`、`dist/relations.js`，以 Node Worker 與真實檔案系統介面替換瀏覽器 OPFS。這驗證解析／索引的演算法與磁碟讀寫路徑，**沒有驗證瀏覽器 OPFS、File.stream、gzip 或 Canvas 的時間、記憶體、FPS**。
 
 | 項目 | 結果 |

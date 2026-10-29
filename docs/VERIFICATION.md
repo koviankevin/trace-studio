@@ -153,3 +153,21 @@ Args 分析解析明確欄位與 Identity 中的識別值，整理同 TfliteID�
 瀏覽器人工驗收仍待啟用操作後進行，包含 Args 表格的小螢幕排版、真實 OPFS 分析時的時間軸操作與實際 trace 的 ID／memory 語意。
 
 發布前 `node --test tests/*.test.mjs` 共 66 項全數通過；`git diff --check` 通過。受測引擎來源與兩份基準雜湊一致。正式 Pages 資產一致性由發布後的 verification 腳本另行確認。
+
+v0.4.0 已發布來源 historical-revision，Pages historical-revision 確認 built；24 份正式資產 SHA-256 全數符合本機。
+
+## v0.5.0：多檔保存、門檻快取與 TfliteID 比較
+
+使用者接受大檔切換時重載，要求多份 Trace 保存，並希望小檔保留已載入索引。新增多選／拖放佇列、頂部已保存分頁、最近 50 份瀏覽狀態。Worker 可保留最多三份閒置小檔的完整索引 context，門檻預設 64 MB、可選 0／32／64／128／256 MB，總資料量預算最多門檻兩倍、上限 512 MB。大小採原檔與解壓後事件＋索引較大者，並非 RAM 計量或載入所有 raw Args。淘汰會關閉 handle／lease，不刪 OPFS；大檔或重整後從已保存索引還原。
+
+同 TfliteID 比較支援 2–4 份，依序在 Worker 分析，以各檔該 ID 第一個事件對齊，呈現跨度、差值、inclusive 累計時間、核心、同名事件與記憶體空間。統計掃描全部同 ID 事件，時間圖只顯示索引前 100 筆，ID 重用與截斷限制在畫面及匯出保留。點選時間列可切換並定位事件。比較不替換目前的 DB；閒置小檔使用同 Worker context，大檔暫時開啟後釋放 handle／lease，其他分頁占用則回報該來源錯誤。
+
+本次按儲存與共享狀態影響選測 `app-import`、`argument-analysis`、`integration`、`trace-cache`、`trace-comparison`，19 項通過：
+
+- 真實 UI 模組／Worker 入口一次開兩份、同 ID 比較、事件跳轉；小檔切換回報 memoryRestored，沒有新建 Worker。
+- 重新執行 UI 模組模擬重整，保留 OPFS／localStorage，還原最後檔案、保存清單、篩選及時間範圍。
+- 門檻、gzip 展開大小、LRU 次序、總量／份數淘汰，關閉快取後回復磁碟重載。
+- 實際 Worker 比較記憶體與磁碟來源、重啟後重開兩份、其他分頁 busy 隔離、背景 query／取消及原時間軸保留。
+- 同 ID 數值、首事件對齊、同名事件完整彙整、無符合值、單檔失敗隔離、release、取消與輸出 escaping。
+
+解析與固定寬度索引來源 SHA-256 未變，沿用 v0.4.0 兩份引擎基準；不重跑相同 3 GB 測試。發布腳本另保留完整測試關卡及正式資產雜湊核對。本次仍是 Node 磁碟／DOM／Canvas 替身驗證；真實瀏覽器的快取切換延遲、記憶體、持久化策略與比較排版待後續驗收。

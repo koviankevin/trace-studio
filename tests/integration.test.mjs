@@ -141,11 +141,34 @@ test('raw Args analysis groups hardware fields, remains queryable, cancels, cach
     reply=next(worker,'analysis',204);worker.postMessage({...request,requestId:204,memberOffset:100});const page=(await reply).result.arguments;assert.equal(page.matched,3333);assert.notEqual(page.members[0].record.offset,result.members[0].record.offset);
   }finally{await worker.terminate();await removeTestRoot(root);}
 });
+test('multiple trace indexes switch from memory or disk and comparisons preserve the active timeline',async()=>{
+  const root=await mkdtemp(join(tmpdir(),'trace-studio-test-'));let worker,other;
+  try{
+    worker=new Worker(new URL('./worker-harness.mjs',import.meta.url),{workerData:{root}});await next(worker,'initialized');
+    const open=async(name,ts,dur)=>{const ready=next(worker,'ready');worker.postMessage({type:'import',file:new File([JSON.stringify([{name:'compute',ph:'X',pid:1,tid:1,ts,dur,args:{TfliteID:7}}])],name)});return (await ready).info;};
+    const first=await open('before.json',1000,10),second=await open('after.json',9000,20);
+    let ready=next(worker,'ready');worker.postMessage({type:'restore',id:first.id});assert((await ready).memoryRestored);
+    let reply=next(worker,'comparison',100);worker.postMessage({type:'compare',requestId:100,ids:[first.id,second.id],tfliteId:'7'});assert.deepEqual((await reply).result.traces.map(trace=>trace.spanUs),[10,20]);
+    reply=next(worker,'detail',101);worker.postMessage({type:'detail',requestId:101,record:first.top[0]});assert.equal((await reply).event.ts,1000);
+    reply=next(worker,'cachePolicy',102);worker.postMessage({type:'cachePolicy',requestId:102,limitMB:0});await reply;
+    ready=next(worker,'ready');worker.postMessage({type:'restore',id:second.id});assert.equal((await ready).memoryRestored,false);
+    await worker.terminate();worker=new Worker(new URL('./worker-harness.mjs',import.meta.url),{workerData:{root}});await next(worker,'initialized');
+    ready=next(worker,'ready');worker.postMessage({type:'restore',id:first.id});assert.equal((await ready).info.source.name,'before.json');
+    reply=next(worker,'comparison',103);worker.postMessage({type:'compare',requestId:103,ids:[first.id,second.id],tfliteId:7});assert.equal((await reply).result.traces[1].totalUs,20);
+    other=new Worker(new URL('./worker-harness.mjs',import.meta.url),{workerData:{root}});await next(other,'initialized');ready=next(other,'ready');other.postMessage({type:'restore',id:second.id});await ready;
+    reply=next(worker,'comparison',104);worker.postMessage({type:'compare',requestId:104,ids:[first.id,second.id],tfliteId:7});const busy=(await reply).result;assert.equal(busy.traces[0].status,'ok');assert.equal(busy.traces[1].status,'error');assert.match(busy.traces[1].message,/其他分頁/);
+    await other.terminate();other=null;const large=Array.from({length:12000},(_,i)=>({ph:'X',name:'compute',pid:1,tid:1,ts:i*10,dur:5,args:{TfliteID:7}}));ready=next(worker,'ready');worker.postMessage({type:'import',file:new File([JSON.stringify(large)],'many.json')});const many=(await ready).info;
+    const progress=next(worker,'comparisonProgress',105);worker.postMessage({type:'compare',requestId:105,ids:[many.id,second.id],tfliteId:7});await progress;
+    reply=next(worker,'query',106);worker.postMessage({type:'query',requestId:106,start:0,end:100,trackIds:[0],width:500});assert((await reply).rows[0].rows.length);
+    reply=next(worker,'comparisonCancelled',105);worker.postMessage({type:'cancelAnalysis'});await reply;
+  }finally{await worker?.terminate();await other?.terminate();await removeTestRoot(root);}
+});
+
 test('application element references and local assets exist; engine benchmark hashes match',async()=>{
   const base=new URL('../dist/',import.meta.url),html=await readFile(new URL('index.html',base),'utf8'),app=await readFile(new URL('app.js',base),'utf8');
   const ids=new Set([...html.matchAll(/id="([^"]+)"/g)].map(m=>m[1]));const dynamic=new Set(['area-focus','show-relations']);
   for(const m of app.matchAll(/\$\('([^']+)'\)/g))assert(ids.has(m[1])||dynamic.has(m[1]),`Missing #${m[1]}`);
-  for(const asset of ['style.css','workspace.css','app.js','worker.js','core.js','relations.js','navigation.js','track-layout.js','event-summary.js','event-colors.js','analysis.js','session-store.js','counter-plot.js','argument-analysis.js','argument-facts.js','event-labels.js','extensions/runtime.js','extensions/custom.js','extensions/example.js','hardware-demo.js','icon.svg'])assert((await readFile(new URL(asset,base))).length>0);
+  for(const asset of ['style.css','workspace.css','app.js','worker.js','core.js','relations.js','navigation.js','track-layout.js','event-summary.js','event-colors.js','analysis.js','session-store.js','counter-plot.js','argument-analysis.js','argument-facts.js','event-labels.js','trace-cache.js','trace-comparison.js','comparison-view.js','extensions/runtime.js','extensions/custom.js','extensions/example.js','hardware-demo.js','icon.svg'])assert((await readFile(new URL(asset,base))).length>0);
   const benchmark=JSON.parse(await readFile(new URL('../docs/benchmark-2026-10-29-v0.4.0.json',import.meta.url),'utf8'));
   for(const [file,expected]of Object.entries(benchmark.sourceHashes))assert.equal(createHash('sha256').update(await readFile(new URL(file,base))).digest('hex'),expected,`Rerun benchmark after changing ${file}`);
   const counters=JSON.parse(await readFile(new URL('../docs/counter-benchmark-2026-10-29-v0.4.0.json',import.meta.url),'utf8'));assert.equal(counters.sourceHashes['core.js'],benchmark.sourceHashes['core.js']);

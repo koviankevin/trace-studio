@@ -20,7 +20,7 @@ test('application startup and file selection reach the loaded timeline',async()=
   const storage=new Map();
   Object.assign(globalThis,{
     document:{getElementById:id=>elements.get(id),querySelectorAll:()=>[],querySelector:()=>null,addEventListener(){},body:{classList:classList()},documentElement:{}},
-    window:{addEventListener(){}},localStorage:{getItem:key=>storage.get(key)||null,setItem:(key,value)=>storage.set(key,value),removeItem:key=>storage.delete(key)},
+    window:{handlers:{},addEventListener(type,fn){this.handlers[type]=fn;}},localStorage:{getItem:key=>storage.get(key)||null,setItem:(key,value)=>storage.set(key,value),removeItem:key=>storage.delete(key)},
     innerWidth:1280,innerHeight:800,devicePixelRatio:1,
     getComputedStyle:()=>({getPropertyValue:()=>250}),
     requestAnimationFrame:callback=>{frames.push(callback);return frames.length;},
@@ -28,7 +28,7 @@ test('application startup and file selection reach the loaded timeline',async()=
     Worker:class{
       constructor(){workers.push(this);this.native=new NodeWorker(new URL('./worker-harness.mjs',import.meta.url),{workerData:{root}});this.ready=false;this.pending=[];this.native.on('error',error=>errors.push(error));this.native.on('message',data=>{
         if(data.type==='initialized'){this.ready=true;for(const data of this.pending)this.native.postMessage(data);this.pending=[];return;}
-        if(data.type==='ready')this.lastReady=data;
+        if(data.type==='ready'){this.lastReady=data;(this.readies??=[]).push(data);}
         if(data.type==='query')this.lastQuery=data;
         try{this.onmessage?.({data});}catch(error){errors.push(error);}
       });}
@@ -76,7 +76,7 @@ test('application startup and file selection reach the loaded timeline',async()=
     elements.get('insights-list').handlers.click({target:{closest:()=>({dataset:{source:'top',result:'0'}})}});
     await until(()=>elements.get('details-content').innerHTML.includes('完整原始 JSON'));
     assert.equal(elements.get('selection-heading').textContent,'2');
-    const inputCache=workers.map(worker=>worker.lastReady?.info).find(info=>info?.source.name==='input.json').id;
+    const inputCache=workers.flatMap(worker=>worker.readies||[]).map(ready=>ready.info).find(info=>info?.source.name==='input.json').id;
     elements.get('storage').click();await until(()=>elements.get('cache-list').innerHTML.includes(inputCache));
     assert(elements.get('cache-dialog').open);assert.match(elements.get('cache-list').innerHTML,/目前開啟/);
     elements.get('cache-list').handlers.click({target:{closest:selector=>selector==='[data-cache-open]'?{dataset:{cacheOpen:inputCache}}:null}});
@@ -108,5 +108,25 @@ test('application startup and file selection reach the loaded timeline',async()=
     assert(elements.get('analysis-results').innerHTML.includes('重疊 128 B'));assert(elements.get('analysis-results').innerHTML.includes('來源輸出→候選輸入'));assert(elements.get('analysis-results').innerHTML.includes('1–1 / 1'));
     elements.get('argument-cross-process').checked=true;elements.get('analysis-form').onsubmit({preventDefault(){}});
     await until(()=>elements.get('analysis-results').innerHTML.includes('所有程序／核心'));assert(elements.get('analysis-results').innerHTML.includes('1–2 / 2'));
+    const priorWorkers=workers.length;
+    const compareFile=(name,ts,dur)=>new File([JSON.stringify([{name:'compute',ph:'X',pid:1,tid:1,ts,dur,args:{TfliteID:7,CoreId:0}}])],name);
+    input.files=[compareFile('before.json',1000,10),compareFile('after.json',9000,20)];input.onchange({target:input});
+    await until(()=>elements.get('file-name').textContent==='after.json'&&elements.get('trace-tabs').innerHTML.includes('before.json'));
+    assert.equal(workers.length,priorWorkers,'batch loading must preserve small indexes in the existing worker');
+    const readyFiles=workers.at(-1).readies,first=readyFiles.find(ready=>ready.info.source.name==='before.json').info.id,second=readyFiles.find(ready=>ready.info.source.name==='after.json').info.id;
+    elements.get('open-comparison').click();await until(()=>elements.get('comparison-sources').innerHTML.includes(first)&&elements.get('comparison-sources').innerHTML.includes(second));
+    for(const match of elements.get('comparison-sources').innerHTML.matchAll(/data-comparison-id="([^"]+)"/g))elements.get('comparison-sources').onchange({target:{dataset:{comparisonId:match[1]},checked:false}});
+    for(const id of [first,second])elements.get('comparison-sources').onchange({target:{dataset:{comparisonId:id},checked:true}});
+    elements.get('comparison-id').value='7';elements.get('comparison-form').onsubmit({preventDefault(){}});
+    await until(()=>elements.get('comparison-status').textContent.startsWith('比較完成'));
+    assert(elements.get('comparison-results').innerHTML.includes('before.json'));assert(elements.get('comparison-results').innerHTML.includes('after.json'));assert(elements.get('comparison-results').innerHTML.includes('100.0%'));
+    elements.get('comparison-results').onclick({target:{closest:()=>({dataset:{compareMember:'0:0'}})}});
+    await until(()=>elements.get('file-name').textContent==='before.json'&&elements.get('selection-heading').textContent==='compute');assert(workers.at(-1).lastReady.memoryRestored);
+    elements.get('track-filter').value='1';elements.get('track-filter').handlers.input({target:elements.get('track-filter')});elements.get('zoom-in').click();draw();const savedWindow=elements.get('window-time').textContent;window.handlers.pagehide();
+    for(const active of workers)await active.terminate();elements.get('file-name').textContent='Reloading';
+    await import('../dist/app.js?workspace-reload=1');await until(()=>elements.get('file-name').textContent==='before.json'&&elements.get('trace-tabs').innerHTML.includes('after.json'));
+    assert(!workers.at(-1).lastReady.memoryRestored);draw();assert.equal(elements.get('track-filter').value,'1');assert.equal(elements.get('window-time').textContent,savedWindow);
+    elements.get('trace-tabs').onclick({target:{closest:()=>({dataset:{traceOpen:second}})}});await until(()=>elements.get('file-name').textContent==='after.json');
+    elements.get('trace-tabs').onclick({target:{closest:()=>({dataset:{traceOpen:first}})}});await until(()=>elements.get('file-name').textContent==='before.json');assert(workers.at(-1).lastReady.memoryRestored);
   }finally{await Promise.all(workers.map(w=>w.stopped||w.terminate()));await removeTestRoot(root);}
 });
