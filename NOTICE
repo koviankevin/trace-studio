@@ -1,0 +1,14 @@
+時跡 Trace Studio
+Copyright 2026 koviankevin
+
+The navigation spring/acceleration and wheel behavior in dist/navigation.js
+is adapted from Perfetto v48.0:
+https://github.com/google/perfetto/blob/v48.0/ui/src/frontend/pan_and_zoom_handler.ts
+Copyright (C) 2018 The Android Open Source Project
+Licensed under the Apache License, Version 2.0; see LICENSE.
+
+Changes: standalone JavaScript class, requestAnimationFrame scheduling,
+callback-driven viewport updates, focus/modal guards and reduced dependencies.
+No Perfetto trace processor, WebAssembly binary, assets or branding are bundled.
+The JSON parser, OPFS index, relation index and visual interface are original.
+Trace Studio is independent and is not affiliated with Google or Perfetto.
