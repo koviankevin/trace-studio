@@ -1,5 +1,5 @@
 // Browser-independent streaming parser and disk-backed trace index. Timestamps are µs.
-import {fallbackEventName,missingEventName} from './event-labels.js?v=0.4.0';
+import {fallbackEventName,missingEventName} from './event-labels.js?v=0.13.0';
 const WS = /[ \t\r\n]/;
 export class TraceJSONReader {
   constructor(onEvent, onMetadata = () => {}) {
@@ -178,7 +178,7 @@ export class TraceIndex {
   }
   addMetadata(key,value) {
     const bytes=JSON.stringify(value).length;
-    if(this.metadataBytes+bytes<=4*1024*1024){this.metadata[key]=value;this.metadataBytes+=bytes;}
+    if(this.metadataBytes+bytes<=4*1024*1024){Object.defineProperty(this.metadata,key,{value,writable:true,enumerable:true,configurable:true});this.metadataBytes+=bytes;}
     else this.skipped++;
   }
   ingest(e,text) {
@@ -186,7 +186,7 @@ export class TraceIndex {
     this.count++;const phase=String(e.ph||'?');this.phases[phase]=(this.phases[phase]||0)+1;
     const bytes=encoder.encode(text);const offset=this.raw.append(bytes),length=bytes.length;
     if(phase==='M') {
-      if(e.name==='process_name')this.processes[e.pid??0]=String(e.args?.name??'');
+      if(e.name==='process_name')Object.defineProperty(this.processes,e.pid??0,{value:String(e.args?.name??''),writable:true,enumerable:true,configurable:true});
       else if(e.name==='thread_name')this.track(e).name=String(e.args?.name??`Thread ${e.tid}`);
       else if(this.count<10000)this.addMetadata(`${e.name} [${e.pid}:${e.tid}]`,e.args??{});
       return;

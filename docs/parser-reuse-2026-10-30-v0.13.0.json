@@ -1,0 +1,7 @@
+{
+  "baselineCommit": "historical-revision",
+  "reusedEvidence": "docs/parser-benchmark-2026-10-30-v0.12.0.json",
+  "extraction": "const WS through before const encoder; exact byte comparison",
+  "readerSHA256": "ec97c38dfaec36a44423e614391ab482683a1286f81d469e2d18e5657a1497b8",
+  "note": "Parser-only evidence reused because reader code is identical. New core/relations full-source benchmarks rerun. Prior browser File times stay labeled v0.12.0."
+}

@@ -1,0 +1,9 @@
+{
+  "__proto__": { "capture": "retained", "note": "Synthetic metadata preservation test" },
+  "constructor": { "build": "v1" },
+  "traceEvents": [
+    { "ph": "M", "pid": "__proto__", "name": "process_name", "args": { "name": "CORE0" } },
+    { "ph": "X", "pid": "__proto__", "tid": "CORE0_COMPUTE", "ts": 0, "dur": 10, "args": { "address": "0x1000" } },
+    { "ph": "X", "name": "consumer", "pid": "constructor", "tid": "constructor_COMPUTE", "ts": 20, "dur": 5, "args": { "address": "0x1000" } }
+  ]
+}

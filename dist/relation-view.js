@@ -1,4 +1,5 @@
-import {coreName} from './track-layout.js?v=0.4.0';
+import {coreName} from './track-layout.js?v=0.13.0';
+import {processName} from './event-labels.js?v=0.13.0';
 
 export const relationRecordKey=record=>`${record.trackId}:${record.offset}`;
 export const relationAssociations=link=>link.associations||[{relation:link.relation,otherRole:link.otherRole}];
@@ -9,7 +10,7 @@ const strong=link=>link.relation.type==='flow'||link.relation.type==='symbol'&&l
 export function groupRelationCandidates(links,tracks,processes={}){
   const groups=new Map();
   for(const link of links){const track=tracks[link.record.trackId]||{},core=coreName(track.name)||coreName(track.tid),id=JSON.stringify([String(track.pid),core||'']);
-    if(!groups.has(id))groups.set(id,{id,label:`${processes[track.pid]||`Process ${track.pid}`} / ${core||'其他軌道'}`,links:[],trackIds:new Set()});
+    if(!groups.has(id))groups.set(id,{id,label:`${processName(processes,track.pid)||`Process ${track.pid}`} / ${core||'其他軌道'}`,links:[],trackIds:new Set()});
     const group=groups.get(id);group.links.push(link);group.trackIds.add(link.record.trackId);
   }
   return [...groups.values()].map(group=>({...group,trackCount:group.trackIds.size}));

@@ -29,3 +29,7 @@ test('default manual mode keeps the timeline clear until a single candidate is i
   assert.deepEqual(selectRelationLines(all,selected,tracks,{focus:relationRecordKey(all[2].record)}),[all[2]]);
   assert.deepEqual(selectRelationLines(all,selected,tracks,{focus:relationRecordKey(all[2].record),mode:'off'}),[]);
 });
+
+test('relation candidate groups ignore inherited process names after structured cloning',()=>{
+  const tracks=['__proto__','constructor','toString'].map(pid=>({pid,name:'DMA'})),links=tracks.map((_,id)=>link(id,id)),names=structuredClone(JSON.parse('{"__proto__":"CORE0"}')),groups=groupRelationCandidates(links,tracks,names);assert.deepEqual(groups.map(g=>g.label),['CORE0 / 其他軌道','Process constructor / 其他軌道','Process toString / 其他軌道']);
+});

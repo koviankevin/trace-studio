@@ -1,6 +1,17 @@
 # 驗證紀錄
 
-## 目前進度：v0.12.0
+## 目前進度：v0.13.0
+
+先以真實 TraceJSONReader → TraceIndex → manifest → 磁碟還原路徑重現合法 metadata 的 __proto__ 欄位消失。最小例中，原始 JSON 有此欄位，但 finish 前的 metadata 已沒有 own key，排除還原與序列化才遺失的假設；普通字典賦值觸發了內建 setter。現在 metadata／process_name 以可列舉資料屬性保存，程序名稱查找只接受來源自有欄位，避免 constructor／toString 等被當成內建函式名稱。
+
+新增合成 fixture 與核心、分組、關聯、實際 Worker 冷還原案例；原始 JSON／Args 不改寫。真實內嵌瀏覽器匯入及重新整理後，CORE0、Process constructor、COMPUTE 與原始 PID 均保留；Trace 資訊可見 __proto__／capture retained 與 constructor／build v1，候選分組及單線預覽／取消亦核對。800×600 視窗下，資訊頁 document clientWidth／scrollWidth 均為 785（保留捲軸空間），沒有橫向溢出。[畫面狀態與來源雜湊](metadata-browser-2026-10-30-v0.13.0.json)。
+
+舊快取若已漏掉欄位，本次不宣稱可從不存在的快取資料重建，需重新匯入原始 JSON。其他快取格式不變。讀取器本體與 v0.12.0 逐字一致，[保留來源指紋](parser-reuse-2026-10-30-v0.13.0.json)，沿用該版 parser-only 語料結果，不把舊 File 秒數標成新版量測；最終完整引擎仍重新跑 3 GB、百萬 counter 與同址基準，見 [效能紀錄](PERFORMANCE.md)。
+
+本輪 Windows 程序記憶體計數可讀，但既有 ChatGPT、Edge 與 WebView 群組含其他活動，缺乏單份 trace／Worker 歸屬，不能回報為本工具的峰值。上一輪桌面工具無法可靠辨識 Edge 網址而中止，沒有據此宣稱完成桌面驗收。完整瀏覽器峰值記憶體、獨立桌面瀏覽器、原生修飾鍵滑鼠及其他未完成範圍仍保留；商品等級目標保持進行中。
+
+
+## v0.12.0
 
 針對最初的大檔需求，先建立 parser-only 基準，確認長字串逐字掃描的成本；改用原生引號／反斜線搜尋，並快取 chunk 內下一個反斜線的位置。新測試核對長字串、連續跳脫、空字串、中文／surrogate 切塊、精確原始 JSON、token 上限及 160 組固定種子的巢狀資料，並與 JSON.parse 對照。
 

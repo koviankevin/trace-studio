@@ -20,6 +20,12 @@ test('rejects malformed, truncated and trailing JSON, missing or duplicate trace
   for(const text of ['[{"name":"x"}', '[{},]','{"traceEvents":[{}],}','[{}]{}','{}','{"traceEvents":{}}','{"traceEvents":[],"traceEvents":[]}','[{"name":"a"},null]','{"x": 01,"traceEvents":[]}'])assert.throws(()=>parse(text));
 });
 test('supports empty traces and metadata after events',()=>{assert.equal(parse('[]').events.length,0);assert.deepEqual(parse('{"traceEvents":[],"metadata":{"app":"test"}}',1).metadata,{metadata:{app:'test'}});});
+test('source metadata and process identifiers preserve reserved property names after disk restore',()=>{
+  const raw=new MemoryFile(),index=new MemoryFile(),db=new TraceIndex(raw,index),reader=new TraceJSONReader((event,text)=>db.ingest(event,text),(key,value)=>db.addMetadata(key,value));
+  const text='{"__proto__":{"capture":"retained"},"constructor":{"build":"v1"},"traceEvents":[{"ph":"M","pid":"__proto__","name":"process_name","args":{"name":"CORE0"}},{"ph":"X","pid":"__proto__","tid":"CORE0_COMPUTE","ts":0,"dur":5}]}';
+  for(let at=0;at<text.length;at+=7)reader.feed(text.slice(at,at+7));reader.end();const manifest=JSON.parse(JSON.stringify(db.finish())),restored=new TraceIndex(raw,index).restore(manifest);
+  assert(Object.hasOwn(restored.metadata,'__proto__'),'valid source metadata disappeared');assert.deepEqual(restored.metadata.__proto__,{capture:'retained'});assert.deepEqual(restored.metadata.constructor,{build:'v1'});assert.equal(restored.processes.__proto__,'CORE0');assert.equal(restored.query({start:0,end:5,trackIds:[0]})[0].rows[0].label,'COMPUTE');assert.equal({}.capture,undefined);
+});
 test('disk index preserves nested args, UTF-8, custom fields and raw JSON',()=>{
   const event={name:'測試 🌏',ph:'X',pid:7,tid:4,ts:200,dur:80,args:{ptr:'0x00ABC',nested:{list:['a','b']}},custom:42};
   const {db}=build([event]);const r=db.query({start:210,end:220,trackIds:[0],width:1000})[0].rows[0];assert.equal(r.dur,80);assert.deepEqual(db.detail(r).event,event);assert.equal(db.detail(r).rawText,JSON.stringify(event));

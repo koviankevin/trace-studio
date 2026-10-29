@@ -1,5 +1,5 @@
 const natural=new Intl.Collator('en',{numeric:true,sensitivity:'base'});
-import {shortTid} from './event-labels.js?v=0.4.0';
+import {shortTid,processName} from './event-labels.js?v=0.13.0';
 export function coreName(name){
   const match=String(name||'').match(/(?:^|[\s/_[(:.-])(CORE|NPU|VPU|DSP|GPU|CPU|CORE)[\s_#:-]*(\d+)(?=$|[\s_./:[\]-])/i);
   return match?`${match[1].toUpperCase()}${Number(match[2])}`:null;
@@ -15,7 +15,7 @@ function groupProcesses(tracks,processes={},prefix=''){
   const roots=[];
   for(const [pid,members]of processesById){
     const buckets=new Map();for(const track of members){const key=coreName(track.name)||'';if(!buckets.has(key))buckets.set(key,[]);buckets.get(key).push(track);}
-    const root={id:`${prefix}process:${pid}`,label:processes[pid]||`Process ${pid}`,pid,kind:'process',tracks:members,children:[]};
+    const root={id:`${prefix}process:${pid}`,label:processName(processes,pid)||`Process ${pid}`,pid,kind:'process',tracks:members,children:[]};
     if(buckets.size>1&&[...buckets.keys()].some(Boolean)){
       for(const [core,children]of [...buckets].sort(([a],[b])=>a===''?1:b===''?-1:natural.compare(a,b))){
         root.children.push({id:`${prefix}core:${pid}:${core||'other'}`,label:core||'其他軌道',pid,kind:'core',tracks:children,children:[...children].sort(compareTracks)});

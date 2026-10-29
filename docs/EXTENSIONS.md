@@ -88,7 +88,7 @@ export default {
 | `dist/tar-stream.js` | 有界串流封裝讀取，回呼接收成員 stream；不解到使用者檔案系統，支援取消。 |
 | `dist/time-format.js` | 依時間窗精度格式化刻度，放大後避免晚期時間戳顯示成相同數字。 |
 | `dist/runtime-metrics.js` | 預設關閉的有界本機時間記錄；以 intent／sent／received／frame 對應最新狀態，不得把舊回覆算成已完成，不收集事件內容或檔名。 |
-| `dist/event-labels.js` | 缺名事件的短 TID 顯示規則；不改原始 JSON。 |
+| `dist/event-labels.js` | 缺名事件的短 TID 顯示規則與 processName(processes, pid)；程序名稱只取來源自有欄位，避免繼承屬性被當成名稱，不改原始 JSON。 |
 | `dist/event-summary.js` | 內建硬體欄位對照；只顯示來源提供的資料。 |
 | `dist/event-colors.js` | 內建分類配色與依填色選擇黑／白文字；自訂有效十六進位填色亦使用可讀文字色。 |
 | `dist/focus.js` | 虛擬化控制項依穩定 data-focus-key 恢復焦點；模態視窗的 Tab 邊界處理，不攔截瀏覽器 Ctrl／Meta 組合鍵。 |

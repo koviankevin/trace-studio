@@ -48,3 +48,9 @@ test('counter curves are grouped together across processes without losing source
   const rows=makeTrackLayout(groups,{collapsed:defaultCollapsed(groups),pins:new Set([2]),filter:'CORE1'}).rows;assert.equal(rows[0].track.id,2);assert.equal(rows.filter(r=>r.type==='track'&&r.track.id===2).length,1);
   assert.equal(trackName({...track(4,1,'Thread 5'),tid:5}),'5');assert.equal(trackName(track(5,1,'Chrome_IOThread')),'Chrome_IOThread');
 });
+
+test('process groups use only source-owned names, including reserved string PIDs',()=>{
+  const tracks=['__proto__','constructor','toString'].map((pid,id)=>track(id,pid,'DMA')),plain=groupTracks(tracks,{});
+  for(const group of plain)assert.equal(group.label,'Process '+group.pid);
+  const names=structuredClone(JSON.parse('{"__proto__":"CORE0","toString":"Accelerator 2"}')),named=groupTracks(tracks,names);assert.equal(named.find(g=>g.pid==='__proto__').label,'CORE0');assert.equal(named.find(g=>g.pid==='constructor').label,'Process constructor');assert.equal(named.find(g=>g.pid==='toString').label,'Accelerator 2');
+});

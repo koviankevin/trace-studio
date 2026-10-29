@@ -4,7 +4,7 @@
 
 **[開啟時跡](https://koviankevin.github.io/trace-studio/)** · [操作參考](https://perfetto.dev/docs/visualization/perfetto-ui) · [效能測試](docs/PERFORMANCE.md)
 
-目前為 v0.12.0。已有自動化測試，以及 Windows Chromium 瀏覽器的實際 File／OPFS、三版本比較與 3 GB 合成資料驗收；詳細範圍與未完成項目見[驗證紀錄](docs/VERIFICATION.md)。尚未證實比 Chrome tracing 或 Perfetto 更快；本專案的目標是在熟悉的操作上提供更清楚的資訊與大檔路徑。
+目前為 v0.13.0。已有自動化測試，以及 Windows Chromium 瀏覽器的實際 File／OPFS、三版本比較與 3 GB 合成資料驗收；詳細範圍與未完成項目見[驗證紀錄](docs/VERIFICATION.md)。尚未證實比 Chrome tracing 或 Perfetto 更快；本專案的目標是在熟悉的操作上提供更清楚的資訊與大檔路徑。
 
 ## 使用
 
@@ -17,6 +17,8 @@
 開啟壞檔或取消新檔時，會嘗試還原上一份 trace 的時間範圍、篩選、分組、釘選與選取。Esc 與取消按鈕使用相同流程。Gzip 依檔頭辨識，支援大寫副檔名；瀏覽器未提供儲存額度時不會誤判為零，實際磁碟不足仍會回報錯誤。磁碟初始化或解析失敗會移除該次未完成的索引；意外關閉分頁或瀏覽器留下的未完成快取可從清單辨識並回收。
 
 每份索引的開啟／匯入／刪除以同源 [Web Locks](https://www.w3.org/TR/web-locks/) 協調，另保留 [OPFS 檔案獨占鎖](https://fs.spec.whatwg.org/#api-filesystemfilehandle-createsyncaccesshandle)。清理會跳過其他分頁使用中的快取，不會強制搶鎖；關閉分頁或 Worker 後可重新清理。缺少 Web Locks 的環境不會冒險刪除未完成匯入。清單只讀取小型摘要與檔案大小，不把大檔事件載入記憶體；舊版大型索引缺少摘要時可能暫時只顯示識別碼。
+
+v0.13.0 修正特殊 metadata／字串 PID 的保留與顯示，例如 `__proto__`、`constructor`。未受影響的快取可照常還原；舊版已漏掉的欄位需要重新匯入原始 JSON 才能補回。
 
 ## 功能
 

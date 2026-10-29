@@ -1,0 +1,48 @@
+{
+  "version": "0.13.0",
+  "createdAt": "2026-10-29T18:19:42.522Z",
+  "importedGroups": "▸\nCORE0\n1\n▸\nProcess constructor\n1",
+  "metadataText": "來源與儲存\n檔案\nreserved-keys.json\n原始大小\n0 KB\n索引＋事件快取\n1 KB\n關聯索引\n2\n完整事件數\n3\n瀏覽器\nMozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36\n\n原始事件在本機磁碟保留。畫面會依解析度聚合密集事件；放大可繼續展開，點選可讀取原始 JSON。未經過網路上傳。\n\n事件類型\nph = M\n1\nph = X\n2\n解析品質\n無法繪製／metadata 過大\n0\n未配對 B / E\n0\n逆序時間戳\n0\n名稱按需讀取\n0\n\nX 完整事件、B/E 同步區段、I/i/R 即時事件、C counter 可視化。其他 phase 保留為標記。非同步事件尚未重建區段。逆序資料仍可查詢，但可能增加磁碟讀取。\n\n位址與關聯\n\n自動辨識 args 中的 address / addr / ptr / pointer 與十六進位字串，按精確位址連結。另支援明確 defines / uses 及 s/t/f flow ID。相同位址不代表因果關係、相同配置生命週期或範圍重疊；大於安全整數的數值 address 請用字串記錄。\n\n每事件最多 32 個關聯鍵，每次顯示最多 64 筆關聯。完整原始 args 仍可讀取。\n\n檔案 Metadata\n__proto__ { 2 }\ncapture\nretained\nnote\nSynthetic metadata preservation test\nconstructor { 1 }\nbuild\nv1\n大檔設計與目前邊界\n\n分段讀取 → Worker 解析 → OPFS 磁碟索引 → 可見軌道查詢 → Canvas 繪製。未將整份 JSON 或全部事件載入主執行緒。需要桌面 Chrome / Edge、HTTPS 與足夠的瀏覽器儲存額度。3 GB 檔案的實際載入時間取決於事件數、args 大小、硬碟、可用空間與瀏覽器；請參考 GitHub 中公開的測試結果。目前支援最多三份 Trace 的 TfliteID／圖版本統計比較；尚未支援 Perfetto protobuf、SQL 與 stack sampling 重建。",
+  "coldRestore": {
+    "file": "reserved-keys.json",
+    "groups": "▸CORE01▸Process constructor1",
+    "status": "已從本機快取還原，不需重新解析。"
+  },
+  "coldMetadata": "來源與儲存\n檔案\nreserved-keys.json\n原始大小\n0 KB\n索引＋事件快取\n1 KB\n關聯索引\n2\n完整事件數\n3\n瀏覽器\nMozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36\n\n原始事件在本機磁碟保留。畫面會依解析度聚合密集事件；放大可繼續展開，點選可讀取原始 JSON。未經過網路上傳。\n\n事件類型\nph = M\n1\nph = X\n2\n解析品質\n無法繪製／metadata 過大\n0\n未配對 B / E\n0\n逆序時間戳\n0\n名稱按需讀取\n0\n\nX 完整事件、B/E 同步區段、I/i/R 即時事件、C counter 可視化。其他 phase 保留為標記。非同步事件尚未重建區段。逆序資料仍可查詢，但可能增加磁碟讀取。\n\n位址與關聯\n\n自動辨識 args 中的 address / addr / ptr / pointer 與十六進位字串，按精確位址連結。另支援明確 defines / uses 及 s/t/f flow ID。相同位址不代表因果關係、相同配置生命週期或範圍重疊；大於安全整數的數值 address 請用字串記錄。\n\n每事件最多 32 個關聯鍵，每次顯示最多 64 筆關聯。完整原始 args 仍可讀取。\n\n檔案 Metadata\n__proto__ { 2 }\ncapture\nretained\nnote\nSynthetic metadata preservation test\nconstructor { 1 }\nbuild\nv1\n大檔設計與目前邊界\n\n分段讀取 → Worker 解析 → OPFS 磁碟索引 → 可見軌道查詢 → Canvas 繪製。未將整份 JSON 或全部事件載入主執行緒。需要桌面 Chrome / Edge、HTTPS 與足夠的瀏覽器儲存額度。3 GB 檔案的實際載入時間取決於事件數、args 大小、硬碟、可用空間與瀏覽器；請參考 GitHub 中公開的測試結果。目前支援最多三份 Trace 的 TfliteID／圖版本統計比較；尚未支援 Perfetto protobuf、SQL 與 stack sampling 重建。",
+  "layout": {
+    "height": 600,
+    "scrollWidth": 785,
+    "width": 785
+  },
+  "selected": {
+    "heading": "COMPUTE",
+    "mode": "manual",
+    "raw": "{ \"ph\": \"X\", \"pid\": \"__proto__\", \"tid\": \"CORE0_COMPUTE\", \"ts\": 0, \"dur\": 10, \"args\": { \"address\": \"0x1000\" } }",
+    "relationGroups": [
+      "Process constructor / 其他軌道 · 1 筆／1 軌道"
+    ],
+    "summary": "DDEuncategorized · ph=X持續時間10.0 µs相對起點0.00 µs原始時間戳0 µsProcessCORE0軌道CORE0_COMPUTE · CORE0_COMPUTE"
+  },
+  "preview": {
+    "pressed": 1
+  },
+  "resetFocus": {
+    "isMode": true,
+    "pressed": 0
+  },
+  "toggleOff": 0,
+  "requestedViewport": {
+    "width": 800,
+    "height": 600
+  },
+  "environment": "Windows in-app Chromium; actual new import, cold OPFS restore, metadata/process display and one-line preview. No standalone Edge or per-trace process-memory claim.",
+  "sourceHashes": {
+    "app.js": "7a4b8eeb645fbd95ea588c6786cb24af4f7ace2301a69108c2cb977c9cae1ba3",
+    "worker.js": "0b608555062f8d8750a7302c0039362a3fd29d69dae5c875519012eb1b590f5b",
+    "event-labels.js": "62eb7f695f4de200e80612c52aacf6877854be7f6c8d92928268a2818e51cdd6",
+    "track-layout.js": "2789121b36f5c13b389da12793b5d8371c04d52733765b544b168ceef9c6281d",
+    "relation-view.js": "d9fea6f513fc0ea345195eb1b06d5004b9982532f08acdc0e145ccfec3a43e05",
+    "relations.js": "4cedee4f16eda8615c7dc1658511414348280e73c481879f2ef68b0d903b796a",
+    "core.js": "4a8769e8d9f34f8fbb282b8fa97b6d600462f01ad9eb6ada534e16c8f79b0ef5"
+  }
+}
