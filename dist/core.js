@@ -1,6 +1,6 @@
 // Browser-independent streaming parser and disk-backed trace index. Timestamps are µs.
 import {fallbackEventName,missingEventName} from './event-labels.js?v=0.4.0';
-const WS = /\s/;
+const WS = /[ \t\r\n]/;
 export class TraceJSONReader {
   constructor(onEvent, onMetadata = () => {}) {
     this.onEvent = onEvent; this.onMetadata = onMetadata;
@@ -10,8 +10,18 @@ export class TraceJSONReader {
   }
   fail(message) { throw new Error(`JSON 格式錯誤：${message}（已讀 ${this.events.toLocaleString()} 筆）`); }
   feed(text) {
-    let segment = -1;
+    let segment = -1, nextEscape = -1;
     for (let i=0;i<text.length;i++) {
+      // Inside strings only quotes and backslashes affect framing. Native
+      // searches skip the payload; cache the next slash to avoid rescanning
+      // a whole chunk for every short key in an escape-free document.
+      if((this.state==='value'||this.state==='key')&&this.quoted&&!this.escape){
+        if(segment<0)segment=i;
+        if(nextEscape<i){nextEscape=text.indexOf('\\',i);if(nextEscape<0)nextEscape=text.length;}
+        const quote=text.indexOf('"',i),next=Math.min(quote<0?text.length:quote,nextEscape);
+        if(next===text.length)break;
+        i=next;
+      }
       const c=text[i];
       if (this.state === 'value' || this.state === 'key') {
         if (segment < 0) segment=i;

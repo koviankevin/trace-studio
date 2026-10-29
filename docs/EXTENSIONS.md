@@ -69,7 +69,7 @@ export default {
 | `readEvent(record)` | 按該筆索引讀取原始事件，含完整 args。只有需要時才使用；對數百萬筆逐一讀取會大幅增加成本。 |
 | `cancelled()` | 檢查使用者取消或 trace 已換掉。自寫迴圈也要定期檢查並讓出執行緒。 |
 
-索引記錄包含時間、持續時間、來源軌道、事件名稱、原始事件參照與 `kind`。名稱字典有份數／字元預算／單名長度上限；`name=0` 表示須按需讀取原名，不應將 `label` 當成完整身份。擴充如需精確名稱，使用 `readEvent(record).event.name`，缺名時另採 TID 顯示規則；不要拿顯示預覽分組或跨檔匹配。基本 `summary.unindexedNameEvents`／`unindexedNameUs` 是名稱排行未涵蓋的區段，總量與軌道統計仍包含它們。`kind=0` 為同步區段、`1` 即時標記、`2` counter、`3` 其他 phase 標記。不要把 counter 樣本當成區段耗時。
+索引記錄包含時間、持續時間、來源軌道、事件名稱、原始事件參照與 `kind`。名稱字典有份數／字元預算／單名長度上限；`name=0` 表示須按需讀取原名，不應將 `label` 當成完整身份。擴充如需精確名稱，使用 `readEvent(record).name`，缺名時另採 TID 顯示規則；不要拿顯示預覽分組或跨檔匹配。基本 `summary.unindexedNameEvents`／`unindexedNameUs` 是名稱排行未涵蓋的區段，總量與軌道統計仍包含它們。`kind=0` 為同步區段、`1` 即時標記、`2` counter、`3` 其他 phase 標記。不要把 counter 樣本當成區段耗時。
 
 ## 新增不同功能的位置
 
@@ -84,7 +84,7 @@ export default {
 | `dist/trace-comparison.js` | `compareTraces(ids, tfliteId, {openTrace,cancelled,onProgress})`，依序掃描並保留各檔案結果／錯誤。 |
 | `dist/comparison-view.js` | 比較報表的純 HTML 呈現，呼叫端提供 escaping 與格式化；不接觸磁碟。 |
 | `dist/trace-selection.js` | 多 TfliteID 清單／範圍的有界解析；空值代表所有帶 ID 的事件。 |
-| `dist/relation-view.js` | 純函式分組候選、選擇連線與 endpoint 身份。預設最多兩條明確標記，支援核心／鍵篩選、單筆預覽與全覽抑制；不刪除候選。RelationIndex 的 associations 保留同一 endpoint 的多種匹配鍵。 |
+| `dist/relation-view.js` | 純函式分組候選、選擇連線與 endpoint 身份。預設按需連線，可選最多兩條明確標記，支援核心／鍵篩選、單筆預覽與全覽抑制；不刪除候選。RelationIndex 的 associations 保留同一 endpoint 的多種匹配鍵。 |
 | `dist/tar-stream.js` | 有界串流封裝讀取，回呼接收成員 stream；不解到使用者檔案系統，支援取消。 |
 | `dist/time-format.js` | 依時間窗精度格式化刻度，放大後避免晚期時間戳顯示成相同數字。 |
 | `dist/runtime-metrics.js` | 預設關閉的有界本機時間記錄；以 intent／sent／received／frame 對應最新狀態，不得把舊回覆算成已完成，不收集事件內容或檔名。 |

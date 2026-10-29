@@ -4,7 +4,7 @@
 
 **[開啟時跡](https://koviankevin.github.io/trace-studio/)** · [操作參考](https://perfetto.dev/docs/visualization/perfetto-ui) · [效能測試](docs/PERFORMANCE.md)
 
-目前為 v0.11.0。已有自動化測試，以及 Windows Chromium 瀏覽器的實際 File／OPFS、三版本比較與 3 GB 合成資料驗收；詳細範圍與未完成項目見[驗證紀錄](docs/VERIFICATION.md)。尚未證實比 Chrome tracing 或 Perfetto 更快；本專案的目標是在熟悉的操作上提供更清楚的資訊與大檔路徑。
+目前為 v0.12.0。已有自動化測試，以及 Windows Chromium 瀏覽器的實際 File／OPFS、三版本比較與 3 GB 合成資料驗收；詳細範圍與未完成項目見[驗證紀錄](docs/VERIFICATION.md)。尚未證實比 Chrome tracing 或 Perfetto 更快；本專案的目標是在熟悉的操作上提供更清楚的資訊與大檔路徑。
 
 ## 使用
 

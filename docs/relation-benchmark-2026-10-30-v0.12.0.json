@@ -1,0 +1,46 @@
+{
+  "environment": "Node filesystem adapter; synthetic X events sharing one address; cooperative query is invoked at a yield, actual Worker message interleaving is tested separately",
+  "node": "v24.22.1",
+  "platform": "win32",
+  "cpu": "Intel(R) Core(TM) i5-10400 CPU @ 2.90GHz",
+  "events": 1000000,
+  "importSeconds": 6.980106,
+  "peakProcessRSSMB": 215.846912,
+  "diskBytes": 193888889,
+  "samples": [
+    {
+      "selectedIndex": 500000,
+      "elapsedMs": 796.4667,
+      "yields": 51,
+      "interleavedQueryMs": 0.44070000000010623,
+      "results": 64,
+      "rawChecked": 64,
+      "indexHits": 999999,
+      "limits": {
+        "results": 64,
+        "indexCandidates": 256,
+        "rawCandidates": 256
+      }
+    },
+    {
+      "selectedIndex": 999980,
+      "elapsedMs": 1165.4060000000009,
+      "yields": 75,
+      "interleavedQueryMs": 0.20469999999932043,
+      "results": 64,
+      "rawChecked": 64,
+      "indexHits": 999999,
+      "limits": {
+        "results": 64,
+        "indexCandidates": 256,
+        "rawCandidates": 256
+      }
+    }
+  ],
+  "cancelAfterFirstYieldMs": 19.26180000000022,
+  "sourceHashes": {
+    "core.js": "b332ea20cc9b7d72be90fa8ca08190e0a5c5d027bbb651041c6d0b25f380f761",
+    "relations.js": "60c8ad6c1c94df9c3359b68f447eb8e939873b9e3cbfabc38930a9119fedc473"
+  },
+  "createdAt": "2026-10-29T17:15:39.287Z"
+}

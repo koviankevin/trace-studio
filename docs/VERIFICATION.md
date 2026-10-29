@@ -1,6 +1,19 @@
 # 驗證紀錄
 
-## 目前進度：v0.11.0
+## 目前進度：v0.12.0
+
+針對最初的大檔需求，先建立 parser-only 基準，確認長字串逐字掃描的成本；改用原生引號／反斜線搜尋，並快取 chunk 內下一個反斜線的位置。新測試核對長字串、連續跳脫、空字串、中文／surrogate 切塊、精確原始 JSON、token 上限及 160 組固定種子的巢狀資料，並與 JSON.parse 對照。
+
+另先重現讀取器接受 NBSP 等 JavaScript-only 空白：單塊、多塊都接受，原生 JSON.parse 拒絕，確認是通用空白判斷造成。現在只允許 JSON 的 space／tab／CR／LF，保留檔首 BOM 與字串內 Unicode。正式瀏覽器讀取錯檔後回到原 3 GB 檔、Task 8 及 770–940 µs 範圍，沒有空白工作區。
+
+最終來源重新執行 3 GB、百萬 counter、百萬同址及三組 parser 語料基準；每份記錄綁定來源 SHA-256，測試會核對。實際 File 匯入和同源前後版本觀察、限制與來源雜湊見 [效能紀錄](PERFORMANCE.md)。這不是全域速度保證或比 Perfetto 更快的證明。前後對照的檔案選取自動化曾異常等待，只有應用回報的 importTime 進入數據。
+
+新版讀取後亦重新驗證按需連線、單線預覽／取消及清除後焦點；此次測得版面為 1280×720，800×600 沿用 v0.11.0。app.js 只有 Worker cache URL 變化，CSS／DOM 結構不變，以正規化來源雜湊記錄沿用依據。內網擴充文件修正 readEvent 回傳事件的名稱欄位例子。
+
+發布閘執行完整測試後才推送，再核對 Pages commit、授權及全部公開資產；功能與剩餘範圍見本文件末端需求覆核。商品等級目標仍保持進行中。
+
+
+## v0.11.0
 
 關聯改為按需連線：預設只標記候選，點單筆連線可開啟／取消，另保留前後最多兩條明確標記及最多 16 條模式。實際入口 Canvas 案例核對預設零條、手動單條與取消、顯式模式的巢狀列端點，以及位址篩選不冒充明確依賴。
 
@@ -284,3 +297,27 @@ v0.5.0 正式來源 historical-revision、Pages historical-revision，發布檢�
 受影響範圍選測 `app-import`、`argument-analysis`、`integration`、`trace-comparison`，21 項通過。新增案例核對：三個優化版本的各 ID 累計、整圖總量、排除無 ID 事件、120 筆資料的完整統計與 100 筆明細界線、獨立時間窗／跨界裁切、四份比較拒絕、無效範圍的單檔隔離、UI 整圖→ID→原事件，以及真實 Worker 的 traceId 錯誤與正確回應。核心及關聯來源未變，既有兩份基準沿用。
 
 本回合重新取得可用 UI 表面，瀏覽器清單仍為空，明確回報「Local browser use is disabled in Work settings」。依既有指示繼續發布，不繞過設定；實際畫面、小螢幕、瀏覽器 OPFS／多分頁與 3 GB 互動驗收尚未完成，商品等級目標仍未達成。
+
+
+## v0.12.0 需求覆核
+
+依使用者原始需求核對，不把額外的品質檢查當成已獲證明：
+
+| 原始需求 | 可檢查的證據 | 當前邊界 |
+| --- | --- | --- |
+| 純網頁，初期 JSON | TraceJSONReader、實際 File／OPFS 匯入與還原 | 需桌面 Chromium、HTTPS／localhost 與足夠空間 |
+| 約 3 GB，載入後仍可操作 | 新版 3,000,583,032 bytes／2,932,637 事件的真實匯入、選取、F 與相鄰事件；Node 基準另留來源雜湊 | 合成資料；一次新匯入 46.17 秒，同源單次前後觀察 69.70 → 29.33 秒，非固定上界 |
+| 美觀、有限螢幕資訊密度 | v0.10.0 鍵盤／800×600 紀錄；v0.11.0 關聯截圖 | 風格偏好仍可迭代，不能據截圖認證完整無障礙 |
+| 多核分組、數值曲線集中 | track-layout、counter-plot 及實際合成 CORE／counter 操作 | 核心依已知名稱前綴，不猜測任意硬體名稱 |
+| 類似 Perfetto 操作 | navigation 與正式 app 入口；實際 W/S、A/D、F、相鄰事件及選取 | 原生 Ctrl 滾輪／Shift 拖曳及獨立 Chrome／Edge 仍缺完整證據 |
+| event 名稱／短 TID，不重複 PID | event-labels、core 及入口案例，原始 JSON 不改寫 | 數字 TID 不做減法，明確名稱保留 |
+| event 內容完整列出、分類顏色 | 預設展開 Args／原始 JSON、event-summary／colors 與入口繪製 | 彙整欄位有解析上限，完整 JSON 可核對 |
+| 同 TfliteID／Flow、MemoryRanges 分析 | argument-facts／analysis 與真實 Worker 跳轉／取消 | 同 ID／位址重用不能推成已證明的因果或瓶頸 |
+| address 與 define/use | RelationIndex 跨塊、B/E、counter、取樣及實際單線預覽 | 有界候選探索；預設不拉線，已取樣會標示 |
+| 多份保存，小檔切換不重載 | session-store／trace-cache、app 入口與既有瀏覽器冷還原紀錄 | 大檔讀本機索引；瀏覽器清除／回收後需原檔 |
+| 三份、多 ID 與圖版本比較 | trace-selection／comparison、跨 Worker／磁碟／快取與三版本瀏覽器紀錄 | 比較帶 ID 的統計與有限明細，不驗證數值輸出或 ID 重編 |
+| JSON.gz、tar.gz | archive／tar-stream 與先前實際 3 GB 封裝驗收 | 有成員／metadata 上限，非所有 tar 變體 |
+| 內網 AI 擴充彈性 | custom.js／runtime 與 EXTENSIONS.md，擴充隔離測試 | 程式擴充入口，沒有預設遠端 AI 連線；本輪修正 readEvent 文件的回傳欄位例子 |
+| 名稱、授權、GitHub 公開與 Pages | 時跡 Trace Studio、Apache-2.0／NOTICE、成功發布與逐資產 SHA-256 | 每版需通過發布閘與正式資產核對，不以本表取代部署證據 |
+
+上述資料支持已完成的功能範圍，仍不足宣告整體商品等級完成。剩餘缺口包括獨立桌面瀏覽器、原生修飾鍵滑鼠、完整瀏覽器／Worker 峰值 RAM、完整無障礙及來源硬體語意；不能用 Node RSS、DOM 屬性或合成 trace 代替。

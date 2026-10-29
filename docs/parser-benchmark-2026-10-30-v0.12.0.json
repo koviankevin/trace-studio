@@ -1,0 +1,160 @@
+{
+  "baselineCommit": "historical-revision",
+  "baselineParser": {
+    "environment": "Node parser-only; three runs per synthetic corpus; one ~1 MiB batch retained, no disk index or rendered browser",
+    "node": "v24.22.1",
+    "source": "evidence/parser-before.mjs",
+    "sourceHash": "7d34b39836979d9422da7edb8a71cab9a01649cd3631e6dc0825d4c224af19de",
+    "results": [
+      {
+        "profile": "long plain args",
+        "inputBytes": 67094750,
+        "corpusHash": "c66cf60a1f9ecdc724c0a1e4d5fdc0b7dcd132ae2e45eb2f1d71037f9380fd87",
+        "samples": [
+          {
+            "ms": 810.7693,
+            "events": 67841,
+            "characters": 67026908
+          },
+          {
+            "ms": 904.6285999999999,
+            "events": 67841,
+            "characters": 67026908
+          },
+          {
+            "ms": 809.8534,
+            "events": 67841,
+            "characters": 67026908
+          }
+        ],
+        "medianMs": 810.7693
+      },
+      {
+        "profile": "escaped and structural text",
+        "inputBytes": 76986834,
+        "corpusHash": "679f571a8028c615cda0f25e8b4446d908dab242649ab87d687eb1fb73fb3d69",
+        "samples": [
+          {
+            "ms": 798.1824999999999,
+            "events": 65857,
+            "characters": 67042426
+          },
+          {
+            "ms": 799.3050000000003,
+            "events": 65857,
+            "characters": 67042426
+          },
+          {
+            "ms": 785.9007000000001,
+            "events": 65857,
+            "characters": 67042426
+          }
+        ],
+        "medianMs": 798.1824999999999
+      },
+      {
+        "profile": "many small fields",
+        "inputBytes": 67077521,
+        "corpusHash": "1c1f1ae99f106f1e900bacd08848f21525d7e97c70a663603e84b056aa4962dc",
+        "samples": [
+          {
+            "ms": 1142.1651000000002,
+            "events": 47105,
+            "characters": 67030415
+          },
+          {
+            "ms": 1064.8045000000002,
+            "events": 47105,
+            "characters": 67030415
+          },
+          {
+            "ms": 1045.2167000000009,
+            "events": 47105,
+            "characters": 67030415
+          }
+        ],
+        "medianMs": 1064.8045000000002
+      }
+    ],
+    "createdAt": "2026-10-29T17:09:46.270Z"
+  },
+  "candidate": {
+    "environment": "Node parser-only; three runs per synthetic corpus; one ~1 MiB batch retained, no disk index or rendered browser",
+    "node": "v24.22.1",
+    "source": "dist/core.js",
+    "sourceHash": "b332ea20cc9b7d72be90fa8ca08190e0a5c5d027bbb651041c6d0b25f380f761",
+    "results": [
+      {
+        "profile": "long plain args",
+        "inputBytes": 67094750,
+        "corpusHash": "c66cf60a1f9ecdc724c0a1e4d5fdc0b7dcd132ae2e45eb2f1d71037f9380fd87",
+        "samples": [
+          {
+            "ms": 216.7196,
+            "events": 67841,
+            "characters": 67026908
+          },
+          {
+            "ms": 228.08440000000002,
+            "events": 67841,
+            "characters": 67026908
+          },
+          {
+            "ms": 201.81050000000005,
+            "events": 67841,
+            "characters": 67026908
+          }
+        ],
+        "medianMs": 216.7196
+      },
+      {
+        "profile": "escaped and structural text",
+        "inputBytes": 76986834,
+        "corpusHash": "679f571a8028c615cda0f25e8b4446d908dab242649ab87d687eb1fb73fb3d69",
+        "samples": [
+          {
+            "ms": 652.0504999999999,
+            "events": 65857,
+            "characters": 67042426
+          },
+          {
+            "ms": 602.4122,
+            "events": 65857,
+            "characters": 67042426
+          },
+          {
+            "ms": 623.8799000000001,
+            "events": 65857,
+            "characters": 67042426
+          }
+        ],
+        "medianMs": 623.8799000000001
+      },
+      {
+        "profile": "many small fields",
+        "inputBytes": 67077521,
+        "corpusHash": "1c1f1ae99f106f1e900bacd08848f21525d7e97c70a663603e84b056aa4962dc",
+        "samples": [
+          {
+            "ms": 970.6860000000001,
+            "events": 47105,
+            "characters": 67030415
+          },
+          {
+            "ms": 939.3910000000001,
+            "events": 47105,
+            "characters": 67030415
+          },
+          {
+            "ms": 1003.2628999999997,
+            "events": 47105,
+            "characters": 67030415
+          }
+        ],
+        "medianMs": 970.6860000000001
+      }
+    ],
+    "createdAt": "2026-10-29T17:14:48.853Z"
+  },
+  "notes": "Three runs each, same corpus; parser-only, no disk indexing. Raw source character counts and event counts checked. Timings are observations, no CI timing threshold."
+}

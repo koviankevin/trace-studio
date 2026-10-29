@@ -1,0 +1,44 @@
+{
+  "origin": "http://127.0.0.1:4320",
+  "inputBytes": 3000583032,
+  "events": 2932637,
+  "sourceFile": "synthetic-3gb-v0.12.0.json",
+  "order": [
+    "baseline",
+    "candidate"
+  ],
+  "baseline": {
+    "script": "./app.js?v=0.11.0",
+    "startedAt": "2026-10-29T17:20:23.336Z",
+    "result": {
+      "events": "2,932,637",
+      "file": "synthetic-3gb-v0.12.0.json",
+      "importTime": "69.70 s",
+      "loading": false
+    },
+    "note": "File chooser automation stalled before handing off the File. Only the application-reported importTime is used; wall-clock automation duration is excluded.",
+    "sourceHash": "ba932ad7ee25e1d2ee0bf8afbcc6759cbca6deebbafc0f625a549b10b9e773a1"
+  },
+  "candidate": {
+    "script": "./app.js?v=0.12.0",
+    "restoredBaselineIndex": "2,932,637",
+    "startedAt": "2026-10-29T17:53:39.621Z",
+    "result": {
+      "events": "2,932,637",
+      "file": "synthetic-3gb-v0.12.0.json",
+      "importTime": "29.33 s",
+      "loading": false
+    },
+    "interaction": {
+      "rawTail": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"index\":0,\"address\":\"0x1000\"}}",
+      "selection": "Task 0",
+      "window": "0 µs — 70 µs"
+    },
+    "sourceHash": "b332ea20cc9b7d72be90fa8ca08190e0a5c5d027bbb651041c6d0b25f380f761"
+  },
+  "notes": [
+    "One sequential pair on the same fresh origin, same input File and hardware. Not randomized or a stable upper bound; disk caches and background load can affect either run.",
+    "Application-reported importTime excludes file chooser automation delay. Another candidate import on origin port 4318 took 46.17 s.",
+    "No total browser/Worker peak RAM measurement."
+  ]
+}

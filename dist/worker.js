@@ -1,4 +1,4 @@
-import {TraceJSONReader,TraceIndex,demoTrace,LIMITS} from './core.js?v=0.9.0';
+import {TraceJSONReader,TraceIndex,demoTrace,LIMITS} from './core.js?v=0.12.0';
 import {RelationIndex} from './relations.js?v=0.11.0';
 import {summarizeGroups} from './track-layout.js?v=0.4.0';
 import {hardwareDemo} from './hardware-demo.js?v=0.4.0';

@@ -1,0 +1,62 @@
+{
+  "version": "0.12.0",
+  "createdAt": "2026-10-29T17:16:57.360Z",
+  "quotaBefore": "本站已用 10.78 GB / 額度 21.52 GB",
+  "importStartedAt": "2026-10-29T17:17:06.152Z",
+  "largeImport": {
+    "events": "2,932,637",
+    "file": "synthetic-3gb-v0.12.0.json",
+    "importTime": "46.17 s",
+    "loading": false,
+    "window": "0 µs — 293 s"
+  },
+  "largeInteraction": {
+    "raw": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"index\":0,\"address\":\"0x1000\"}}",
+    "relations": "⌁ 位址與事件關聯 14 筆候選\n    連線按需連線（預設）前後明確關聯（最多 2）更多（最多 16）隱藏關聯標示",
+    "selection": "Task 0",
+    "window": "0 µs — 70 µs"
+  },
+  "largeNeighbor": {
+    "rawTail": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"index\":8}}",
+    "selection": "Task 8",
+    "window": "770 µs — 940 µs"
+  },
+  "invalidSpaceRecovery": {
+    "events": "2,932,637",
+    "file": "synthetic-3gb-v0.12.0.json",
+    "selection": "Task 8",
+    "status": "JSON 格式錯誤：traceEvents 的每一筆必須是物件（已讀 0 筆） 已返回上一份 Trace。",
+    "window": "770 µs — 940 µs"
+  },
+  "lateSelection": {
+    "mode": "manual",
+    "summary": "⌁ 位址與事件關聯 64 筆候選（已取樣）\n    連線按需連線（預設）前後明確關聯（最多 2）更多（最多 16）隱藏關聯標示"
+  },
+  "preview": {
+    "pressed": 1
+  },
+  "resetFocus": {
+    "isMode": true,
+    "pressed": 0
+  },
+  "toggleOff": 0,
+  "environment": "Windows in-app Chromium; actual File/OPFS import, read-only DOM proof and inspected screenshots. Not standalone Chrome/Edge or a full-browser RAM measurement.",
+  "layout": {
+    "height": 720,
+    "scrollWidth": 1280,
+    "width": 1280
+  },
+  "reusedNarrowLayout": {
+    "evidence": "docs/relation-browser-2026-10-30-v0.11.0.json",
+    "reason": "Current app differs only in Worker cache URL; CSS and DOM structure unchanged",
+    "baseCommit": "historical-revision",
+    "normalizedAppSHA256": "7bd78741d8bb55db4ba8fb9135e2a4634e5e78deac634abc7befe38e88907c6c"
+  },
+  "sourceHashes": {
+    "app.js": "86279784ccfcd4ad628f16f962ec4a3cbf31827f0543a7dd6ec029e58a883ee6",
+    "worker.js": "8bf9bf71806b77e0b1dbed2d6d897de9221ef186519f7b9c6617574fe5af6723",
+    "relation-view.js": "a2178715f164da2d8d22a0c0e3e74b80cef9bb1cbe4e346aeaf02f7cdd0da901",
+    "relations.js": "60c8ad6c1c94df9c3359b68f447eb8e939873b9e3cbfabc38930a9119fedc473",
+    "core.js": "b332ea20cc9b7d72be90fa8ca08190e0a5c5d027bbb651041c6d0b25f380f761"
+  }
+}
