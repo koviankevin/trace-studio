@@ -1,4 +1,5 @@
 const natural=new Intl.Collator('en',{numeric:true,sensitivity:'base'});
+import {shortTid} from './event-labels.js?v=0.4.0';
 export function coreName(name){
   const match=String(name||'').match(/(?:^|[\s/_[(:.-])(CORE|NPU|VPU|DSP|GPU|CPU|CORE)[\s_#:-]*(\d+)(?=$|[\s_./:[\]-])/i);
   return match?`${match[1].toUpperCase()}${Number(match[2])}`:null;
@@ -7,7 +8,7 @@ function compareTracks(a,b){
   const base=s=>s.replace(/(?:[\s_-]+work)$/i,'');
   return natural.compare(base(a.name),base(b.name))||Number(/(?:[\s_-]+work)$/i.test(a.name))-Number(/(?:[\s_-]+work)$/i.test(b.name))||natural.compare(a.name,b.name)||a.id-b.id;
 }
-export function trackName(track){return track.name===`Thread ${track.tid}`?String(track.tid):track.name;}
+export function trackName(track){return track.name===`Thread ${track.tid}`?shortTid(track.tid,track.pid):shortTid(track.name,track.pid);}
 function groupProcesses(tracks,processes={},prefix=''){
   const processesById=new Map();
   for(const track of tracks){if(!track.count)continue;const key=String(track.pid);if(!processesById.has(key))processesById.set(key,[]);processesById.get(key).push(track);}

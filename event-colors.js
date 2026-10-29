@@ -1,4 +1,4 @@
-import {hash} from './core.js';
+import {hash} from './core.js?v=0.4.0';
 const colors={
   compute:['#adc7e8','#57799d','計算'],transfer:['#acd2b8','#57816a','資料搬移'],wait:['#ebd092','#9b813f','等待／同步'],frame:['#cbb9e2','#806799','框架'],script:['#b8d7e1','#59818e','Script'],render:['#e5bda8','#a17d68','Rendering'],network:['#e1c6a1','#92784e','Network']
 };

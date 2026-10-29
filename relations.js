@@ -1,5 +1,6 @@
 // Equality links are candidates, never proof of memory ownership or causality.
-import {hash} from './core.js';
+import {hash} from './core.js?v=0.4.0';
+import {fallbackEventName,missingEventName} from './event-labels.js?v=0.4.0';
 export function normalizeAddress(value){
   if(typeof value==='number'){if(!Number.isSafeInteger(value)||value<0)return null;value=String(value);}
   if(typeof value!=='string')return null;
@@ -64,7 +65,7 @@ export class RelationIndex{
           const record={offset,length:v.getUint32(o+16,true),trackId:v.getUint32(o+20,true),ts:v.getFloat64(o+24,true),dur:v.getFloat64(o+32,true)};
           const {event:other}=this.trace.detail(record);
           const verified=extractRelations(other).find(r=>r.identity===key.identity);if(!verified)continue;
-          seen.add(offset);matches.push({record:{...record,label:other.name||'Event'},relation:key,otherRole:verified.role,phase:other.ph});
+          seen.add(offset);matches.push({record:{...record,label:missingEventName(other)?fallbackEventName(other,this.trace.tracks[record.trackId],this.trace.processes):other.name},relation:key,otherRole:verified.role,phase:other.ph});
         }
       }
     }

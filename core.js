@@ -1,4 +1,5 @@
 // Browser-independent streaming parser and disk-backed trace index. Timestamps are µs.
+import {fallbackEventName,missingEventName} from './event-labels.js?v=0.4.0';
 const WS = /\s/;
 export class TraceJSONReader {
   constructor(onEvent, onMetadata = () => {}) {
@@ -145,6 +146,7 @@ export class TraceIndex {
     this.blocks=[];this.buffered=0;this.openSpans=0;this.metadata={};this.phases={};this.start=Infinity;this.end=-Infinity;
     this.count=0;this.slices=0;this.skipped=0;this.unmatched=0;this.outOfOrder=0;this.top=[];
     this.categories=new Map();this.cache=new Map();this.nameLimit=0;this.metadataBytes=0;
+    this.legacyNames=false;this.labelCache=new Map();
   }
   intern(name,identity) {name=String(name||'Event').slice(0,160);const key=identity??name;let id=this.nameMap.get(key);if(id!==undefined)return id;
     if(this.names.length>=LIMITS.maxNames){this.nameLimit++;return 0;}
@@ -202,6 +204,7 @@ export class TraceIndex {
       let linked=false;
       for(const [key,value] of Object.entries(e.args||{}))if(Number.isFinite(value)){
         const ct=this.track(e,`${String(e.name??'').trim()||'未命名事件'} · ${key}`,'counter');const name=this.eventName(e,t,key);
+        ct.counterSource=String(e.name??'');ct.counterKey=key;
         if(!String(e.name??'').trim())ct.fallbackName=name;
         if(!linked){this.onEvent?.(e,{...r,name,trackId:ct.id,kind:2,value});linked=true;}
         this.add(ct,{...r,name,kind:2,value});
@@ -237,7 +240,7 @@ export class TraceIndex {
   }
   finish() {
     // Resolve after all metadata, including thread_name at the end of a file.
-    for(const {id,trackId,suffix}of this.fallbackNames.values())if(id!==0){const t=this.tracks[trackId],name=t.name===`Thread ${t.tid}`?String(t.tid):t.name;this.names[id]=`${name||'未命名事件'}${suffix===null?'':` · ${suffix}`}`.slice(0,160);}
+    for(const {id,trackId,suffix}of this.fallbackNames.values())if(id!==0){const t=this.tracks[trackId],name=fallbackEventName({},t,this.processes);this.names[id]=`${name}${suffix===null?'':` · ${suffix}`}`.slice(0,160);}
     for(const t of this.tracks)if(t.fallbackName!==undefined){t.name=this.names[t.fallbackName];delete t.fallbackName;}
     this.fallbackNames.clear();
     for(const t of this.tracks){this.unmatched+=t.stack.length;t.stack=[];this.flushTrack(t);}
@@ -245,16 +248,33 @@ export class TraceIndex {
     this.raw.handle.flush?.();this.index.handle.flush?.();
     if(!Number.isFinite(this.start)){this.start=0;this.end=1;}
     if(this.end<=this.start)this.end=this.start+1;
+    this.adjustPointEnd();
     this.nameMap.clear();this.trackMap.clear();return this.manifest();
   }
   manifest() {
-    return {version:1,counterSummaryVersion:1,start:this.start,end:this.end,count:this.count,slices:this.slices,phases:this.phases,
+    return {version:1,namePolicy:'short-tid-v1',counterSummaryVersion:1,start:this.start,end:this.end,count:this.count,slices:this.slices,phases:this.phases,
       tracks:this.tracks.map(({buffer,stack,lastTs,...t})=>t),blocks:this.blocks,names:this.names,
       processes:this.processes,metadata:this.metadata,categories:[...this.categories],top:this.top,
       skipped:this.skipped,unmatched:this.unmatched,outOfOrder:this.outOfOrder,nameLimit:this.nameLimit,
       diskBytes:this.raw.offset+this.index.offset};
   }
-  restore(m) {Object.assign(this,m);this.categories=new Map(m.categories);return this;}
+  adjustPointEnd(){if(this.blocks.some(block=>block.last>=this.end))this.end+=Math.max(.001,Math.abs(this.end)*Number.EPSILON);}
+  restore(m) {Object.assign(this,m);this.categories=new Map(m.categories);this.legacyNames=m.namePolicy!=='short-tid-v1';this.adjustPointEnd();m.end=this.end;return this;}
+  legacyNameCandidate(name,track){const label=this.names[name];return this.legacyNames&&(!label||label==='Event'||label==='未命名事件'||label===String(track.tid)||label===track.name||track.kind==='counter');}
+  displayName(record,trackId=record.trackId,knownEvent){
+    const track=this.tracks[trackId]||{},label=this.names[record.name]||record.label||fallbackEventName({},track,this.processes);
+    if(record.name===0)return fallbackEventName({},track,this.processes);
+    if(!this.legacyNameCandidate(record.name,track))return label;
+    const shared=label==='Event'||/^(?:undefined|null|未命名事件)?\s*·/.test(label),key=shared?`${trackId}/${record.offset}`:`${trackId}/name:${record.name}`;
+    if(this.labelCache.has(key))return this.labelCache.get(key);
+    const event=knownEvent??this.detail(record).event;
+    let result=label;
+    if(missingEventName(event)){
+      result=fallbackEventName(event,track,this.processes);
+      if(track.kind==='counter'){const suffix=Object.keys(event.args||{}).filter(key=>Number.isFinite(event.args[key])&&(track.name.endsWith(' · '+key)||track.key?.endsWith(' · '+key))).sort((a,b)=>b.length-a.length)[0];if(suffix!==undefined)result+=' · '+suffix;}
+    }
+    this.labelCache.set(key,result);if(this.labelCache.size>4096)this.labelCache.delete(this.labelCache.keys().next().value);return result;
+  }
   readBlock(b) {
     if(this.cache.has(b.at))return this.cache.get(b.at);
     const data=new Uint8Array(b.count*RECORD);let n=0;
@@ -287,7 +307,7 @@ export class TraceIndex {
       // Assign lanes to nested or overlapping complete events in the viewport.
       const lanes=[];for(const r of rows){let lane=lanes.findIndex(end=>end<=r.ts);if(lane<0)lane=Math.min(7,lanes.length);
         if(r.dur>0){r.lane=Math.min(7,lane);lanes[lane]=r.ts+r.dur;}else r.lane=0;
-        r.label=this.names[r.name];r.trackId=id;}
+        r.label=this.displayName(r,id);r.trackId=id;}
       result.push({id,rows});
     }
     return result;
@@ -313,7 +333,7 @@ export class TraceIndex {
     }
     if(beforeBlock)context(beforeBlock.counterSummary?unpackCounter(beforeBlock.counterSummary.at(-1)[2].at(-1)):readRecord(this.readBlock(beforeBlock),(beforeBlock.count-1)*RECORD));
     if(afterBlock)context(afterBlock.counterSummary?unpackCounter(afterBlock.counterSummary[0][2][0]):readRecord(this.readBlock(afterBlock),0));
-    const label=record=>record?{...record,label:this.names[record.name],trackId:track.id,lane:0}:null;
+    const label=record=>record?{...record,label:this.displayName(record,track.id),trackId:track.id,lane:0}:null;
     return {rows:[...bins.values()].flatMap(bucket=>counterPoints(bucket).map(record=>({...label(record),n:bucket.coarse?1:bucket.count,aggregated:!!bucket.coarse||bucket.count>4}))).sort((a,b)=>a.ts-b.ts||a.offset-b.offset),before:label(before),after:label(after)};
   }
   detail(r) {
@@ -326,7 +346,8 @@ export class TraceIndex {
     this.names.forEach((name,i)=>{if(name.toLocaleLowerCase().includes(needle))ids.add(i);});
     const results=[];let scanned=0;
     for(const t of this.tracks){for(const bi of t.blocks){const b=this.blocks[bi],v=this.readBlock(b);
-      for(let i=0;i<b.count;i++){const r=readRecord(v,i*RECORD);if(ids.has(r.name)){results.push({...r,label:this.names[r.name],trackId:t.id});if(results.length>=limit)return {results,capped:true};}}
+      const identityMatches=this.legacyNames&&fallbackEventName({},t,this.processes).toLocaleLowerCase().includes(needle);
+      for(let i=0;i<b.count;i++){const r=readRecord(v,i*RECORD);if(ids.has(r.name)||identityMatches){const label=this.displayName(r,t.id);if(!label.toLocaleLowerCase().includes(needle))continue;results.push({...r,label,trackId:t.id});if(results.length>=limit)return {results,capped:true};}}
       scanned+=b.count;if(scanned%32768<4096){progress(scanned);await new Promise(r=>setTimeout(r,0));}
     }}
     return {results,capped:false};
@@ -336,7 +357,7 @@ export class TraceIndex {
     for(const bi of t.blocks){const b=this.blocks[bi];if(direction>0&&b.last<record.ts||direction<0&&b.start>record.ts)continue;
       const v=this.readBlock(b);for(let i=0;i<b.count;i++){const ts=v.getFloat64(i*RECORD,true),offset=v.getFloat64(i*RECORD+16,true);
         if((ts-record.ts||offset-record.offset)*direction<=0)continue;
-        if(!best||(ts-best.ts||offset-best.offset)*direction<0)best={...readRecord(v,i*RECORD),label:this.names[v.getUint32(i*RECORD+28,true)],trackId:t.id};
+        if(!best||(ts-best.ts||offset-best.offset)*direction<0){best={...readRecord(v,i*RECORD),trackId:t.id};best.label=this.displayName(best,t.id);}
       }
     }return best;
   }

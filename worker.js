@@ -1,18 +1,21 @@
-import {TraceJSONReader,TraceIndex,demoTrace,LIMITS} from './core.js?v=0.3.2';
-import {RelationIndex} from './relations.js';
-import {summarizeGroups} from './track-layout.js?v=0.2.1';
-import {hardwareDemo} from './hardware-demo.js';
-import {analyzeTrace,scanTraceIndex} from './analysis.js';
+import {TraceJSONReader,TraceIndex,demoTrace,LIMITS} from './core.js?v=0.4.0';
+import {RelationIndex} from './relations.js?v=0.4.0';
+import {summarizeGroups} from './track-layout.js?v=0.4.0';
+import {hardwareDemo} from './hardware-demo.js?v=0.4.0';
+import {analyzeTrace,scanTraceIndex} from './analysis.js?v=0.4.0';
 import {loadExtensionHost} from './extensions/runtime.js';
 import {createSessionStore} from './session-store.js?v=0.3.1';
+import {extractRecordFacts} from './argument-facts.js?v=0.4.0';
+import {analyzeArguments} from './argument-analysis.js?v=0.4.0';
 // Register onmessage synchronously. A top-level await here drops messages
 // delivered while custom.js is loading, including the UI's first import.
 const extensionHostReady=loadExtensionHost();
 let analysisToken=0;
+const argumentCache=new Map();
 let db,folder,rawHandle,indexHandle,relationHandle,relations,sessionId,source,sessionLease;
 const send=(type,data={})=>postMessage({type,...data});
 const sessions=createSessionStore(root,navigator.locks);
-async function close(){analysisToken++;for(const h of [rawHandle,indexHandle,relationHandle]){try{h?.close();}catch{}}rawHandle=indexHandle=relationHandle=null;db=null;await sessionLease?.release();sessionLease=null;}
+async function close(){analysisToken++;argumentCache.clear();for(const h of [rawHandle,indexHandle,relationHandle]){try{h?.close();}catch{}}rawHandle=indexHandle=relationHandle=null;db=null;await sessionLease?.release();sessionLease=null;}
 async function root(){if(!navigator.storage?.getDirectory)throw Error('這個瀏覽器無法使用磁碟索引，請用最新版桌面 Chrome 或 Edge，並以 HTTPS 開啟。');return (await navigator.storage.getDirectory()).getDirectoryHandle('trace-studio-v1',{create:true});}
 async function open(id,create){
   await close();sessionLease=await sessions.lease(id);
@@ -28,7 +31,7 @@ async function open(id,create){
 function publicInfo(m){
   const overview=Array(180).fill(0),duration=m.end-m.start;
   for(const b of m.blocks)for(const r of b.summary){const bin=Math.max(0,Math.min(179,Math.floor((r.ts-m.start)/duration*180)));overview[bin]+=r.n;}
-  const {blocks,names,relations:links,...info}=m;info.top=info.top.map(r=>({...r,label:names[r.name]}));return {...info,relations:links?{count:links.count,bytes:links.bytes,types:links.types}:null,overview,id:sessionId,source,limits:LIMITS};
+  const {blocks,names,relations:links,...info}=m;info.top=info.top.map(r=>({...r,label:db.displayName(r,r.trackId)}));return {...info,relations:links?{count:links.count,bytes:links.bytes,types:links.types}:null,overview,id:sessionId,source,limits:LIMITS};
 }
 async function importFile(file,isDemo=false){
   const started=performance.now();
@@ -78,12 +81,13 @@ onmessage=async({data})=>{
     }else if(type==='clear'){
       await close();const result=await sessions.clear();sessionId=null;send('cleared',result);
     }else if(type==='query'&&db){const start=performance.now();send('query',{requestId,rows:db.query(data),groups:summarizeGroups(db,data.groups||[],data.start,data.end,data.width||1000),ms:performance.now()-start});}
-    else if(type==='analysis'&&db){const token=++analysisToken,current=db,cancelled=()=>analysisToken!==token||db!==current;
+    else if(type==='analysis'&&db){const started=performance.now(),token=++analysisToken,current=db,cancelled=()=>analysisToken!==token||db!==current;
       const result=await analyzeTrace(current,{...data,cancelled,onProgress:progress=>send('analysisProgress',{requestId,...progress})});
+      if(data.includeArguments){const key=JSON.stringify([result.scope.start,result.scope.end,result.scope.trackIds,data.argumentFocus||null,data.memberOffset||0]);if(argumentCache.has(key))result.arguments={...argumentCache.get(key),reused:true};else{result.arguments=await analyzeArguments(current,{...result.scope,focus:data.argumentFocus,memberOffset:data.memberOffset||0,cancelled,onProgress:progress=>send('analysisProgress',{requestId,...progress})});argumentCache.set(key,result.arguments);if(argumentCache.size>8)argumentCache.delete(argumentCache.keys().next().value);}}
       result.extensions=await extensionHost.analyze({summary:result,scope:result.scope,cancelled,scanIndex:()=>scanTraceIndex(current,{...result.scope,cancelled}),readEvent:record=>current.detail(record).event});result.extensionErrors=extensionHost.startupErrors||[];
-      if(cancelled()){const error=new Error('分析已取消');error.name='AbortError';throw error;}send('analysis',{requestId,result});}
+      if(cancelled()){const error=new Error('分析已取消');error.name='AbortError';throw error;}result.analysisSeconds=(performance.now()-started)/1000;send('analysis',{requestId,result});}
     else if(type==='cancelAnalysis'){analysisToken++;}
-    else if(type==='detail'&&db){const detail=db.detail(data.record);send('detail',{requestId,...detail,links:relations.find(detail.event,data.record)});}
+    else if(type==='detail'&&db){const detail=db.detail(data.record);send('detail',{requestId,...detail,facts:extractRecordFacts(detail),links:relations.find(detail.event,data.record)});}
     else if(type==='search'&&db){const result=await db.search(data.term,100,scanned=>send('searchProgress',{requestId,scanned}));send('search',{requestId,...result});}
     else if(type==='neighbor'&&db){
       send('neighbor',{requestId,record:db.neighbor(data.record,data.direction)});
