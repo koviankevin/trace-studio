@@ -6,7 +6,7 @@ export async function analyzeArguments(trace,{start=trace.start,end=trace.end,tr
   if(!Number.isFinite(start)||!Number.isFinite(end)||end<=start)throw Error('請選擇有效的事件欄位分析範圍');
   if(!Number.isInteger(memberOffset)||memberOffset<0||!Number.isInteger(maxGroups)||maxGroups<1||maxGroups>65536)throw Error('事件欄位分析的頁次或群組上限無效');
   if(!Number.isFinite(timeBudgetMs)||timeBudgetMs<0||timeBudgetMs>50)throw Error('事件欄位分析的執行時間預算無效');
-  const groups={tflite:new Map(),flow:new Map()},locations=new Map(),members=[],selected=new Set(trackIds),counterOwners=new Map();
+  const groups={tflite:new Map(),flow:new Map()},locations=new Map(),names=new Map(),members=[],selected=new Set(trackIds),counterOwners=new Map();let omittedNameEvents=0;
   for(const track of trace.tracks)if(selected.has(track.id)&&track.kind==='counter'&&track.counterSource!==undefined){const key=JSON.stringify([track.pid,track.tid,track.counterSource]);if(!counterOwners.has(key))counterOwners.set(key,new Map());counterOwners.get(key).set(track.counterKey,track.id);}
   let scanned=0,events=0,withIds=0,memoryRanges=0,matched=0,truncatedFacts=0,conflicts=0,warnings=0,omittedGroupEvents=0,omittedLocationRanges=0,lastYield=performance.now(),lastProgress=0;
   const started=performance.now(),total=trackIds.reduce((sum,id)=>sum+(trace.tracks[id]?.count||0),0);
@@ -28,6 +28,7 @@ export async function analyzeArguments(trace,{start=trace.start,end=trace.end,tr
       if(focus.crossProcess||sameProcess&&sameCore)for(const target of focus.memories||[])for(const memory of facts.memories){const match=compareMemory(target,memory);if(match&&matches.length<16)matches.push({...match,location:memory.location,path:memory.path,basis:memory.basis,order:focus.ts===undefined?'unknown':record.ts+record.dur<=focus.ts?'before':record.ts>=focus.ts+(focus.dur||0)?'after':'overlap-time'});}
     }
     if(!focus||matches.length){
+    if(focus){if(!names.has(record.label)&&names.size<4096)names.set(record.label,{label:record.label,count:0,totalUs:0,maxUs:0});const entry=names.get(record.label),duration=Math.max(0,Math.min(end,record.ts+record.dur)-Math.max(start,record.ts));if(entry){entry.count++;entry.totalUs+=duration;entry.maxUs=Math.max(entry.maxUs,duration);}else omittedNameEvents++;}
     for(const kind of ['tflite','flow'])if(facts.ids[kind]!==undefined)add(stat(groups[kind],facts.ids[kind]),record,facts);
     for(const memory of facts.memories){memoryRanges++;const key=JSON.stringify([track.pid,facts.ids.core??'',memory.space]);if(!locations.has(key)&&locations.size<4096)locations.set(key,{pid:track.pid,core:facts.ids.core??'',space:memory.space,count:0,inputs:0,outputs:0,declaredBytes:0n,sizeMismatches:0});const entry=locations.get(key);if(entry){entry.count++;if(memory.role==='input')entry.inputs++;if(memory.role==='output')entry.outputs++;if(memory.declaredBytes!==null)entry.declaredBytes+=BigInt(memory.declaredBytes);if(memory.sizeMatches===false)entry.sizeMismatches++;}else omittedLocationRanges++;}
     }
@@ -37,5 +38,5 @@ export async function analyzeArguments(trace,{start=trace.start,end=trace.end,tr
   }
   abort();const finish=map=>[...map.values()].map(group=>({...group,cores:[...group.cores],pids:[...group.pids]})).sort((a,b)=>b.totalUs-a.totalUs||b.count-a.count).slice(0,100);
   onProgress({stage:'args',focused:!!focus,scanned,total,events,matched,elapsed:(performance.now()-started)/1000});
-  return {scope:{start,end,trackIds},focus,scanned,events,withIds,memoryRanges,groups:{tflite:finish(groups.tflite),flow:finish(groups.flow)},locations:[...locations.values()].map(entry=>({...entry,declaredBytes:String(entry.declaredBytes)})),matched,members,memberOffset,hasMore:matched>memberOffset+members.length,truncatedFacts,conflicts,warnings,omittedGroupEvents,omittedLocationRanges,analysisSeconds:(performance.now()-started)/1000,notes:['同 ID 是事件集合，不代表唯一一次推論或已證明的因果鏈。','時間累計包含巢狀及重疊；宣告記憶體大小累計可能包含重用，不是實際傳輸量。','位址對應是同範圍／重疊候選；須連同程序、核心、Location 與時間核對。','每類最多 16,384 個群組，顯示前 100 組；指定 ID 比對仍掃描完整選取範圍。']};
+  return {scope:{start,end,trackIds},focus,nameCount:names.size,byName:[...names.values()].sort((a,b)=>b.totalUs-a.totalUs).slice(0,100),omittedNameEvents,scanned,events,withIds,memoryRanges,groups:{tflite:finish(groups.tflite),flow:finish(groups.flow)},locations:[...locations.values()].map(entry=>({...entry,declaredBytes:String(entry.declaredBytes)})),matched,members,memberOffset,hasMore:matched>memberOffset+members.length,truncatedFacts,conflicts,warnings,omittedGroupEvents,omittedLocationRanges,analysisSeconds:(performance.now()-started)/1000,notes:['同 ID 是事件集合，不代表唯一一次推論或已證明的因果鏈。','時間累計包含巢狀及重疊；宣告記憶體大小累計可能包含重用，不是實際傳輸量。','位址對應是同範圍／重疊候選；須連同程序、核心、Location 與時間核對。','每類最多 16,384 個群組，顯示前 100 組；指定 ID 比對仍掃描完整選取範圍。']};
 }
