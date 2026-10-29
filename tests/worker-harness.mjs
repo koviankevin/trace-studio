@@ -13,7 +13,7 @@ class Directory{
   constructor(folder){this.folder=folder;}
   async getDirectoryHandle(name,{create=false}={}){if(name.includes('/')||name.includes('\\'))throw Error('invalid path');const folder=path.join(this.folder,name);if(create)fs.mkdirSync(folder,{recursive:true});if(!fs.statSync(folder).isDirectory())throw Error('not dir');return new Directory(folder);}
   async getFileHandle(name,{create=false}={}){const filename=path.join(this.folder,name);if(create&&!fs.existsSync(filename))fs.closeSync(fs.openSync(filename,'w'));if(!fs.existsSync(filename))throw Error('not found');return new FileHandle(filename);}
-  async removeEntry(name,{recursive=false}={}){const filename=path.join(this.folder,name);if(path.dirname(filename)!==this.folder)throw Error('unsafe path');fs.rmSync(filename,{recursive});}
+  async removeEntry(name,{recursive=false}={}){const filename=path.join(this.folder,name);if(path.dirname(filename)!==this.folder)throw Error('unsafe path');fs.rmSync(filename,{recursive,maxRetries:3,retryDelay:50});}
   async* keys(){yield* fs.readdirSync(this.folder);}
 }
 Object.defineProperty(globalThis,'navigator',{value:{locks,storage:{getDirectory:async()=>new Directory(root),estimate:async()=>(workerData.storageEstimate??{quota:1e12,usage:0})}}});

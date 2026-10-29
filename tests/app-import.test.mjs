@@ -1,8 +1,9 @@
+import {removeTestRoot} from './temp-files.mjs';
 // Runs the actual application entry point and Worker protocol in Node.
 // The DOM/Canvas are substitutes; this does not replace browser acceptance.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readFile,mkdtemp,rm} from 'node:fs/promises';
+import {readFile,mkdtemp} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {Worker as NodeWorker} from 'node:worker_threads';
@@ -90,5 +91,5 @@ test('application startup and file selection reach the loaded timeline',async()=
     assert(canvasLabels.includes('1e-6')&&canvasLabels.includes('2e-6'),'axis labels must not round small values to zero');
     elements.get('timeline').handlers.pointerdown({button:0,clientX:0,clientY:104,pointerId:1});elements.get('timeline').handlers.pointerup({clientX:0,clientY:104});
     await until(()=>elements.get('details-content').innerHTML.includes('<dt>數值</dt><dd>1e-6</dd>'));
-  }finally{await Promise.all(workers.map(w=>w.stopped||w.terminate()));await rm(root,{recursive:true});}
+  }finally{await Promise.all(workers.map(w=>w.stopped||w.terminate()));await removeTestRoot(root);}
 });

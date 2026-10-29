@@ -1,7 +1,8 @@
+import {removeTestRoot} from './temp-files.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {Worker} from 'node:worker_threads';
-import {mkdtemp,rm,readFile,readdir} from 'node:fs/promises';
+import {mkdtemp,readFile,readdir} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {gzipSync} from 'node:zlib';
@@ -17,7 +18,7 @@ test('real worker message protocol: demo, viewport, detail, relation, search and
     reply=next(worker,'neighbor',4);worker.postMessage({type:'neighbor',requestId:4,record:info.top[0],direction:1});assert((await reply).record);
     await worker.terminate();worker=new Worker(new URL('./worker-harness.mjs',import.meta.url),{workerData:{root}});await next(worker,'initialized');ready=next(worker,'ready');worker.postMessage({type:'restore',id:info.id});const restored=await ready;assert(restored.restored);assert.equal(restored.info.count,info.count);
     reply=next(worker,'detail',5);worker.postMessage({type:'detail',requestId:5,record:info.top[0]});assert.equal((await reply).links.matches.length,3);
-  }finally{await worker?.terminate();await rm(root,{recursive:true});}
+  }finally{await worker?.terminate();await removeTestRoot(root);}
 });
 test('worker streams gzip and reports malformed input without a successful import',async()=>{
   const root=await mkdtemp(join(tmpdir(),'trace-studio-test-'));const worker=new Worker(new URL('./worker-harness.mjs',import.meta.url),{workerData:{root}});
@@ -25,7 +26,7 @@ test('worker streams gzip and reports malformed input without a successful impor
     await next(worker,'initialized');let reply=next(worker,'ready');worker.postMessage({type:'import',file:new File([gzipSync('[{"name":"gzip 測試","ph":"X","ts":0,"dur":10}]')],'test.json.gz')});const ready=await reply;assert.equal(ready.info.count,1);
     reply=next(worker,'error');worker.postMessage({type:'import',file:new File(['[{"name":'],'bad.json')});assert.match((await reply).message,/不完整/);
     reply=next(worker,'cleared');worker.postMessage({type:'clear'});await reply;
-  }finally{await worker.terminate();await rm(root,{recursive:true});}
+  }finally{await worker.terminate();await removeTestRoot(root);}
 });
 
 test('gzip is detected by header and missing quota estimates do not reject valid files',async()=>{
@@ -37,7 +38,7 @@ test('gzip is detected by header and missing quota estimates do not reject valid
       const reply=next(worker,'ready');worker.postMessage({type:'import',file:new File([content],name)});assert.equal((await reply).info.count,1);
     }
     const reply=next(worker,'error');worker.postMessage({type:'import',file:new File([json],'not-gzip.json.gz')});assert.match((await reply).message,/gzip/);
-  }finally{await worker.terminate();await rm(root,{recursive:true});}
+  }finally{await worker.terminate();await removeTestRoot(root);}
 });
 
 test('disk initialization failures release handles and remove the incomplete session',async()=>{
@@ -47,7 +48,7 @@ test('disk initialization failures release handles and remove the incomplete ses
     await next(worker,'initialized');let reply=next(worker,'error');worker.postMessage({type:'import',file});assert.match((await reply).message,/disk open failure/);
     assert.deepEqual(await readdir(join(root,'trace-studio-v1')),[]);
     reply=next(worker,'ready');worker.postMessage({type:'import',file});assert.equal((await reply).info.count,1);
-  }finally{await worker.terminate();await rm(root,{recursive:true});}
+  }finally{await worker.terminate();await removeTestRoot(root);}
 });
 
 test('clearing caches preserves another worker active session and reports it as busy',async()=>{
@@ -61,7 +62,7 @@ test('clearing caches preserves another worker active session and reports it as 
     assert(!((await readdir(join(root,'trace-studio-v1'))).includes(second.id)));
     assert(result.skipped.some(item=>item.id===first.id&&item.reason==='busy'));
     reply=next(workers[0],'query',30);workers[0].postMessage({type:'query',requestId:30,start:first.start,end:first.end,trackIds:[0],width:1000});assert((await reply).rows[0].rows.length);
-  }finally{await Promise.all(workers.map(worker=>worker.terminate()));await rm(root,{recursive:true});}
+  }finally{await Promise.all(workers.map(worker=>worker.terminate()));await removeTestRoot(root);}
 });
 
 test('session manager lists lightweight cache entries, skips active locks and releases them on termination',async()=>{
@@ -80,7 +81,7 @@ test('session manager lists lightweight cache entries, skips active locks and re
     reply=next(workers[1],'ready');workers[1].postMessage({type:'restore',id:first.id});assert.equal((await reply).info.id,first.id);
     reply=next(workers[1],'sessionRemoved',43);workers[1].postMessage({type:'removeSession',id:second.id,requestId:43});assert((await reply).removed);
     reply=next(workers[1],'error');workers[1].postMessage({type:'removeSession',id:'../escape'});assert.match((await reply).message,/識別碼/);
-  }finally{await Promise.all(workers.map(worker=>worker.terminate()));await rm(root,{recursive:true});}
+  }finally{await Promise.all(workers.map(worker=>worker.terminate()));await removeTestRoot(root);}
 });
 
 test('an interrupted import can be reclaimed, while an active incomplete import stays protected',async()=>{
@@ -93,7 +94,7 @@ test('an interrupted import can be reclaimed, while an active incomplete import 
     reply=next(cleaner,'unusedCleared',51);cleaner.postMessage({type:'clearUnused',requestId:51});assert.equal((await reply).removed.length,0);
     await worker.terminate();
     reply=next(cleaner,'unusedCleared',52);cleaner.postMessage({type:'clearUnused',requestId:52});assert.deepEqual((await reply).removed,[entry.id]);assert.deepEqual(await readdir(join(root,'trace-studio-v1')),[]);
-  }finally{await worker.terminate();await cleaner.terminate();await rm(root,{recursive:true});}
+  }finally{await worker.terminate();await cleaner.terminate();await removeTestRoot(root);}
 });
 test('hardware demo worker supplies grouped summaries and keeps selected event hardware fields',async()=>{
   const root=await mkdtemp(join(tmpdir(),'trace-studio-test-')),worker=new Worker(new URL('./worker-harness.mjs',import.meta.url),{workerData:{root}});
@@ -102,7 +103,7 @@ test('hardware demo worker supplies grouped summaries and keeps selected event h
     const ids=info.tracks.filter(t=>t.pid===100).map(t=>t.id);reply=next(worker,'query',7);worker.postMessage({type:'query',requestId:7,start:info.start,end:info.end,trackIds:[],groups:[{id:'process:100',trackIds:ids}],width:1000});
     const grouped=await reply;assert.deepEqual(grouped.rows,[]);assert.equal(grouped.groups[0].id,'process:100');assert(grouped.groups[0].bins.some(n=>n>0));assert(grouped.groups[0].bins.length<=240);
     reply=next(worker,'detail',8);worker.postMessage({type:'detail',requestId:8,record:info.top[0]});const detail=await reply;assert.deepEqual(detail.event.args.input_shape,[12,12,64]);assert.equal(detail.event.args.demo,true);assert(detail.links.matches.length>0);
-  }finally{await worker.terminate();await rm(root,{recursive:true});}
+  }finally{await worker.terminate();await removeTestRoot(root);}
 });
 test('worker analysis remains queryable, cancels and returns accurate index-only summaries',async()=>{
   const root=await mkdtemp(join(tmpdir(),'trace-studio-test-')),worker=new Worker(new URL('./worker-harness.mjs',import.meta.url),{workerData:{root}});
@@ -111,7 +112,7 @@ test('worker analysis remains queryable, cancels and returns accurate index-only
     const progress=next(worker,'analysisProgress',20);worker.postMessage({type:'analysis',requestId:20,start:info.start,end:info.end,trackIds,thresholdUs:1000});await progress;
     const cancelled=next(worker,'analysisCancelled',20),viewport=next(worker,'query',21);worker.postMessage({type:'query',requestId:21,start:info.start,end:info.end,trackIds:[trackIds[0]],width:1000});worker.postMessage({type:'cancelAnalysis'});assert((await viewport).rows[0].rows.length>0);await cancelled;
     reply=next(worker,'analysis',22);worker.postMessage({type:'analysis',requestId:22,start:info.start,end:info.end,trackIds,thresholdUs:1000});const result=(await reply).result;assert.equal(result.complete,8960);assert.equal(result.tracks.length,112);assert.deepEqual(result.extensions,[]);assert(result.longEvents>0);assert(result.longest.length<=50);
-  }finally{await worker.terminate();await rm(root,{recursive:true});}
+  }finally{await worker.terminate();await removeTestRoot(root);}
 });
 
 test('counter envelopes, boundary context and raw details survive the actual worker cache restore',async()=>{
@@ -126,7 +127,7 @@ test('counter envelopes, boundary context and raw details survive the actual wor
       if(pass===0){await worker.terminate();worker=new Worker(new URL('./worker-harness.mjs',import.meta.url),{workerData:{root}});await next(worker,'initialized');reply=next(worker,'ready');worker.postMessage({type:'restore',id:info.id});await reply;}
     }
     reply=next(worker,'query',80);worker.postMessage({type:'query',requestId:80,start:502,end:505,width:100,trackIds:[id]});const result=(await reply).rows[0];assert.equal(result.rows.length,0);assert.equal(result.before.ts,500);assert.equal(result.after.ts,510);
-  }finally{await worker?.terminate();await rm(root,{recursive:true});}
+  }finally{await worker?.terminate();await removeTestRoot(root);}
 });
 test('application element references and local assets exist; engine benchmark hashes match',async()=>{
   const base=new URL('../dist/',import.meta.url),html=await readFile(new URL('index.html',base),'utf8'),app=await readFile(new URL('app.js',base),'utf8');
