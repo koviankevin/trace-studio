@@ -30,3 +30,10 @@ test('legacy metadata stays compatible; invalid IDs and unsafe incomplete cleanu
   const incomplete=rootFor(id,{'session.json':metadata('{broken')});
   const result=await createSessionStore(async()=>incomplete).remove(id);assert.equal(result.reason,'unsupported');assert(!incomplete.removed);
 });
+
+test('a legacy active file blocks deletion before any other session data is touched',async()=>{
+  const id=randomUUID(),files={'events.bin':{size:1000},'manifest.json':metadata('{}')},root=rootFor(id,files);let probed=false;
+  root.getDirectoryHandle=async()=>({...directory(files),async removeEntry(name){assert.equal(name,'events.bin');probed=true;throw new DOMException('legacy file is in use','NoModificationAllowedError');}});
+  const result=await createSessionStore(async()=>root,locks).remove(id);
+  assert(probed);assert.equal(result.reason,'busy');assert(!root.removed,'must not recursively remove the remaining metadata');
+});

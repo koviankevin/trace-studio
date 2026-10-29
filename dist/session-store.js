@@ -46,10 +46,16 @@ export function createSessionStore(getRoot,locks){
     validate(id);let held;
     try{
       held=await lease(id);
-      const root=await getRoot();
+      const root=await getRoot(),directory=await root.getDirectoryHandle(id);
       // Without cooperative locks, avoid deleting an import which may just
       // have created its folder and not yet acquired OPFS file locks.
-      if(!locks?.request){const directory=await root.getDirectoryHandle(id);if(!await file(directory,'manifest.json'))return {id,removed:false,reason:'unsupported'};}
+      if(!locks?.request&&!await file(directory,'manifest.json'))return {id,removed:false,reason:'unsupported'};
+      // Older app versions do not hold a cooperative lease. They acquire the
+      // events.bin exclusive handle first and keep it until the session closes.
+      // Remove that one file first: a busy-file rejection must occur before a
+      // recursive removal, which can otherwise fail after deleting metadata.
+      if(await file(directory,'events.bin'))await directory.removeEntry('events.bin');
+      else if(!await file(directory,'manifest.json'))return {id,removed:false,reason:'unsupported'};
       await root.removeEntry(id,{recursive:true});return {id,removed:true};
     }catch(error){
       if(error.name==='NotFoundError'||error.code==='ENOENT')return {id,removed:true,missing:true};

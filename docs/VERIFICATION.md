@@ -97,3 +97,9 @@
 另擴充正式 app.js 的 DOM 替身測試，驗證快取清單、從快取切換檔案，以及清理未使用快取後保留目前畫面。兩 Worker 測試使用 Node 的 LockManager 與真實檔案系統替身，仍不等於實際多分頁 OPFS 驗收。解析／關聯核心雜湊未變，沿用 v0.2.1 的 3 GB 引擎測試。
 
 商品等級的剩餘驗收包含實際 Chrome／Edge 多分頁鎖定、快取對話框視覺、真實 3 GB 匯入與操作延遲；先前未完成項目不能因新增替身測試而視為通過。
+
+## v0.3.1：舊版分頁的清理順序
+
+舊版頁面不會持有新的 session lease，但舊版 Worker 會先獨占開啟 events.bin 並持有至關閉。因此清理在取得 lease 後，先對 events.bin 執行單檔移除；若檔案仍被舊版分頁鎖定，即回報 busy，不先遞迴刪除其他 metadata。這是因為 [File System Standard](https://fs.spec.whatwg.org/#api-filesystemdirectoryhandle-removeentry) 明確允許遞迴移除失敗時已刪除部分子檔案。
+
+新增先失敗再通過的舊版忙碌檔案順序測試，總數 45 項；並重驗新協作鎖的兩 Worker 清理、終止後釋放、未完成匯入回收。舊版分頁的使用狀態可能直到實際操作時才由 OPFS 判定；尚未以真實瀏覽器驗收。
