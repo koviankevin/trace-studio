@@ -138,3 +138,11 @@ const facts = extractArgumentFacts(event, {
 Args 專項測試：`node --test tests/argument-facts.test.mjs tests/argument-analysis.test.mjs`。新增 schema 時請用合成資料驗證欄位優先順序、零值、ID 重用、跨核心、端點與 unsafe integer；不要將內部 trace 或使用者截圖提交到公開庫。
 
 比較入口最多接受三份 Trace，`tfliteId` 留空使用 `{kind:'tflite-all'}` 掃描帶 ID 的事件；也接受單值與清單／範圍字串（`7,8,12-15`）。結果回報 `mode`、`tfliteIds`，單值保留原 `tfliteId` 欄位。可傳 `scopes:{[sessionId]:{start,end}}` 限定各檔案時間範圍，以及 `sourceNames` 保留失敗來源的可讀名稱。結果包含全體符合事件的 `matchedSummary`、每 ID 群組、有限明細與截斷計數。只有帶 ID 的事件納入圖版本統計，不代表端到端延遲、self time、相同圖結構驗證或輸出數值正確性；若優化後 ID 重編，需要內部提供明確對照才能匹配。
+
+## 關聯候選查找（v0.11.0）
+
+RelationIndex.findAsync(event, record, endEvent, options) 是 Worker 使用的合作式查找入口；options 支援 cancelled、onProgress、yieldNow 與 timeBudgetMs（預設 8 ms）。find 同步入口供相容呼叫端與基準使用；瀏覽器互動應使用非同步入口。關聯磁碟格式不變，舊快取可直接還原。新 detail 取代前一個，cancelDetail／切換 Trace 會取消進行中的查找；detailCancelled 保留 requestId、traceId，主頁以識別碼忽略過期回覆。
+
+先保留 Flow／symbol 精確鍵候選，同址再依原始索引的時間間隔與起點距離選取；最多保留 256 個同址原始參照、驗證 256 個原始候選、輸出 64 個去重後事件。候選會讀回完整 Args 核對鍵，再解析為實際 B/E 區段或曲線樣本。一次候選驗證可能有多次讀取／JSON.parse；256 不是 I/O 次數或 bytes 上限。indexHits 是匹配的索引參照數，可能包含多鍵及 B/E 別名，不等於唯一事件數。sampled 代表候選取樣或驗證預算耗盡，capped 也涵蓋結果上限。
+
+這是有界探索，不是完整依賴圖或全域最近配置查詢：B/E 原始端點沒有完整 duration，密集、長區段或重用位址時預選排序可能省略重要候選；Flow／symbol 超過上限也沒有保證保留全部最近事件。若要 allocation／producer-consumer 的確定推導，需要額外的生命週期與方向 metadata。時間預算是合作式，單次同步磁碟讀取或巨型 JSON.parse 仍可能超時。

@@ -7,7 +7,7 @@ let writeFault=null;
 function checkWrite(filename,at,length){if(writeFault&&path.basename(filename)===writeFault.name&&at+length>writeFault.after){writeFault=null;throw new DOMException('Injected disk quota exceeded','QuotaExceededError');}}
 class FileHandle{
   constructor(filename){this.filename=filename;}
-  async createSyncAccessHandle(){if(failOpenOnce.delete(path.basename(this.filename)))throw Error('Injected disk open failure');const fd=fs.openSync(this.filename,'r+');return {write:(b,{at})=>{checkWrite(this.filename,at,b.length);return fs.writeSync(fd,b,0,b.length,at);},read:(b,{at})=>fs.readSync(fd,b,0,b.length,at),flush:()=>fs.fsyncSync(fd),close:()=>fs.closeSync(fd)};}
+  async createSyncAccessHandle(){if(failOpenOnce.delete(path.basename(this.filename)))throw Error('Injected disk open failure');const fd=fs.openSync(this.filename,'r+');return {write:(b,{at})=>{checkWrite(this.filename,at,b.length);return fs.writeSync(fd,b,0,b.length,at);},read:(b,{at})=>{if(workerData.relationReadDelayMs&&path.basename(this.filename)==='relations.bin'){const end=performance.now()+workerData.relationReadDelayMs;while(performance.now()<end){}}return fs.readSync(fd,b,0,b.length,at);},flush:()=>fs.fsyncSync(fd),close:()=>fs.closeSync(fd)};}
   async createWritable(){const fd=fs.openSync(this.filename,'w');let offset=0,closed=false;const close=async()=>{if(!closed){closed=true;fs.closeSync(fd);}};return {write:async value=>{const b=typeof value==='string'?Buffer.from(value):new Uint8Array(await value.arrayBuffer());checkWrite(this.filename,offset,b.length);fs.writeSync(fd,b,0,b.length,offset);offset+=b.length;},close,abort:close};}
   async getFile(){return new File([fs.readFileSync(this.filename)],path.basename(this.filename));}
 }

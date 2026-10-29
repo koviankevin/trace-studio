@@ -1,0 +1,118 @@
+{
+  "version": "0.11.0",
+  "createdAt": "2026-10-29T16:58:05.560Z",
+  "restoredLargeTrace": {
+    "events": "2,932,637",
+    "name": "synthetic-3gb.json",
+    "status": true,
+    "relations": "⌁ 位址與事件關聯 14 筆候選\n連線\n按需連線（預設）\n前後明確關聯（最多 2）\n更多（最多 16）\n隱藏關聯標示"
+  },
+  "lateSelection": {
+    "candidates": [
+      "reuse 5869相同位址 · COMPUTE586.9 ms ↗",
+      "reuse 5870相同位址 · COMPUTE587.0 ms ↗",
+      "reuse 5871相同位址 · COMPUTE587.1 ms ↗",
+      "reuse 5872相同位址 · COMPUTE587.2 ms ↗",
+      "reuse 5873相同位址 · COMPUTE587.3 ms ↗",
+      "reuse 5874相同位址 · COMPUTE587.4 ms ↗",
+      "reuse 5875相同位址 · COMPUTE587.5 ms ↗",
+      "reuse 5876相同位址 · COMPUTE587.6 ms ↗",
+      "reuse 5877相同位址 · COMPUTE587.7 ms ↗",
+      "reuse 5878相同位址 · COMPUTE587.8 ms ↗",
+      "reuse 5879相同位址 · COMPUTE587.9 ms ↗",
+      "reuse 5880相同位址 · COMPUTE588.0 ms ↗",
+      "reuse 5881相同位址 · COMPUTE588.1 ms ↗",
+      "reuse 5882相同位址 · COMPUTE588.2 ms ↗",
+      "reuse 5883相同位址 · COMPUTE588.3 ms ↗",
+      "reuse 5884相同位址 · COMPUTE588.4 ms ↗",
+      "reuse 5885相同位址 · COMPUTE588.5 ms ↗",
+      "reuse 5886相同位址 · COMPUTE588.6 ms ↗",
+      "reuse 5887相同位址 · COMPUTE588.7 ms ↗",
+      "reuse 5888相同位址 · COMPUTE588.8 ms ↗",
+      "reuse 5889相同位址 · COMPUTE588.9 ms ↗",
+      "reuse 5890相同位址 · COMPUTE589.0 ms ↗",
+      "reuse 5891相同位址 · COMPUTE589.1 ms ↗",
+      "reuse 5892相同位址 · COMPUTE589.2 ms ↗",
+      "reuse 5893相同位址 · COMPUTE589.3 ms ↗",
+      "reuse 5894相同位址 · COMPUTE589.4 ms ↗",
+      "reuse 5895相同位址 · COMPUTE589.5 ms ↗",
+      "reuse 5896相同位址 · COMPUTE589.6 ms ↗",
+      "reuse 5897相同位址 · COMPUTE589.7 ms ↗",
+      "reuse 5898相同位址 · COMPUTE589.8 ms ↗",
+      "reuse 5899相同位址 · COMPUTE589.9 ms ↗",
+      "Explicit producer相同位址 · COMPUTE589.9 ms ↗",
+      "reuse 5901相同位址 · COMPUTE590.1 ms ↗",
+      "reuse 5902相同位址 · COMPUTE590.2 ms ↗",
+      "reuse 5903相同位址 · COMPUTE590.3 ms ↗",
+      "reuse 5904相同位址 · COMPUTE590.4 ms ↗",
+      "reuse 5905相同位址 · COMPUTE590.5 ms ↗",
+      "reuse 5906相同位址 · COMPUTE590.6 ms ↗",
+      "reuse 5907相同位址 · COMPUTE590.7 ms ↗",
+      "reuse 5908相同位址 · COMPUTE590.8 ms ↗",
+      "reuse 5909相同位址 · COMPUTE590.9 ms ↗",
+      "reuse 5910相同位址 · COMPUTE591.0 ms ↗",
+      "reuse 5911相同位址 · COMPUTE591.1 ms ↗",
+      "reuse 5912相同位址 · COMPUTE591.2 ms ↗",
+      "reuse 5913相同位址 · COMPUTE591.3 ms ↗",
+      "reuse 5914相同位址 · COMPUTE591.4 ms ↗",
+      "reuse 5915相同位址 · COMPUTE591.5 ms ↗",
+      "reuse 5916相同位址 · COMPUTE591.6 ms ↗",
+      "reuse 5917相同位址 · COMPUTE591.7 ms ↗",
+      "reuse 5918相同位址 · COMPUTE591.8 ms ↗",
+      "reuse 5919相同位址 · COMPUTE591.9 ms ↗",
+      "reuse 5920相同位址 · COMPUTE592.0 ms ↗",
+      "reuse 5921相同位址 · COMPUTE592.1 ms ↗",
+      "reuse 5922相同位址 · COMPUTE592.2 ms ↗",
+      "reuse 5923相同位址 · COMPUTE592.3 ms ↗",
+      "reuse 5924相同位址 · COMPUTE592.4 ms ↗",
+      "reuse 5925相同位址 · COMPUTE592.5 ms ↗",
+      "reuse 5926相同位址 · COMPUTE592.6 ms ↗",
+      "reuse 5927相同位址 · COMPUTE592.7 ms ↗",
+      "reuse 5928相同位址 · COMPUTE592.8 ms ↗",
+      "reuse 5929相同位址 · COMPUTE592.9 ms ↗",
+      "reuse 5930相同位址 · COMPUTE593.0 ms ↗",
+      "reuse 5931相同位址 · COMPUTE593.1 ms ↗",
+      "Explicit consumer相同位址 · COMPUTE590.1 ms ↗"
+    ],
+    "heading": "Selected late operation",
+    "mode": "manual",
+    "summary": "⌁ 位址與事件關聯 64 筆候選（已取樣）\n    連線按需連線（預設）前後明確關聯（最多 2）更多（最多 16）隱藏關聯標示"
+  },
+  "preview": {
+    "active": [
+      "只顯示與 reuse 5901 的連線"
+    ],
+    "mode": "manual",
+    "nearby": [
+      "reuse 5899相同位址 · COMPUTE589.9 ms ↗",
+      "reuse 5901相同位址 · COMPUTE590.1 ms ↗"
+    ],
+    "pressed": 1
+  },
+  "toggleOff": 0,
+  "optInMode": "compact",
+  "smallScreen": {
+    "height": 600,
+    "mode": "manual",
+    "previewPressed": 0,
+    "scrollWidth": 800,
+    "width": 800
+  },
+  "clearSelection": "↖ 點選事件查看 args、位址關聯與原始 JSON。",
+  "environment": "In-app Chromium; DOM state plus visually inspected screenshots. No standalone Chrome/Edge, full-browser peak RAM or native pointer coverage claim.",
+  "screenshots": [
+    "evidence/browser/relation-small-v0.11.0.jpg"
+  ],
+  "sourceHashes": {
+    "app.js": "28e4ad0bcb943c634b7b3cf194900cb3ac81f174ee6e3ef9c04987c4788f437b",
+    "worker.js": "b73ab52d60bb0c7f9583acccf2c68d41b5cc627febfce5d626c7ca0b69fc525c",
+    "relation-view.js": "a2178715f164da2d8d22a0c0e3e74b80cef9bb1cbe4e346aeaf02f7cdd0da901",
+    "relations.js": "60c8ad6c1c94df9c3359b68f447eb8e939873b9e3cbfabc38930a9119fedc473",
+    "core.js": "ba932ad7ee25e1d2ee0bf8afbcc6759cbca6deebbafc0f625a549b10b9e773a1"
+  },
+  "resetFocus": {
+    "isMode": true,
+    "mode": "manual",
+    "pressed": 0
+  }
+}

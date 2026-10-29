@@ -1,0 +1,31 @@
+{
+  "type": "result",
+  "environment": "Node worker_threads + real filesystem adapter; not a browser OPFS or rendered UI benchmark",
+  "node": "v24.22.1",
+  "platform": "win32 x64",
+  "cpu": "Intel(R) Core(TM) i5-10400 CPU @ 2.90GHz",
+  "logicalCPUs": 12,
+  "ramGB": 34.24442368,
+  "inputBytes": 3000583032,
+  "events": 2932637,
+  "tracks": 8,
+  "relationKeys": 117306,
+  "importSeconds": 43.1084407,
+  "throughputMBps": 69.6054643423927,
+  "peakProcessRSSMB": 333.57824,
+  "diskBytes": 3190031386,
+  "querySamples": 80,
+  "coldQueryMedianMs": 7.860300000000279,
+  "coldQueryP95Ms": 75.28190000000177,
+  "warmQueryMedianMs": 6.454600000004575,
+  "warmQueryP95Ms": 78.17580000000453,
+  "addressLookupMs": 10.575900000003458,
+  "addressMatches": 14,
+  "sourceHashes": {
+    "core.js": "ba932ad7ee25e1d2ee0bf8afbcc6759cbca6deebbafc0f625a549b10b9e773a1",
+    "relations.js": "60c8ad6c1c94df9c3359b68f447eb8e939873b9e3cbfabc38930a9119fedc473"
+  },
+  "createdAt": "2026-10-29T16:56:55.411Z",
+  "mainThreadTicks": 1513,
+  "maxMainThreadTimerDelayMs": 39.375199999998586
+}

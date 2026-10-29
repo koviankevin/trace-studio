@@ -183,3 +183,29 @@ test('full-name dictionaries keep distinct long names, bound key bytes, and reso
   const legacy=JSON.parse(JSON.stringify(db.manifest()));delete legacy.fullNamesVersion;legacy.names=legacy.names.map(name=>name.slice(0,160));const old=new TraceIndex(db.raw.handle,db.index.handle).restore(legacy);
   assert.equal((await old.search(' B ')).results.length,1);assert.equal(old.detail((await old.search(' B ')).results[0]).event.name,b);
 });
+
+
+test('reused addresses retain the nearest candidates around a late selected event after restore',()=>{
+  const events=Array.from({length:67},(_,i)=>({ph:'X',name:'reuse '+i,pid:1,tid:1,ts:i*10,dur:5,args:{address:'0x1000'}})),built=build(events);
+  for(const restored of [false,true]){
+    const db=restored?new TraceIndex(built.raw,built.index).restore(JSON.parse(JSON.stringify(built.manifest))):built.db,links=restored?new RelationIndex(built.linkFile,db):built.links;if(restored)links.restore(built.linkManifest);
+    const selected=db.query({start:650,end:655,trackIds:[0],width:1000})[0].rows.find(row=>row.ts===650),result=links.find(events[65],selected);
+    assert(result.capped);assert.equal(result.matches.length,64);assert(result.matches.some(link=>link.record.ts===640),'nearest preceding same-address event is missing');assert(result.matches.some(link=>link.record.ts===660),'nearest following same-address event is missing');
+  }
+});
+
+test('nearby address sampling spans index blocks, tolerates unordered timestamps, and bounds raw verification',()=>{
+  const events=Array.from({length:6001},(_,i)=>({ph:'X',name:'reuse '+i,pid:1,tid:1,ts:(i*7919)%6001*10,dur:5,args:{address:'0x1000'}}));events.push({ph:'X',name:'overlapping',pid:1,tid:2,ts:0,dur:100000,args:{ptr:'0x1000'}});
+  const built=build(events),source=events[5800];
+  for(const restored of [false,true]){
+    const db=restored?new TraceIndex(built.raw,built.index).restore(built.manifest):built.db,links=restored?new RelationIndex(built.linkFile,db):built.links;if(restored)links.restore(built.linkManifest);
+    const record=db.query({start:source.ts,end:source.ts+5,trackIds:[0],width:1000})[0].rows.find(r=>r.ts===source.ts);let reads=0;const original=db.detail.bind(db);db.detail=r=>{reads++;return original(r);};
+    const result=links.find(source,record),gap=e=>Math.max(0,source.ts-(e.ts+e.dur),e.ts-(source.ts+source.dur)),expected=events.filter(e=>e!==source).sort((a,b)=>gap(a)-gap(b)||Math.abs(a.ts-source.ts)-Math.abs(b.ts-source.ts)).slice(0,64).map(e=>e.name).sort();
+    assert.deepEqual(result.matches.map(m=>m.record.label).sort(),expected);assert(result.sampled);assert.equal(result.indexHits,6001);assert(reads<=result.limits.rawCandidates);assert.equal(result.rawChecked,64);assert(result.matches.some(m=>m.record.label==='overlapping'));db.detail=original;
+  }
+});
+test('cooperative relation lookup yields, cancels, and returns the same verified candidates',async()=>{
+  const events=Array.from({length:800},(_,i)=>({ph:'X',name:'row '+i,pid:1,tid:1,ts:i*10,dur:5,args:{address:'0x1000'}})),{db,links}=build(events),record=db.query({start:7900,end:7905,trackIds:[0],width:1000})[0].rows[0];let yields=0,progress=0;
+  const result=await links.findAsync(events[790],record,undefined,{timeBudgetMs:0,yieldNow:async()=>{yields++;},onProgress:()=>progress++});assert(yields>1);assert.equal(yields,progress);assert.deepEqual(result,links.find(events[790],record));
+  let cancelled=false;await assert.rejects(links.findAsync(events[790],record,undefined,{timeBudgetMs:0,cancelled:()=>cancelled,yieldNow:async()=>{cancelled=true;}}),{name:'AbortError'});assert.deepEqual(await links.findAsync(events[790],record),result);
+});

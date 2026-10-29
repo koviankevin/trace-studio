@@ -188,8 +188,10 @@ test('application element references and local assets exist; engine benchmark ha
   const ids=new Set([...html.matchAll(/id="([^"]+)"/g)].map(m=>m[1]));const dynamic=new Set(['area-focus','show-relations']);
   for(const m of app.matchAll(/\$\('([^']+)'\)/g))assert(ids.has(m[1])||dynamic.has(m[1]),`Missing #${m[1]}`);
   for(const asset of ['style.css','workspace.css','app.js','worker.js','core.js','relations.js','navigation.js','track-layout.js','event-summary.js','event-colors.js','analysis.js','session-store.js','counter-plot.js','argument-analysis.js','argument-facts.js','event-labels.js','trace-cache.js','trace-comparison.js','comparison-view.js','relation-view.js','tar-stream.js','trace-selection.js','time-format.js','runtime-metrics.js','focus.js','extensions/runtime.js','extensions/custom.js','extensions/example.js','hardware-demo.js','icon.svg'])assert((await readFile(new URL(asset,base))).length>0);
-  const benchmark=JSON.parse(await readFile(new URL('../docs/benchmark-2026-10-29-v0.9.0.json',import.meta.url),'utf8'));
+  const benchmark=JSON.parse(await readFile(new URL('../docs/benchmark-2026-10-30-v0.11.0.json',import.meta.url),'utf8'));
   for(const [file,expected]of Object.entries(benchmark.sourceHashes))assert.equal(createHash('sha256').update(await readFile(new URL(file,base))).digest('hex'),expected,`Rerun benchmark after changing ${file}`);
+  const browser=JSON.parse(await readFile(new URL('../docs/relation-browser-2026-10-30-v0.11.0.json',import.meta.url),'utf8'));for(const [file,expected]of Object.entries(browser.sourceHashes))assert.equal(createHash('sha256').update(await readFile(new URL(file,base))).digest('hex'),expected);assert.equal(browser.lateSelection.mode,'manual');assert.equal(browser.preview.pressed,1);assert.equal(browser.toggleOff,0);assert.equal(browser.smallScreen.scrollWidth,browser.smallScreen.width);assert(browser.resetFocus.isMode);
+  const dense=JSON.parse(await readFile(new URL('../docs/relation-benchmark-2026-10-30-v0.11.0.json',import.meta.url),'utf8'));assert.deepEqual(dense.sourceHashes,benchmark.sourceHashes);assert.equal(dense.events,1000000);for(const sample of dense.samples){assert.equal(sample.results,64);assert(sample.rawChecked<=sample.limits.rawCandidates);assert(sample.yields>0);}
   const counters=JSON.parse(await readFile(new URL('../docs/counter-benchmark-2026-10-29-v0.9.0.json',import.meta.url),'utf8'));assert.equal(counters.sourceHashes['core.js'],benchmark.sourceHashes['core.js']);
 });
 
@@ -208,4 +210,14 @@ test('worker search yields to viewport queries, cancels, and a replacement searc
 test('entry point cache keys match the release version for application and styles',async()=>{
   const html=await readFile(new URL('../dist/index.html',import.meta.url),'utf8'),{version}=JSON.parse(await readFile(new URL('../package.json',import.meta.url),'utf8'));
   for(const asset of ['app.js','style.css'])assert(html.includes('./'+asset+'?v='+version),'Stale browser cache key for '+asset+' in release '+version);
+});
+
+test('dense relation lookup yields to viewport queries, cancels, and can be replaced',async()=>{
+  const root=await mkdtemp(join(tmpdir(),'trace-studio-test-')),worker=new Worker(new URL('./worker-harness.mjs',import.meta.url),{workerData:{root,relationReadDelayMs:3}});
+  try{
+    await next(worker,'initialized');let ready=next(worker,'ready');worker.postMessage({type:'import',file:new File([JSON.stringify(Array.from({length:30000},(_,i)=>({ph:'X',name:i===29000?'Selected':'reuse',pid:1,tid:1,ts:i*10,dur:i===29000?10:5,args:{address:'0x1000'}})))],'dense-address.json')});const info=(await ready).info,record=info.top.find(r=>r.label==='Selected');assert(record);
+    const progress=next(worker,'detailProgress',900),cancelled=next(worker,'detailCancelled',900);worker.postMessage({type:'detail',traceId:info.id,requestId:900,record});await progress;
+    const query=next(worker,'query',901);worker.postMessage({type:'query',traceId:info.id,requestId:901,start:record.ts,end:record.ts+10,trackIds:[0],width:800});worker.postMessage({type:'cancelDetail',traceId:info.id});assert((await query).rows[0].rows.length);await cancelled;
+    const replaced=next(worker,'detailCancelled',902),newDetail=next(worker,'detail',903);worker.postMessage({type:'detail',traceId:info.id,requestId:902,record});worker.postMessage({type:'detail',traceId:info.id,requestId:903,record});await replaced;const detail=await newDetail;assert.equal(detail.links.matches.length,64);assert(detail.links.sampled);assert(detail.links.matches.some(m=>m.record.ts===record.ts-10));assert(detail.links.matches.some(m=>m.record.ts===record.ts+10));
+  }finally{await worker.terminate();await removeTestRoot(root);}
 });
