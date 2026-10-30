@@ -7,10 +7,11 @@ import {counterPlot,formatCounterValue} from './counter-plot.js?v=0.3.2';
 import {extractArgumentFacts} from './argument-facts.js?v=0.4.0';
 import {fallbackEventName,missingEventName,processName} from './event-labels.js?v=0.13.0';
 import {comparisonHTML} from './comparison-view.js?v=0.7.0';
-import {selectRelationLines,groupRelationCandidates,relationRecordKey,relationKey,relationAssociations} from './relation-view.js?v=0.13.0';
+import {selectRelationLines,groupRelationCandidates,relationRecordKey,relationKey,relationAssociations,relationEndpoint} from './relation-view.js?v=0.15.0';
 import {formatTimestamp,formatTimeWindow} from './time-format.js?v=0.7.0';
 import {replaceFocusedContent,trapDialogTab} from './focus.js?v=0.10.0';
 import {RuntimeMetrics} from './runtime-metrics.js?v=0.14.0';
+import {WorkspaceTabs} from './workspace-tabs.js?v=0.15.0';
 const extensionHost=await loadExtensionHost();
 const $=id=>document.getElementById(id), esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const state={info:null,start:0,end:1,tracks:[],layout:[],rows:new Map(),groups:[],collapsed:new Set(),groupRows:new Map(),lanes:new Map(),density:'compact',pins:new Set(),expanded:new Set(),selected:null,detail:null,links:[],area:null,filter:'',view:'timeline',query:0,detailId:0,searchId:0,analysisId:0,analysis:null,analysisBusy:false,showLinks:true};
@@ -24,6 +25,9 @@ function resetRelations(){relationFocus=null;relationScope='';relationKeyFilter=
 function relationCandidates(){const groups=groupRelationCandidates(state.links,state.info?.tracks||[],state.info?.processes||{});return (relationScope?groups.find(group=>group.id===relationScope)?.links||[]:state.links).flatMap(link=>{if(!relationKeyFilter)return [link];const association=relationAssociations(link).find(item=>relationKey(item)===relationKeyFilter);return association?[{...link,...association}]:[];});}
 let argumentFocus=null;
 let pendingFiles=[],loadRequestId=0,workspaceRequest=0,savedTraces=[],comparisonIds=new Set(),comparisonRequest=0,comparisonBusy=false,comparisonResult=null,pendingNavigation=null;
+const workspaceTabs=new WorkspaceTabs((()=>{try{return localStorage.getItem('trace-studio-tabs');}catch{return null;}})());
+let pendingClose=null,closeRequest=0;
+function saveWorkspace(){try{if(workspaceTabs.ids!==null)localStorage.setItem('trace-studio-tabs',JSON.stringify(workspaceTabs.ids));}catch{}}
 let cacheLimit=64;try{const value=Number(localStorage.getItem('trace-studio-cache-limit')??64);if([0,32,64,128,256].includes(value))cacheLimit=value;}catch{}
 const traceViews=new Map();try{for(const [id,value]of JSON.parse(localStorage.getItem('trace-studio-views')||'[]').slice(-50))traceViews.set(id,value);}catch{}
 let labelWidth=250,plotWidth=700,plotHeight=420,hitboxes=[],pointer=null,overviewPointer=null,heightPointerClick=null;
@@ -34,7 +38,7 @@ function number(n){return n.toLocaleString('en-US');}
 function toast(message){$('toast').textContent=message;$('toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').hidden=true,6500);}
 function send(type,data={}){if(['import','restore','demo','hardwareDemo'].includes(type))data={requestId:loadRequestId,...data};if(['query','detail','cancelDetail','neighbor','search','analysis'].includes(type))data={traceId:state.info?.id,...data};worker.postMessage({type,...data});}
 function forgetCaches(ids){try{if(ids.includes(localStorage.getItem('trace-studio-session'))){if(state.info&&!ids.includes(state.info.id))localStorage.setItem('trace-studio-session',state.info.id);else localStorage.removeItem('trace-studio-session');}}catch{}}
-function startWorker(){worker?.terminate();queryBusy=false;queryDirty=false;clearTimeout(queryTimer);queryTimer=null;const active=new Worker(new URL('./worker.js?v=0.13.0',import.meta.url),{type:'module'});worker=active;active.onmessage=event=>{if(worker===active)handleMessage(event);};active.postMessage({type:'cachePolicy',limitMB:cacheLimit});active.onerror=e=>{if(worker!==active)return;finishLoading();toast(`背景引擎錯誤：${e.message}`);};}
+function startWorker(){worker?.terminate();queryBusy=false;queryDirty=false;clearTimeout(queryTimer);queryTimer=null;const active=new Worker(new URL('./worker.js?v=0.15.0',import.meta.url),{type:'module'});worker=active;active.onmessage=event=>{if(worker===active)handleMessage(event);};active.postMessage({type:'cachePolicy',limitMB:cacheLimit});active.onerror=e=>{if(worker!==active)return;finishLoading();toast(`背景引擎錯誤：${e.message}`);};}
 function finishLoading(){importing=false;importCancelling=false;if($('loading').open)$('loading').close();}
 function beginLoading(title='正在讀取 Trace',remember=true){
   $('cancel-search').hidden=true;
@@ -54,15 +58,32 @@ function recoverImport(message){
   restoringRecovery={...previous,notice:message};importRecovery=null;beginLoading('正在還原上一份 Trace',false);toast(`${message} 正在還原上一份 Trace。`);send('restore',{id:previous.id});return true;
 }
 function loadFile(file){if(!file)return;if(!/\.(json|gz|tar|tgz)$/i.test(file.name)){toast('目前支援 JSON、JSON.gz、tar、tar.gz 與 tgz。');return;}if(!worker)startWorker();beginLoading(pendingFiles.length?`正在讀取 ${file.name}（另有 ${pendingFiles.length} 份待開啟）`:'正在讀取 Trace');send('import',{file,requestId:loadRequestId});}
-function loadFiles(files){if(importing){toast('請先完成或取消目前的匯入。');return;}const valid=[...files].filter(file=>/\.(json|gz|tar|tgz)$/i.test(file.name));if(!valid.length){toast('請選擇 JSON／JSON.gz／tar.gz Trace。');return;}pendingFiles=valid;loadFile(pendingFiles.shift());}
-function loadDemo(){if(!worker)startWorker();beginLoading('正在準備多核心示範 Trace');send('hardwareDemo',{requestId:loadRequestId});}
+function loadFiles(files){if(importing||pendingClose){toast('請先完成或取消目前的匯入。');return;}const valid=[...files].filter(file=>/\.(json|gz|tar|tgz)$/i.test(file.name));if(!valid.length){toast('請選擇 JSON／JSON.gz／tar.gz Trace。');return;}pendingFiles=valid;loadFile(pendingFiles.shift());}
+function loadDemo(){if(pendingClose)return;if(!worker)startWorker();beginLoading('正在準備多核心示範 Trace');send('hardwareDemo',{requestId:loadRequestId});}
 function saveTraceView(){if(!state.info)return;traceViews.delete(state.info.id);traceViews.set(state.info.id,{start:state.start,end:state.end,filter:state.filter,pins:[...state.pins],expanded:[...state.expanded],collapsed:[...state.collapsed],scrollTop:$('tracks-scroll').scrollTop});while(traceViews.size>50)traceViews.delete(traceViews.keys().next().value);try{localStorage.setItem('trace-studio-views',JSON.stringify([...traceViews]));}catch{}}
 function restoreTraceView(id){const view=traceViews.get(id);if(!view||typeof view!=='object')return;const start=Math.max(state.info.start,Number(view.start)),end=Math.min(state.info.end,Number(view.end));if(Number.isFinite(start)&&Number.isFinite(end)&&end>start){state.start=start;state.end=end;}state.filter=typeof view.filter==='string'?view.filter.slice(0,500):'';$('track-filter').value=state.filter;for(const key of ['pins','expanded','collapsed'])if(Array.isArray(view[key]))state[key]=new Set(view[key].slice(0,8192));}
 function refreshSavedTraces(){send('sessions',{requestId:`workspace:${++workspaceRequest}`});}
-function openSavedTrace(id,record=null){if(importing)return;if(id===state.info?.id){if(record)navigateRecord(record);return;}pendingNavigation=record?{id,record}:null;beginLoading('正在切換已保存的 Trace');send('restore',{id});}
+function openSavedTrace(id,record=null){if(importing||pendingClose)return;if(id===state.info?.id){if(record)navigateRecord(record);return;}pendingNavigation=record?{id,record}:null;beginLoading('正在切換已保存的 Trace');send('restore',{id});}
+function emptyWorkspace(){
+  finishLoading();importRecovery=restoringRecovery=pendingNavigation=null;state.info=null;state.query++;state.detailId++;state.searchId++;state.analysisId++;queryBusy=queryDirty=false;clearTimeout(queryTimer);queryTimer=null;
+  state.rows.clear();state.groupRows.clear();state.lanes.clear();state.tracks=[];state.layout=[];state.groups=[];state.selected=state.detail=state.area=state.analysis=null;state.links=[];state.pins.clear();state.expanded.clear();state.collapsed.clear();state.filter='';searchResults=[];argumentFocus=null;counterEdges.clear();resetRelations();hitboxes=[];runtimeMetrics.reset();displayedQuery=0;
+  try{localStorage.removeItem('trace-studio-session');}catch{}
+  for(const id of ['duration','events-count','process-count','track-count','import-time','overview-end','window-time','render-info'])$(id).textContent='—';
+  for(const id of ['track-labels','insights-list','analysis-results','info-content','details-content'])$(id).innerHTML='';
+  $('file-name').textContent=$('side-file').textContent='未開啟 Trace';$('file-subtitle').textContent='開啟檔案或從快取管理還原';$('side-size').textContent='';$('threads-sub').textContent='';$('cache-sub').textContent='本機快取仍保留';$('selection-heading').textContent='事件詳情';$('selection-status').textContent='已關閉 Trace';$('track-filter').value=$('search-input').value='';$('search-results').innerHTML='';$('cancel-search').hidden=true;$('argument-focus').textContent='全部事件';$('argument-cross-label').hidden=true;$('export-analysis').disabled=true;setAnalysisBusy(false);setDetailsVisible(false);setView('timeline');$('tracks-space').style.height='64px';$('track-labels').style.height='0px';$('track-visible').textContent='0 / 0 軌道';$('tracks-scroll').scrollTop=0;
+  for(const id of ['timeline','overview','ruler']){const canvas=$(id);canvas.getContext('2d').clearRect(0,0,canvas.width,canvas.height);}
+  renderSavedTraces();paint();
+}
+function closeTraceTab(id){
+  if(importing||pendingClose)return;
+  if(comparisonBusy){toast('請先完成或取消比較，再關閉 Trace。');return;}
+  if(!workspaceTabs.ids?.includes(id))return;
+  const active=id===state.info?.id;if(active)saveTraceView();
+  pendingClose={id,active,requestId:++closeRequest};renderSavedTraces();send('closeTrace',{id,requestId:closeRequest});
+}
 function renderSavedTraces(){
   const usable=savedTraces.filter(item=>!item.busy||item.memory);if(!comparisonIds.size)comparisonIds=new Set(usable.filter(item=>!item.demo).slice(0,2).map(item=>item.id));
-  replaceFocusedContent($('trace-tabs'),[...savedTraces].sort((a,b)=>(a.createdAt||'').localeCompare(b.createdAt||'')).map(item=>`<button class="trace-tab ${item.id===state.info?.id?'active':''}" data-focus-key="trace:${item.id}" data-trace-open="${item.id}" aria-current="${item.id===state.info?.id?'page':'false'}" title="${esc(item.name)} · ${item.memory?'索引已載入':'本機已保存'}" ${item.busy&&!item.memory?'disabled':''}>${item.memory?'●':'▧'} ${esc(item.name)}</button>`).join('')||'<span>尚未保存 Trace</span>',{fallback:$('tracks-scroll')});
+  replaceFocusedContent($('trace-tabs'),workspaceTabs.entries(savedTraces).map(item=>`<span class="trace-tab-shell ${item.id===state.info?.id?'active':''}"><button class="trace-tab" data-focus-key="trace:${item.id}" data-trace-open="${item.id}" aria-current="${item.id===state.info?.id?'page':'false'}" title="${esc(item.name)} · ${item.memory?'索引已載入':'本機已保存'}" ${pendingClose||item.busy&&!item.memory?'disabled':''}>${item.memory?'●':'▧'} ${esc(item.name)}</button><button class="trace-tab-close" data-focus-key="close:${item.id}" data-trace-close="${item.id}" aria-label="關閉 Trace ${esc(item.name)}" title="關閉分頁，保留本機快取" ${pendingClose?'disabled':''}>×</button></span>`).join('')||'<span class="trace-tabs-empty">尚未開啟 Trace</span>',{fallback:$('add-traces')});
   $('comparison-sources').innerHTML=savedTraces.map(item=>`<label><input type="checkbox" data-comparison-id="${item.id}" ${comparisonIds.has(item.id)?'checked':''} ${item.busy&&!item.memory||comparisonBusy?'disabled':''}><span>${esc(item.name)}<small>${bytes(item.bytes)} · ${item.demo?'合成示範':item.memory?'索引已載入':item.busy?'其他分頁使用中':'本機已保存'}</small></span></label>`).join('');
 }
 function setComparisonBusy(busy){comparisonBusy=busy;$('run-comparison').disabled=busy;$('cancel-comparison').hidden=!busy;$('export-comparison').disabled=busy||!comparisonResult;}
@@ -80,7 +101,7 @@ function handleMessage({data}){
     }
     case 'importCancelled':{
       if(data.requestId!==loadRequestId)break;finishLoading();if(recoverImport('已取消開檔。'))break;
-      let last;try{last=localStorage.getItem('trace-studio-session');}catch{}if(last){beginLoading('正在還原上一份 Trace',false);send('restore',{id:last});}else loadDemo();break;
+      let last;try{last=localStorage.getItem('trace-studio-session');}catch{}if(last){beginLoading('正在還原上一份 Trace',false);send('restore',{id:last});}else if(workspaceTabs.ids!==null)emptyWorkspace();else loadDemo();break;
     }
     case 'importCancelUnavailable':if(data.requestId===loadRequestId){importCancelling=false;$('cancel').disabled=false;toast('開檔已完成或正在還原，請稍候。');}break;
     case 'ready':{
@@ -88,6 +109,7 @@ function handleMessage({data}){
       const recovered=restoringRecovery?.id===data.info.id?restoringRecovery:null;restoringRecovery=null;importRecovery=null;
       resetRelations();state.info=data.info;state.start=data.info.start;state.end=data.info.end;state.selected=null;state.detail=null;state.links=[];state.pins.clear();state.expanded.clear();state.lanes.clear();state.rows.clear();state.groupRows.clear();state.groups=groupTracks(data.info.tracks,data.info.processes);state.collapsed=defaultCollapsed(state.groups);state.filter='';$('track-filter').value='';setDetailsVisible(false);$('selection-status').textContent='';finishLoading();
       try{localStorage.setItem('trace-studio-session',data.info.id);}catch{}
+      for(const id of data.archive?.ids||[])workspaceTabs.open(id);workspaceTabs.open(data.info.id);saveWorkspace();
       if(recovered){for(const key of ['start','end','filter','view','pins','expanded','collapsed','lanes','selected','detail','links','area','analysis'])state[key]=recovered[key];$('track-filter').value=state.filter;setDetailsVisible(!recovered.detailsHidden);}
       else restoreTraceView(data.info.id);
       updateInfo(data.restored);setView(recovered?.view||'timeline');updateLayout();if(recovered){$('tracks-scroll').scrollTop=recovered.scrollTop;renderLabels();if(state.detail)renderDetail();if(state.analysis)renderAnalysis();else $('analysis-status').textContent='可重新選擇範圍並開始分析。';}drawOverview();requestQuery();
@@ -114,7 +136,13 @@ function handleMessage({data}){
     case 'analysis':if(data.requestId===state.analysisId){state.analysis=data.result;setAnalysisBusy(false);renderAnalysis();}break;
     case 'analysisCancelled':if(data.requestId===state.analysisId){setAnalysisBusy(false);$('analysis-status').textContent='分析已取消，trace 保留。';}break;
     case 'cachePolicy':refreshSavedTraces();break;
-    case 'sessions':if(data.requestId===`workspace:${workspaceRequest}`){savedTraces=data.sessions.filter(item=>item.complete);renderSavedTraces();}else if(data.requestId===cacheRequest){cacheBusy=false;cacheEntries=data.sessions;renderCaches();$('cache-status').textContent=`${cacheEntries.length} 份快取，共 ${bytes(cacheEntries.reduce((n,s)=>n+s.bytes,0))}。`; }break;
+    case 'sessions':if(data.requestId===`workspace:${workspaceRequest}`){savedTraces=data.sessions.filter(item=>item.complete).sort((a,b)=>(a.createdAt||'').localeCompare(b.createdAt||''));workspaceTabs.sync(savedTraces);saveWorkspace();renderSavedTraces();}else if(data.requestId===cacheRequest){cacheBusy=false;cacheEntries=data.sessions;renderCaches();$('cache-status').textContent=`${cacheEntries.length} 份快取，共 ${bytes(cacheEntries.reduce((n,s)=>n+s.bytes,0))}。`; }break;
+    case 'traceClosed':{
+      if(!pendingClose||data.requestId!==pendingClose.requestId)break;
+      const closed=pendingClose;pendingClose=null;const adjacent=workspaceTabs.close(closed.id);saveWorkspace();
+      if(closed.active){emptyWorkspace();const next=adjacent.find(id=>savedTraces.some(item=>item.id===id&&(!item.busy||item.memory)));if(next){beginLoading('正在切換至相鄰 Trace',false);send('restore',{id:next});}else $('add-traces').focus();}
+      else renderSavedTraces();refreshSavedTraces();toast('已關閉分頁，本機快取仍保留。');break;
+    }
     case 'comparisonProgress':if(data.requestId===comparisonRequest)$('comparison-status').textContent=`${data.index}/${data.totalTraces} · ${data.name} · 已讀 ${number(data.events)} 筆，符合 ${number(data.matched)} 筆。時間軸仍可操作。`;break;
     case 'comparison':if(data.requestId===comparisonRequest){comparisonResult=data.result;setComparisonBusy(false);$('comparison-results').innerHTML=comparisonHTML(data.result,{esc,time:formatTime,bytes:memoryBytes,number});$('comparison-status').textContent=`比較完成 · ${data.result.analysisSeconds.toFixed(2)} 秒；點選時間列可開啟該事件。`;$('export-comparison').disabled=false;}break;
     case 'comparisonCancelled':if(data.requestId===comparisonRequest){setComparisonBusy(false);$('comparison-status').textContent='比較已取消，保存的 Trace 保留。';}break;
@@ -122,6 +150,7 @@ function handleMessage({data}){
     case 'unusedCleared':refreshSavedTraces();if(data.requestId===cacheRequest){forgetCaches(data.removed);cacheBusy=false;cacheEntries=data.sessions;renderCaches();$('cache-status').textContent=`已清除 ${data.removed.length} 份；保留目前及使用中／無法清理的 ${data.skipped.length} 份。`;}break;
     case 'cleared':try{if(data.removed?.includes(localStorage.getItem('trace-studio-session')))localStorage.removeItem('trace-studio-session');}catch{}state.info=null;importRecovery=null;restoringRecovery=null;cacheBusy=false;$('cache-dialog').close();toast(`已清除 ${data.removed?.length||0} 份快取，保留 ${data.skipped?.length||0} 份使用中／無法清理的快取。`);loadDemo();break;
     case 'error':{
+      if(data.operation==='closeTrace'){if(data.requestId===pendingClose?.requestId){pendingClose=null;renderSavedTraces();toast(data.message);}break;}
       const expected={query:state.query,search:state.searchId,detail:state.detailId,analysis:state.analysisId,compare:comparisonRequest}[data.operation];if(expected!==undefined&&data.requestId!==expected)break;
       if(['import','restore','hardwareDemo','demo'].includes(data.operation)&&data.requestId!==undefined&&data.requestId!==loadRequestId)break;
       if(['import','restore','hardwareDemo','demo'].includes(data.operation)){pendingFiles=[];pendingNavigation=null;}
@@ -131,7 +160,7 @@ function handleMessage({data}){
       if(data.operation==='search'){$('cancel-search').hidden=true;$('search-results').innerHTML=`<p class="empty-state">${esc(data.message)}</p>`;}
       if(['sessions','removeSession','clearUnused','clear'].includes(data.operation)){cacheBusy=false;renderCaches();$('cache-status').textContent=data.message;}
       if(data.operation==='analysis'&&data.requestId===state.analysisId){setAnalysisBusy(false);$('analysis-status').textContent=data.message;}
-      if(data.operation==='restore'){if(restoringRecovery){restoringRecovery=null;importRecovery=null;$('file-name').textContent='無法還原上一份 Trace';$('file-subtitle').textContent='可重新選擇原始檔案';}else if(!recoverImport(data.message)){try{if(!['SessionBusyError','NoModificationAllowedError'].includes(data.code))localStorage.removeItem('trace-studio-session');}catch{}loadDemo();}}
+      if(data.operation==='restore'){if(restoringRecovery){restoringRecovery=null;importRecovery=null;$('file-name').textContent='無法還原上一份 Trace';$('file-subtitle').textContent='可重新選擇原始檔案';}else if(!recoverImport(data.message)){emptyWorkspace();refreshSavedTraces();}}
       else if(data.operation==='import'||data.operation==='demo'||data.operation==='hardwareDemo'){if(recoverImport(data.message))break;state.info=null;state.rows.clear();$('file-name').textContent='無法開啟 Trace';$('file-subtitle').textContent='請選擇另一個 JSON 檔案';$('details-content').innerHTML=`<div class="selection-empty">${esc(data.message)}</div>`;paint();}
       break;
     }
@@ -242,14 +271,20 @@ function drawTimeline(){
     }
   }
   if(state.showLinks&&state.selected&&state.links.length){
-    const points=new Map(hitboxes.filter(box=>box.record&&!(box.record.n>1)).map(box=>[relationRecordKey(box.record),{x:xTime(box.record.ts),y:box.y+box.h/2}])),source=points.get(relationRecordKey(state.selected));
+    const points=new Map(hitboxes.filter(box=>box.record&&!(box.record.n>1)).map(box=>[relationRecordKey(box.record),{x:xTime(box.record.ts),y:box.y+box.h/2}]));
+    const endpoint=record=>relationEndpoint(record,{points,layout:state.layout,scrollTop:scroll,height:plotHeight,toX:xTime}),source=endpoint(state.selected),outside={above:0,below:0};
     if(source){ctx.save();ctx.strokeStyle=dark?'#ead291':'#b49b58';ctx.lineWidth=1.3;
       for(const link of selectRelationLines(candidates,state.selected,state.info.tracks,{mode:relationMode,start:state.start,end:state.end,width:plotWidth,focus:relationFocus})){
-        let target=points.get(relationRecordKey(link.record));if(!target){const group=state.layout.find(row=>row.type==='group'&&row.collapsed&&row.trackIds.includes(link.record.trackId));if(group)target={x:xTime(link.record.ts),y:group.y-scroll+group.h/2};}if(!target)continue;
+        const target=endpoint(link.record);if(!target)continue;
         const sx=source.x,sy=source.y,x=target.x,y=target.y;if(Math.max(sx,x)<0||Math.min(sx,x)>plotWidth)continue;
-        ctx.setLineDash(link.relation.type==='address'?[4,3]:[]);ctx.beginPath();ctx.moveTo(sx,sy);ctx.bezierCurveTo(sx+(x-sx)/2,sy,sx+(x-sx)/2,y,x,y);ctx.stroke();ctx.setLineDash([]);ctx.fillStyle=dark?'#ead291':'#b49b58';ctx.beginPath();ctx.arc(x,y,3,0,Math.PI*2);ctx.fill();
+        for(const edge of new Set([source.edge,target.edge].filter(Boolean)))outside[edge]++;
+        if(source.edge&&source.edge===target.edge)continue;
+        ctx.setLineDash(link.relation.type==='address'?[4,3]:[]);ctx.beginPath();ctx.moveTo(sx,sy);ctx.bezierCurveTo(sx+(x-sx)/2,sy,sx+(x-sx)/2,y,x,y);ctx.stroke();ctx.setLineDash([]);ctx.fillStyle=dark?'#ead291':'#b49b58';
+        for(const point of [source,target])if(point.edge){const sign=point.edge==='above'?-1:1;ctx.beginPath();ctx.moveTo(point.x,point.y+sign*5);ctx.lineTo(point.x-4,point.y-sign*3);ctx.lineTo(point.x+4,point.y-sign*3);ctx.closePath();ctx.fill();}
+        if(!target.edge){ctx.beginPath();ctx.arc(x,y,3,0,Math.PI*2);ctx.fill();}
       }ctx.restore();
     }
+    for(const edge of ['above','below'])if(outside[edge]){const arrow=edge==='above'?'↑':'↓',side=edge==='above'?'上方':'下方',text=plotWidth<180?`${arrow} ${side} ${outside[edge]}`:`${arrow} 畫面${side} ${outside[edge]} 筆關聯`;ctx.save();ctx.font='12px Consolas,monospace';const w=Math.min(plotWidth-8,ctx.measureText(text).width+12),x=Math.max(4,plotWidth-w-4),y=edge==='above'?1:plotHeight-20;ctx.fillStyle=dark?'#203028':'#ffffff';ctx.fillRect(x,y,w,19);ctx.fillStyle=dark?'#ead291':'#73571f';ctx.fillText(text,x+6,y+14);ctx.restore();}
   }
   if(state.area){const x1=xTime(state.area.start),x2=xTime(state.area.end);ctx.fillStyle='#8fb58c26';ctx.fillRect(x1,0,x2-x1,plotHeight);ctx.strokeStyle='#799d64';ctx.setLineDash([3,3]);for(const x of [x1,x2]){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,plotHeight);ctx.stroke();}ctx.setLineDash([]);}
   $('window-time').textContent=formatTimeWindow(state.start,state.end,origin);if(runtimeMetrics.frame(displayedQuery))$('runtime-count').textContent=number(runtimeMetrics.frameCount);
@@ -286,7 +321,7 @@ function renderDetail(focusSelector){
     <div class="relation-keys">${links.keys.map(k=>`<span class="relation-key">${linkType[k.type]} ${esc(k.key)} <span style="opacity:.6">${esc(k.path)}</span></span>`).join('')}</div>
     <div class="relation-filters"><label>範圍<select data-relation-scope aria-label="關聯核心分組"><option value="">全部核心／程序</option>${groups.map(group=>`<option value="${esc(group.id)}" ${group.id===relationScope?'selected':''}>${esc(group.label)} · ${group.links.length}</option>`).join('')}</select></label><label>關聯鍵<select data-relation-key aria-label="關聯鍵篩選"><option value="">全部關聯鍵</option>${keys.map(([key,link])=>`<option value="${esc(key)}" ${key===relationKeyFilter?'selected':''}>${linkType[link.relation.type]} ${esc(link.relation.key)}</option>`).join('')}</select></label>${relationFocus?'<button class="text-button" data-relation-reset>清除單筆連線</button>':''}</div>
     <div class="relation-list">${groupRelationCandidates(filtered,state.info.tracks,state.info.processes).map(group=>`<details class="relation-group" data-relation-group="${esc(group.id)}" ${relationScope||groups.length===1||openGroups.has(group.id)?'open':''}><summary>${esc(group.label)} · ${group.links.length} 筆／${group.trackCount} 軌道</summary><div class="relation-members">${group.links.map(m=>{const i=state.links.findIndex(link=>relationRecordKey(link.record)===relationRecordKey(m.record));return `<div class="relation-candidate"><button class="relation-item" data-relation="${i}"><span>${esc(m.record.label)}<small>${m.relation.type==='address'?'相同位址':`${esc(m.relation.role)} → ${esc(m.otherRole)}`} · ${esc(trackName(state.info.tracks[m.record.trackId]))}</small></span><span class="relation-time">${formatTime(m.record.ts-state.info.start,true)} ↗</span></button><button class="text-button relation-preview" data-relation-preview="${i}" aria-pressed="${relationFocus===relationRecordKey(m.record)}" aria-label="只顯示與 ${esc(m.record.label)} 的連線">連線</button></div>`;}).join('')}</div></details>`).join('')||'<span class="relation-empty">此範圍沒有其他候選事件。</span>'}</div>
-    <p class="relation-help">預設只標記候選。點「連線」單獨查看一筆，再點可取消（目標須在時間窗內）；也可選前後明確關聯，最多 2 條 Flow／define-use，或「更多」最多 16 條。縮小至事件不足 4 px 時隱藏自動連線；聚合區段請放大。同址以外框標示，不代表因果。候選按程序／核心分組，最多 64 筆；明確標記優先，同址從時間附近的索引參照取樣，不是完整依賴圖。</p></section>`:'<section class="relation-section"><span style="font-size:14px;color:var(--muted)">此事件未找到可辨識的 address / ptr、defines / uses 或標準 flow ID。</span></section>';
+    <p class="relation-help">預設只標記候選。點「連線」單獨查看一筆，再點可取消（目標須在時間窗內）；也可選前後明確關聯，最多 2 條 Flow／define-use，或「更多」最多 16 條。縮小至事件不足 4 px 時隱藏自動連線；聚合區段請放大。畫面外的軌道以線頭及上／下方提示保留連線；點候選事件可跳轉。同址以外框標示，不代表因果。候選按程序／核心分組，最多 64 筆；明確標記優先，同址從時間附近的索引參照取樣，不是完整依賴圖。</p></section>`:'<section class="relation-section"><span style="font-size:14px;color:var(--muted)">此事件未找到可辨識的 address / ptr、defines / uses 或標準 flow ID。</span></section>';
   const custom=extensionHost.eventFields(e,{record:r,track:t}),extensionErrors=[...(extensionHost.startupErrors||[]),...custom.errors];
   const summary=[...eventSummary(e),...custom.fields],summaryHTML=summary.length?`<table class="event-fields"><caption>Trace 欄位摘要</caption><tbody>${summary.map(field=>`<tr title="${esc(field.path)}"><th scope="row">${esc(field.label)}</th><td>${esc(field.value)}</td></tr>`).join('')}</tbody></table>`:'';
   $('details-content').innerHTML=`<div class="event-summary"><h3>${esc(name)}</h3><span class="category-badge">${esc(e.cat||'uncategorized')} · ph=${esc(e.ph||'?')}</span><dl>${r.kind===2?`<dt>數值</dt><dd>${esc(formatCounterValue(r.value))}</dd>`:`<dt>持續時間</dt><dd>${formatTime(r.dur||0)}</dd>`}<dt>相對起點</dt><dd>${formatTime(r.ts-state.info.start)}</dd><dt>原始時間戳</dt><dd>${esc(e.ts)} µs</dd><dt>Process</dt><dd>${esc(processName(state.info.processes,e.pid)||e.pid)}</dd><dt>軌道</dt><dd>${esc(t?trackName(t):e.tid)} · ${esc(e.tid)}</dd></dl></div><div>${summaryHTML}${argumentFactsHTML(e,d.facts)}${extensionErrors.map(error=>`<p class="warning">${esc(error.title)}：${esc(error.message)}</p>`).join('')}<details class="arguments-section" open><summary>原始 Arguments · ${Object.keys(e.args||{}).length} 欄位</summary><div class="json-tree">${Object.keys(e.args||{}).length?tree(e.args):'<span class="json-key">此事件沒有 args。</span>'}${Object.keys(extras).length?`<details open><summary>其他原始欄位</summary>${tree(extras)}</details>`:''}${d.endEvent?`<details open><summary>配對的 E 事件</summary>${tree(d.endEvent)}</details>`:''}</div></details><details class="raw-details" open><summary>完整原始 JSON</summary><pre>${esc(d.rawText)}</pre></details></div>${linkHTML}`;content.scrollTop=scrollTop;if(focusSelector)content.querySelector?.(focusSelector)?.focus({preventScroll:true});
@@ -371,11 +406,11 @@ $('track-labels').addEventListener('dblclick',e=>{if(e.target.closest('button'))
 $('track-filter').addEventListener('input',e=>{runtimeMetrics.intent();state.filter=e.target.value;updateLayout();});$('reset-filter').onclick=()=>{runtimeMetrics.intent();$('track-filter').value='';state.filter='';updateLayout();};
 document.querySelectorAll('.nav').forEach(e=>e.onclick=()=>{setView(e.dataset.view);if(innerWidth<=900)applySidebar(true);});
 $('open').onclick=()=>$('file').click();$('file').onchange=e=>{loadFiles(e.target.files);e.target.value='';};$('demo').onclick=loadDemo;
-$('add-traces').onclick=()=>$('file').click();$('trace-tabs').onclick=e=>{const tab=e.target.closest('[data-trace-open]');if(tab)openSavedTrace(tab.dataset.traceOpen);};
+$('add-traces').onclick=()=>$('file').click();$('trace-tabs').onclick=e=>{const close=e.target.closest('[data-trace-close]');if(close?.dataset.traceClose){closeTraceTab(close.dataset.traceClose);return;}const tab=e.target.closest('[data-trace-open]');if(tab)openSavedTrace(tab.dataset.traceOpen);};
 $('open-comparison').onclick=openComparison;$('refresh-traces').onclick=refreshSavedTraces;
 $('trace-cache-limit').value=String(cacheLimit);$('trace-cache-limit').onchange=e=>{if(comparisonBusy){e.target.value=String(cacheLimit);toast('請先完成或取消比較。');return;}cacheLimit=Number(e.target.value);try{localStorage.setItem('trace-studio-cache-limit',String(cacheLimit));}catch{}send('cachePolicy',{limitMB:cacheLimit});refreshSavedTraces();};
 $('comparison-sources').onchange=e=>{const id=e.target.dataset.comparisonId;if(!id)return;if(e.target.checked){if([...comparisonIds].filter(id=>savedTraces.some(item=>item.id===id)).length>=3){e.target.checked=false;toast('最多比較三份 Trace。');return;}comparisonIds.add(id);}else comparisonIds.delete(id);};
-$('comparison-form').onsubmit=e=>{e.preventDefault();if(comparisonBusy||importing)return;if(state.analysisBusy){toast('請先完成或取消 Trace 分析。');return;}const ids=[...comparisonIds].filter(id=>savedTraces.some(item=>item.id===id));if(ids.length<2||ids.length>3){toast('請選擇 2–3 份 Trace。');return;}saveTraceView();const scopes={};if($('comparison-range').value==='saved')for(const id of ids){const view=traceViews.get(id);if(!view){toast('請先開啟各份 Trace 並調整要比較的時間範圍。');return;}scopes[id]={start:view.start,end:view.end};}comparisonResult=null;setComparisonBusy(true);$('comparison-results').innerHTML='';$('comparison-status').textContent='正在背景比較，可切回時間軸繼續操作。';send('compare',{requestId:++comparisonRequest,ids,scopes,sourceNames:Object.fromEntries(savedTraces.map(item=>[item.id,item.name])),tfliteId:$('comparison-id').value});};
+$('comparison-form').onsubmit=e=>{e.preventDefault();if(comparisonBusy||importing||pendingClose)return;if(state.analysisBusy){toast('請先完成或取消 Trace 分析。');return;}const ids=[...comparisonIds].filter(id=>savedTraces.some(item=>item.id===id));if(ids.length<2||ids.length>3){toast('請選擇 2–3 份 Trace。');return;}saveTraceView();const scopes={};if($('comparison-range').value==='saved')for(const id of ids){const view=traceViews.get(id);if(!view){toast('請先開啟各份 Trace 並調整要比較的時間範圍。');return;}scopes[id]={start:view.start,end:view.end};}comparisonResult=null;setComparisonBusy(true);$('comparison-results').innerHTML='';$('comparison-status').textContent='正在背景比較，可切回時間軸繼續操作。';send('compare',{requestId:++comparisonRequest,ids,scopes,sourceNames:Object.fromEntries(savedTraces.map(item=>[item.id,item.name])),tfliteId:$('comparison-id').value});};
 $('cancel-comparison').onclick=()=>send('cancelAnalysis');
 $('comparison-results').onclick=e=>{const operator=e.target.closest('[data-compare-id]');if(operator){$('comparison-id').value=operator.dataset.compareId;$('comparison-form').onsubmit({preventDefault(){}});return;}const button=e.target.closest('[data-compare-member]');if(!button||!comparisonResult)return;const [traceIndex,memberIndex]=button.dataset.compareMember.split(':').map(Number),trace=comparisonResult.traces[traceIndex],record=trace?.members?.[memberIndex]?.record;if(record)openSavedTrace(trace.id,record);};
 $('export-comparison').onclick=()=>{if(!comparisonResult)return;const url=URL.createObjectURL(new Blob([JSON.stringify(comparisonResult,null,2)],{type:'application/json'})),link=document.createElement('a');link.href=url;link.download='trace-comparison.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
@@ -422,7 +457,7 @@ async function refreshCaches(){cacheBusy=true;renderCaches();$('cache-status').t
 $('storage').onclick=()=>{$('cache-dialog').showModal();cachePage=0;refreshCaches();};
 $('refresh-cache').onclick=refreshCaches;
 $('cache-prev').onclick=()=>{cachePage=Math.max(0,cachePage-1);renderCaches();};$('cache-next').onclick=()=>{cachePage++;renderCaches();};
-$('cache-list').addEventListener('click',e=>{if(cacheBusy)return;const open=e.target.closest('[data-cache-open]'),remove=e.target.closest('[data-cache-remove]');if(open){$('cache-dialog').close();beginLoading('正在開啟本機快取');send('restore',{id:open.dataset.cacheOpen});}else if(remove){cacheBusy=true;renderCaches();send('removeSession',{requestId:++cacheRequest,id:remove.dataset.cacheRemove});}});
+$('cache-list').addEventListener('click',e=>{if(cacheBusy||pendingClose||importing)return;const open=e.target.closest('[data-cache-open]'),remove=e.target.closest('[data-cache-remove]');if(open){$('cache-dialog').close();beginLoading('正在開啟本機快取');send('restore',{id:open.dataset.cacheOpen});}else if(remove){cacheBusy=true;renderCaches();send('removeSession',{requestId:++cacheRequest,id:remove.dataset.cacheRemove});}});
 $('clear-unused').onclick=()=>{cacheBusy=true;renderCaches();send('clearUnused',{requestId:++cacheRequest});};
 $('clear-cache').onclick=()=>{cacheBusy=true;renderCaches();startWorker();send('clear');};
 function cancelImport(){if(!importing||importCancelling)return;pendingFiles=[];importCancelling=true;$('cancel').disabled=true;$('loading-title').textContent='正在取消並清理未完成的索引…';send('cancelImport',{requestId:loadRequestId});}
@@ -451,4 +486,4 @@ let dragDepth=0;document.addEventListener('dragenter',e=>{if(e.dataTransfer.type
 new PerfettoNavigation($('timeline'),{pan:px=>pan(px/plotWidth),zoom:(x,ratio)=>zoom(Math.max(.01,1-ratio),x===null?.5:Math.max(0,Math.min(1,x/plotWidth))),editable:e=>state.view!=='timeline'||!state.info||!!document.querySelector('dialog[open]')||/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)||e.target.isContentEditable});
 new ResizeObserver(()=>{measure();renderLabels();requestQuery();}).observe($('tracks-scroll'));
 try{if(localStorage.getItem('trace-studio-theme')==='dark')document.body.classList.add('dark');if(localStorage.getItem('trace-studio-density')==='comfortable')state.density='comfortable';applySidebar(localStorage.getItem('trace-studio-sidebar')!=='expanded');}catch{}$('theme').setAttribute('aria-pressed',String(document.body.classList.contains('dark')));applyDensity();
-startWorker();const last=(()=>{try{return localStorage.getItem('trace-studio-session');}catch{return null;}})();if(last){beginLoading('從本機索引還原');send('restore',{id:last});}else loadDemo();
+startWorker();const last=(()=>{try{return localStorage.getItem('trace-studio-session');}catch{return null;}})();if(last&&(workspaceTabs.ids===null||workspaceTabs.ids.includes(last))){beginLoading('從本機索引還原');send('restore',{id:last});}else if(workspaceTabs.ids!==null){emptyWorkspace();refreshSavedTraces();}else loadDemo();

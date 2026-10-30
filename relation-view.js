@@ -6,6 +6,22 @@ export const relationAssociations=link=>link.associations||[{relation:link.relat
 export const relationKey=link=>JSON.stringify([link.relation.type,link.relation.key]);
 const strong=link=>link.relation.type==='flow'||link.relation.type==='symbol'&&link.relation.role!==link.otherRole;
 
+// Offscreen tracks have no queried hitbox. Mark the viewport boundary rather
+// than inventing an event lane or loading every track just to draw a link.
+export function relationEndpoint(record,{points,layout,scrollTop,height,toX}){
+  if(!Number.isFinite(height)||height<=0)return null;
+  const point=points.get(relationRecordKey(record));
+  const edge=y=>y<0?'above':y>height?'below':null;
+  const clipped=(x,y)=>{const side=edge(y),pad=Math.min(8,height/2);return {x,y:side?Math.max(pad,Math.min(height-pad,y)):y,edge:side};};
+  if(point)return clipped(point.x,point.y);
+  const row=layout.find(row=>row.track?.id===record.trackId||row.type==='group'&&row.collapsed&&row.trackIds.includes(record.trackId));
+  if(!row)return null; // Filtered-out tracks have no trustworthy layout anchor.
+  const top=row.y-scrollTop,bottom=top+row.h;
+  if(bottom<=0||top>=height)return clipped(toX(record.ts),top+row.h/2);
+  if(row.type==='group'&&row.collapsed)return clipped(toX(record.ts),top+row.h/2);
+  return null; // A visible aggregated event still needs zooming for an endpoint.
+}
+
 // Candidate groups describe the trace's labels; they do not infer dependencies.
 export function groupRelationCandidates(links,tracks,processes={}){
   const groups=new Map();

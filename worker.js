@@ -15,6 +15,7 @@ import {readTar} from './tar-stream.js?v=0.7.0';
 const extensionHostReady=loadExtensionHost();
 let analysisToken=0,searchToken=0,detailToken=0;
 let importOperation=null;
+let comparing=0;
 const abortImport=operation=>{if(operation?.cancelled)throw Object.assign(Error('已取消開檔'),{name:'AbortError'});};
 const argumentCache=new Map();
 let db,folder,rawHandle,indexHandle,relationHandle,relations,sessionId,source,sessionLease,activeManifest;
@@ -103,12 +104,12 @@ async function importFile(file,isDemo=false,requestId,operation=null){
   let read=0,stream=file.stream().pipeThrough(new TransformStream({transform(chunk,controller){read+=chunk.byteLength;controller.enqueue(chunk);}}));if(gzip)stream=stream.pipeThrough(new DecompressionStream('gzip'));
   const progress=()=>({bytes:read,total:file.size});
   if(!archive){const manifest=await importJSONStream(stream,{name:file.name,size:file.size,demo:isDemo},{started,progress,knownSize:!gzip,operation});send('ready',{requestId,info:publicInfo(manifest)});return;}
-  const summary={name:file.name,imported:0,skipped:0,failed:0,complete:true,failures:[]};let lastId=null;
+  const summary={name:file.name,imported:0,skipped:0,failed:0,complete:true,failures:[],ids:[]};let lastId=null;
   try{await readTar(stream,{cancelled:()=>!!operation?.cancelled,onSkip:()=>summary.skipped++,onFile:async(entry,body)=>{
     if(!/\.json(?:\.gz)?$/i.test(entry.name)){summary.skipped++;return;}
     if(summary.imported+summary.failed>=256)throw Error('單一 tar 最多匯入 256 個 JSON 成員');
     send('progress',{...progress(),member:entry.name,events:0,elapsed:(performance.now()-started)/1000});
-    try{const nestedGzip=/\.gz$/i.test(entry.name);await importJSONStream(nestedGzip?body.pipeThrough(new DecompressionStream('gzip')):body,{name:`${file.name} › ${entry.name}`,size:entry.size,demo:false,archive:{name:file.name,path:entry.name}},{progress:()=>({...progress(),member:entry.name}),progressStarted:started,knownSize:!nestedGzip,operation});lastId=sessionId;summary.imported++;}
+    try{const nestedGzip=/\.gz$/i.test(entry.name);await importJSONStream(nestedGzip?body.pipeThrough(new DecompressionStream('gzip')):body,{name:`${file.name} › ${entry.name}`,size:entry.size,demo:false,archive:{name:file.name,path:entry.name}},{progress:()=>({...progress(),member:entry.name}),progressStarted:started,knownSize:!nestedGzip,operation});lastId=sessionId;summary.ids.push(sessionId);summary.imported++;}
     catch(error){if(error.name==='AbortError')throw error;summary.failed++;if(summary.failures.length<20)summary.failures.push({name:entry.name,message:error.message});if(error.name==='QuotaExceededError'||/儲存空間不足/.test(error.message))throw error;}
   }});}catch(error){if(error.name==='AbortError'||operation?.cancelled)throw Object.assign(error,{name:'AbortError'});summary.complete=false;summary.error=error.message;}
   if(!lastId)throw Error(summary.error||`封裝內沒有可讀的 Trace JSON（${summary.failed} 份失敗、${summary.skipped} 份略過）。`);
@@ -131,6 +132,12 @@ onmessage=async({data})=>{
       const file=new File([JSON.stringify(hardwareDemo())],'core-four-core.demo.json',{type:'application/json'});await runImport(file,true,requestId);
     }else if(type==='restore'){
       const {manifest,memoryRestored}=await restoreSession(data.id);send('ready',{requestId,info:publicInfo(manifest),restored:true,memoryRestored});
+    }else if(type==='closeTrace'){
+      if(importOperation||comparing)throw Error('請先完成或取消開檔／比較，再關閉 Trace。');
+      const active=!!db&&data.id===sessionId;
+      if(active){await close();relations=folder=source=sessionId=null;}
+      else if(traceCache.has(data.id))await dispose(traceCache.take(data.id));
+      send('traceClosed',{requestId,id:data.id,active});
     }else if(type==='cachePolicy'){analysisToken++;for(const value of traceCache.configure(data.limitMB))await dispose(value);send('cachePolicy',{requestId,limitMB:data.limitMB});
     }else if(type==='sessions'){send('sessions',{requestId,sessions:(await sessions.list(db?sessionId:null)).map(item=>({...item,memory:traceCache.has(item.id)||item.current}))});
     }else if(type==='removeSession'){
@@ -148,7 +155,7 @@ onmessage=async({data})=>{
       if(data.includeArguments){const key=JSON.stringify([result.scope.start,result.scope.end,result.scope.trackIds,data.argumentFocus||null,data.memberOffset||0]);if(argumentCache.has(key))result.arguments={...argumentCache.get(key),reused:true};else{result.arguments=await analyzeArguments(current,{...result.scope,focus:data.argumentFocus,memberOffset:data.memberOffset||0,cancelled,onProgress:progress=>send('analysisProgress',{requestId,...progress})});argumentCache.set(key,result.arguments);if(argumentCache.size>8)argumentCache.delete(argumentCache.keys().next().value);}}
       result.extensions=await extensionHost.analyze({summary:result,scope:result.scope,cancelled,scanIndex:()=>scanTraceIndex(current,{...result.scope,cancelled}),readEvent:record=>current.detail(record).event});result.extensionErrors=extensionHost.startupErrors||[];
       if(cancelled()){const error=new Error('分析已取消');error.name='AbortError';throw error;}result.analysisSeconds=(performance.now()-started)/1000;send('analysis',{requestId,result});}
-    else if(type==='compare'){const token=++analysisToken,cancelled=()=>analysisToken!==token;const result=await compareTraces(data.ids,data.tfliteId,{openTrace:comparisonTrace,scopes:data.scopes,sourceNames:data.sourceNames,cancelled,onProgress:progress=>send('comparisonProgress',{requestId,...progress})});send('comparison',{requestId,result});}
+    else if(type==='compare'){comparing++;try{const token=++analysisToken,cancelled=()=>analysisToken!==token;const result=await compareTraces(data.ids,data.tfliteId,{openTrace:comparisonTrace,scopes:data.scopes,sourceNames:data.sourceNames,cancelled,onProgress:progress=>send('comparisonProgress',{requestId,...progress})});send('comparison',{requestId,result});}finally{comparing--;}}
     else if(type==='cancelAnalysis'){analysisToken++;}
     else if(type==='detail'&&db){const current=db,index=relations,token=++detailToken,cancelled=()=>token!==detailToken||db!==current,detail=current.detail(data.record);const links=await index.findAsync(detail.event,data.record,detail.endEvent,{cancelled,onProgress:progress=>send('detailProgress',{requestId,...progress})});send('detail',{requestId,...detail,facts:extractRecordFacts(detail),links});}
     else if(type==='cancelDetail'){detailToken++;}
