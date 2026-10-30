@@ -1,0 +1,359 @@
+{
+  "version": "0.14.1",
+  "browser": "Independent Microsoft Edge via connected browser extension",
+  "demo": {
+    "events": "9,076",
+    "tracks": "112 / 112 軌道",
+    "parse": "0.78 s"
+  },
+  "keyboard": [
+    {
+      "key": "W",
+      "before": "88 ms — 1.3 s",
+      "after": "167 ms — 1.2 s"
+    },
+    {
+      "key": "A",
+      "before": "167 ms — 1.2 s",
+      "after": "135 ms — 1.2 s"
+    },
+    {
+      "key": "F",
+      "after": "81 ms — 97 ms",
+      "selection": "已選取 DMA · BUFFER_B_0，持續 11.400 ms，CORE0_BUFFER_B_0。"
+    }
+  ],
+  "initialImmediateReads": [
+    {
+      "step": "before",
+      "range": "0 µs — 1.3 s"
+    },
+    {
+      "step": "W",
+      "range": "0 µs — 1.3 s"
+    },
+    {
+      "step": "D",
+      "range": "0 µs — 1.3 s"
+    }
+  ],
+  "observedAfterAnimation": "88 ms — 1.3 s",
+  "largeImport": {
+    "bytes": 3000583032,
+    "expectedEvents": 2932637,
+    "synthetic": true,
+    "observations": [
+      {
+        "active": "cancel",
+        "bytes": "975.2 MB / 3.00 GB",
+        "events": "954,469",
+        "percent": "32.5%"
+      },
+      {
+        "active": "cancel",
+        "bytes": "2.74 GB / 3.00 GB",
+        "events": "2,677,049",
+        "percent": "91.3%"
+      }
+    ],
+    "result": {
+      "events": "2,932,637",
+      "duration": "293.26 s",
+      "parseTime": "36.19 s",
+      "processes": "1 / 8",
+      "tracks": "8 / 8 軌道"
+    },
+    "browserInfo": "來源與儲存\n檔案\nsynthetic-3gb-v0.14.1.json\n原始大小\n3.00 GB\n索引＋事件快取\n3.19 GB\n關聯索引\n117,306\n完整事件數\n2,932,637\n瀏覽器\nMozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36 Edg/156.0.0.0\n\n原始事件在本機磁碟保留。畫面會依解析度聚合密集事件；放大可繼續展開，點選可讀取原始 JSON。未經過網路上傳。\n\n事件類型\nph = X\n2,932,637\n解析品質\n無法繪製／metadata 過大\n0\n未配對 B / E\n0\n逆序時間戳\n0\n名稱按需讀取\n0\n\nX 完整事件、B/E 同步區段、I/i/R 即時事件、C counter 可視化。其他 phase 保留為標記。非同步事件尚未重建區段。逆序資料仍可查詢，但可能增加磁碟讀取。\n\n位址與關聯\n\n自動辨識 args 中的 address / addr / ptr / pointer 與十六進位字串，按精確位址連結。另支援明確 defines / uses 及 s/t/f flow ID。相同位址不代表因果關係、相同配置生命週期或範圍重疊；大於安全整數的數值 address 請用字串記錄。\n\n每事件最多 32 個關聯鍵，每次顯示最多 64 筆關聯。完整原始 args 仍可讀取。\n\n檔案 Metadata\n大檔設計與目前邊界\n\n分段讀取 → Worker 解析 → OPFS 磁碟索引",
+    "firstSelection": "已選取 Task 0，持續 50.0 µs，0。",
+    "firstRecord": {
+      "address": "0x1000",
+      "dur": 50,
+      "index": 0,
+      "name": "Task 0",
+      "payloadLength": 900,
+      "tid": 0,
+      "ts": 0
+    },
+    "neighborRecord": {
+      "dur": 50,
+      "index": 8,
+      "name": "Task 8",
+      "payloadLength": 900,
+      "tid": 0,
+      "ts": 800
+    },
+    "focusedRange": "790 µs — 860 µs",
+    "runtime": {
+      "applicationVersion": "0.14.1",
+      "browser": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36 Edg/156.0.0.0",
+      "canvas": {
+        "maxMs": 63,
+        "medianMs": 47.80000001192093,
+        "p95Ms": 61.900000005960464,
+        "samples": 13
+      },
+      "coalescedIntents": 0,
+      "completedFrames": 13,
+      "completedQueries": 15,
+      "elapsedMs": 52802.09999999404,
+      "enabled": false,
+      "heap": {
+        "lastBytes": 11939203,
+        "maxSampledBytes": 17009484
+      },
+      "hiddenOmitted": 0,
+      "inputs": {
+        "pannedShiftDrags": 0,
+        "recent": [],
+        "recorded": 0,
+        "trustedCtrlWheels": 0,
+        "trustedShiftDrags": 0,
+        "windowLimit": 64,
+        "zoomedCtrlWheels": 0
+      },
+      "intents": 13,
+      "longTasks": {
+        "count": 5,
+        "maxMs": 128,
+        "supported": true,
+        "totalMs": 342
+      },
+      "notes": [
+        "Canvas latency ends when the matching query result is submitted by drawTimeline; it includes debounce/queue time, not compositor presentation or FPS.",
+        "Only completed latest-state updates are sampled; coalesced intents and hidden-page observations are counted separately. Quantiles use floor((n-1)*p) over the bounded recent window.",
+        "JS heap is an optional browser-provided approximation, may exclude Worker heaps or include shared heaps, and is not total browser peak memory.",
+        "Input samples keep modifier flags, spans and relative shifts only. Trusted browser input does not certify physical hardware, completed rendering or an entire compatibility test."
+      ],
+      "observations": {
+        "frames": [
+          {
+            "canvasMs": 49.80000001192093,
+            "roundTripMs": 0.7999999821186066,
+            "workerMs": 0.4000000059604645
+          },
+          {
+            "canvasMs": 39.400000005960464,
+            "roundTripMs": 1.5,
+            "workerMs": 1.2999999821186066
+          },
+          {
+            "canvasMs": 48.599999994039536,
+            "roundTripMs": 1.5999999940395355,
+            "workerMs": 0.30000001192092896
+          },
+          {
+            "canvasMs": 54.599999994039536,
+            "roundTripMs": 1.4000000059604645,
+            "workerMs": 0.800000011920929
+          },
+          {
+            "canvasMs": 47.80000001192093,
+            "roundTripMs": 1.4000000059604645,
+            "workerMs": 0.20000001788139343
+          },
+          {
+            "canvasMs": 44.30000001192093,
+            "roundTripMs": 0.800000011920929,
+            "workerMs": 0.19999998807907104
+          },
+          {
+            "canvasMs": 47.10000002384186,
+            "roundTripMs": 0.4000000059604645,
+            "workerMs": 0.09999999403953552
+          },
+          {
+            "canvasMs": 47.10000002384186,
+            "roundTripMs": 0.3999999761581421,
+            "workerMs": 0.09999999403953552
+          },
+          {
+            "canvasMs": 44.30000001192093,
+            "roundTripMs": 0.5,
+            "workerMs": 0.19999998807907104
+          },
+          {
+            "canvasMs": 29.599999994039536,
+            "roundTripMs": 0.8999999761581421,
+            "workerMs": 0
+          },
+          {
+            "canvasMs": 51,
+            "roundTripMs": 0.4000000059604645,
+            "workerMs": 0.09999999403953552
+          },
+          {
+            "canvasMs": 63,
+            "roundTripMs": 11.700000017881392,
+            "workerMs": 0.20000001788139343
+          },
+          {
+            "canvasMs": 61.900000005960464,
+            "roundTripMs": 0.4000000059604645,
+            "workerMs": 0
+          }
+        ],
+        "queries": [
+          {
+            "roundTripMs": 48.80000001192093,
+            "workerMs": 18.900000005960464
+          },
+          {
+            "roundTripMs": 97.5,
+            "workerMs": 14.800000011920927
+          },
+          {
+            "roundTripMs": 0.7999999821186066,
+            "workerMs": 0.4000000059604645
+          },
+          {
+            "roundTripMs": 1.5,
+            "workerMs": 1.2999999821186066
+          },
+          {
+            "roundTripMs": 1.5999999940395355,
+            "workerMs": 0.30000001192092896
+          },
+          {
+            "roundTripMs": 1.4000000059604645,
+            "workerMs": 0.800000011920929
+          },
+          {
+            "roundTripMs": 1.4000000059604645,
+            "workerMs": 0.20000001788139343
+          },
+          {
+            "roundTripMs": 0.800000011920929,
+            "workerMs": 0.19999998807907104
+          },
+          {
+            "roundTripMs": 0.4000000059604645,
+            "workerMs": 0.09999999403953552
+          },
+          {
+            "roundTripMs": 0.3999999761581421,
+            "workerMs": 0.09999999403953552
+          },
+          {
+            "roundTripMs": 0.5,
+            "workerMs": 0.19999998807907104
+          },
+          {
+            "roundTripMs": 0.8999999761581421,
+            "workerMs": 0
+          },
+          {
+            "roundTripMs": 0.4000000059604645,
+            "workerMs": 0.09999999403953552
+          },
+          {
+            "roundTripMs": 11.700000017881392,
+            "workerMs": 0.20000001788139343
+          },
+          {
+            "roundTripMs": 0.4000000059604645,
+            "workerMs": 0
+          }
+        ]
+      },
+      "roundTrip": {
+        "maxMs": 97.5,
+        "medianMs": 0.8999999761581421,
+        "p95Ms": 48.80000001192093,
+        "samples": 15
+      },
+      "trace": {
+        "cacheBytes": 3185339146,
+        "events": 2932637,
+        "inputBytes": 3000583032,
+        "tracks": 8
+      },
+      "version": 2,
+      "viewport": {
+        "height": 867,
+        "pixelRatio": 1,
+        "width": 1912
+      },
+      "visibility": "visible",
+      "windowLimit": 512,
+      "worker": {
+        "maxMs": 18.900000005960464,
+        "medianMs": 0.20000001788139343,
+        "p95Ms": 14.800000011920927,
+        "samples": 15
+      }
+    },
+    "beforeReload": {
+      "range": "790 µs — 860 µs",
+      "selection": "已選取 Task 8，持續 50.0 µs，0。",
+      "events": "2,932,637"
+    },
+    "afterReload": {
+      "detailsHidden": true,
+      "detailsText": "↖ 點選時間軸上的事件，查看所有原始欄位、args 與呼叫堆疊。",
+      "events": "2,932,637",
+      "note": "已從本機快取還原，不需重新解析。",
+      "range": "790 µs — 860 µs",
+      "selection": "",
+      "reselectedRecord": {
+        "index": 8,
+        "name": "Task 8",
+        "payloadLength": 900,
+        "ts": 800
+      }
+    }
+  },
+  "capturedAt": "2026-10-30T00:42:31.566Z",
+  "limitations": [
+    "Single synthetic 3 GB File import, not a universal latency bound",
+    "Thirteen completed latest-state frames near a selected event, not full-range FPS",
+    "No total browser/Worker peak RAM attribution",
+    "Ctrl-wheel and Shift-drag positive acceptance still await user physical operation",
+    "Reload retains time range but clears selected event; Task 8 was reselected and read from OPFS",
+    "No new hardware trace semantic or full screen-reader acceptance"
+  ],
+  "recomputed": {
+    "canvas": {
+      "samples": 13,
+      "medianMs": 47.80000001192093,
+      "p95Ms": 61.900000005960464,
+      "maxMs": 63
+    },
+    "worker": {
+      "samples": 15,
+      "medianMs": 0.20000001788139343,
+      "p95Ms": 14.800000011920927,
+      "maxMs": 18.900000005960464
+    },
+    "roundTrip": {
+      "samples": 15,
+      "medianMs": 0.8999999761581421,
+      "p95Ms": 48.80000001192093,
+      "maxMs": 97.5
+    }
+  },
+  "sourceCommit": "historical-revision",
+  "sourceHashes": {
+    "index.html": "d06f9df325617d6bfa24ca2565a8d81f6ee73b2eb9be6314c2df7672c216f0b3",
+    "app.js": "45c9f4c30c1ec89fea1a3b696a14878b42dfbd38c3956b1cb472a85658b2f1ab",
+    "worker.js": "0b608555062f8d8750a7302c0039362a3fd29d69dae5c875519012eb1b590f5b",
+    "core.js": "4a8769e8d9f34f8fbb282b8fa97b6d600462f01ad9eb6ada534e16c8f79b0ef5",
+    "relations.js": "4cedee4f16eda8615c7dc1658511414348280e73c481879f2ef68b0d903b796a",
+    "runtime-metrics.js": "ccfd123fe113acb7b7073b7efbe396fb0286cc74773ae750d96486a30b8a8f98",
+    "style.css": "d68c5243e2dda09746c136429e1640a6d3c0362a806fc9ea9c291643781892dc",
+    "workspace.css": "7151674bbb70cf8af3f1a611664c9185a72b5b783630fb686bd6ba24d6f9ff72"
+  },
+  "generatorSHA256": "6077b0adf38e5dc70af7f0bbaea8af2d099e4864caaa4f3a09a8dcc480ee5ef8",
+  "publication": {
+    "pagesCommit": "historical-revision",
+    "checkedAt": "2026-10-30T00:32:36.499Z",
+    "assetsMatched": 33
+  },
+  "keyboardMethod": "Locator key presses with visible range-change waits. Immediate initial reads preceded animation settlement and are not failures; delayed DOM observations show actual movement.",
+  "temporaryInput": {
+    "producer": "scripts/generate-large-fixture.mjs",
+    "bytes": 3000583032,
+    "removedAfterAcceptance": true,
+    "audit": "evidence/temp-edge-v0.14.1/events.jsonl",
+    "browserOPFSRetainedForManualGestureHandoff": true
+  }
+}
