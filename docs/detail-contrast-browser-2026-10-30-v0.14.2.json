@@ -1,0 +1,888 @@
+{
+  "version": "0.14.2",
+  "baselineVersion": "0.14.1",
+  "capturedAt": "2026-10-30T01:20:51.843Z",
+  "browser": "Independent Edge 156 via connected extension",
+  "fixture": "Synthetic four-core CORE demo, 9076 events / 112 tracks",
+  "before": {
+    "light": {
+      "checked": 114,
+      "failures": [
+        {
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "color": "rgb(183, 192, 184)",
+          "complex": false,
+          "font": "14px",
+          "ratio": 1.867,
+          "selector": "span",
+          "text": "/"
+        },
+        {
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "color": "rgb(140, 156, 133)",
+          "complex": false,
+          "font": "10px",
+          "ratio": 2.913,
+          "selector": "#selection-badge",
+          "text": "EVENT DETAILS"
+        },
+        {
+          "background": [
+            233,
+            240,
+            228
+          ],
+          "color": "rgb(105, 130, 91)",
+          "complex": false,
+          "font": "11px",
+          "ratio": 3.65,
+          "selector": "span.category-badge",
+          "text": "hardware · ph=X"
+        }
+      ],
+      "theme": "light",
+      "view": "timeline-view"
+    },
+    "expandedLight": {
+      "checked": 116,
+      "failures": [
+        {
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "color": "rgb(183, 192, 184)",
+          "complex": false,
+          "font": "14px",
+          "ratio": 1.867,
+          "selector": "span",
+          "text": "/"
+        },
+        {
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "color": "rgb(140, 156, 133)",
+          "complex": false,
+          "font": "10px",
+          "ratio": 2.913,
+          "selector": "#selection-badge",
+          "text": "EVENT DETAILS"
+        },
+        {
+          "background": [
+            233,
+            240,
+            228
+          ],
+          "color": "rgb(105, 130, 91)",
+          "complex": false,
+          "font": "11px",
+          "ratio": 3.65,
+          "selector": "span.category-badge",
+          "text": "hardware · ph=X"
+        }
+      ],
+      "theme": "light",
+      "view": "timeline-view"
+    },
+    "addressLight": {
+      "checked": 99,
+      "failures": [
+        {
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "color": "rgb(183, 192, 184)",
+          "complex": false,
+          "font": "14px",
+          "ratio": 1.867,
+          "selector": "span",
+          "text": "/"
+        },
+        {
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "color": "rgb(140, 156, 133)",
+          "complex": false,
+          "font": "10px",
+          "ratio": 2.913,
+          "selector": "#selection-badge",
+          "text": "EVENT DETAILS"
+        },
+        {
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "color": "rgb(99, 132, 91)",
+          "complex": false,
+          "font": "14px",
+          "ratio": 4.215,
+          "selector": "span.json-value",
+          "text": "160"
+        },
+        {
+          "background": [
+            244,
+            234,
+            207
+          ],
+          "color": "rgb(153, 121, 61)",
+          "complex": false,
+          "font": "14px",
+          "ratio": 3.397,
+          "selector": "span.json-value.address",
+          "text": "0x100000"
+        }
+      ],
+      "theme": "light",
+      "view": "timeline-view"
+    },
+    "addressDark": {
+      "checked": 99,
+      "failures": [],
+      "theme": "dark",
+      "view": "timeline-view"
+    },
+    "relationLight": {
+      "checked": 95,
+      "failures": [
+        {
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "color": "rgb(183, 192, 184)",
+          "complex": false,
+          "font": "14px",
+          "ratio": 1.867,
+          "selector": "span",
+          "text": "/"
+        },
+        {
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "color": "rgb(140, 156, 133)",
+          "complex": false,
+          "font": "10px",
+          "ratio": 2.913,
+          "selector": "#selection-badge",
+          "text": "EVENT DETAILS"
+        },
+        {
+          "background": [
+            247,
+            240,
+            220
+          ],
+          "color": "rgb(154, 124, 59)",
+          "complex": false,
+          "font": "12px",
+          "ratio": 3.468,
+          "selector": "span.relation-key",
+          "text": "位址 0x100000 args.address"
+        },
+        {
+          "background": [
+            247,
+            240,
+            220
+          ],
+          "color": "rgb(154, 124, 59)",
+          "complex": true,
+          "font": "12px",
+          "ratio": 3.468,
+          "selector": "span",
+          "text": "args.address"
+        }
+      ],
+      "theme": "light",
+      "view": "timeline-view"
+    },
+    "analysisLight": {
+      "checked": 68,
+      "failures": [
+        {
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "color": "rgb(183, 192, 184)",
+          "complex": false,
+          "font": "14px",
+          "ratio": 1.867,
+          "selector": "span",
+          "text": "/"
+        },
+        {
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "color": "rgb(145, 160, 143)",
+          "complex": false,
+          "font": "12px",
+          "ratio": 2.753,
+          "selector": "small",
+          "text": "完整擷取範圍"
+        },
+        {
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "color": "rgb(145, 160, 143)",
+          "complex": false,
+          "font": "12px",
+          "ratio": 2.753,
+          "selector": "#threads-sub",
+          "text": "2 種事件類型 · 8,960 筆可視化事件"
+        },
+        {
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "color": "rgb(145, 160, 143)",
+          "complex": false,
+          "font": "12px",
+          "ratio": 2.753,
+          "selector": "#cache-sub",
+          "text": "Worker 解析＋磁碟建索引"
+        },
+        {
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "color": "rgb(159, 174, 148)",
+          "complex": false,
+          "font": "14px",
+          "ratio": 2.345,
+          "selector": "span.rank",
+          "text": "01"
+        }
+      ],
+      "theme": "light",
+      "view": "insights-view"
+    },
+    "sidebarLight": {
+      "checked": 80,
+      "failures": [
+        {
+          "background": [
+            240,
+            243,
+            237
+          ],
+          "color": "rgb(100, 130, 98)",
+          "complex": true,
+          "font": "29px",
+          "ratio": 3.817,
+          "selector": "span.local-icon",
+          "text": "⌁"
+        },
+        {
+          "background": [
+            240,
+            243,
+            237
+          ],
+          "color": "rgb(119, 131, 113)",
+          "complex": true,
+          "font": "14px",
+          "ratio": 3.558,
+          "selector": "p",
+          "text": "背景解析・本機磁碟索引檔案不會上傳到伺服器"
+        },
+        {
+          "background": [
+            240,
+            243,
+            237
+          ],
+          "color": "rgb(106, 128, 95)",
+          "complex": true,
+          "font": "12px",
+          "ratio": 3.853,
+          "selector": "span.local-badge",
+          "text": "Browser local"
+        },
+        {
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "color": "rgb(183, 192, 184)",
+          "complex": false,
+          "font": "14px",
+          "ratio": 1.867,
+          "selector": "span",
+          "text": "/"
+        },
+        {
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "color": "rgb(145, 160, 143)",
+          "complex": false,
+          "font": "12px",
+          "ratio": 2.753,
+          "selector": "small",
+          "text": "完整擷取範圍"
+        },
+        {
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "color": "rgb(145, 160, 143)",
+          "complex": false,
+          "font": "12px",
+          "ratio": 2.753,
+          "selector": "#threads-sub",
+          "text": "2 種事件類型 · 8,960 筆可視化事件"
+        },
+        {
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "color": "rgb(145, 160, 143)",
+          "complex": false,
+          "font": "12px",
+          "ratio": 2.753,
+          "selector": "#cache-sub",
+          "text": "Worker 解析＋磁碟建索引"
+        },
+        {
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "color": "rgb(159, 174, 148)",
+          "complex": false,
+          "font": "14px",
+          "ratio": 2.345,
+          "selector": "span.rank",
+          "text": "01"
+        }
+      ],
+      "theme": "light",
+      "view": "insights-view"
+    },
+    "helpLight": {
+      "checked": 126,
+      "failures": [
+        {
+          "background": [
+            240,
+            243,
+            237
+          ],
+          "color": "rgb(100, 130, 98)",
+          "complex": true,
+          "font": "29px",
+          "ratio": 3.817,
+          "selector": "span.local-icon",
+          "text": "⌁"
+        },
+        {
+          "background": [
+            240,
+            243,
+            237
+          ],
+          "color": "rgb(119, 131, 113)",
+          "complex": true,
+          "font": "14px",
+          "ratio": 3.558,
+          "selector": "p",
+          "text": "背景解析・本機磁碟索引檔案不會上傳到伺服器"
+        },
+        {
+          "background": [
+            240,
+            243,
+            237
+          ],
+          "color": "rgb(106, 128, 95)",
+          "complex": true,
+          "font": "12px",
+          "ratio": 3.853,
+          "selector": "span.local-badge",
+          "text": "Browser local"
+        },
+        {
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "color": "rgb(183, 192, 184)",
+          "complex": false,
+          "font": "14px",
+          "ratio": 1.867,
+          "selector": "span",
+          "text": "/"
+        },
+        {
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "color": "rgb(145, 160, 143)",
+          "complex": false,
+          "font": "12px",
+          "ratio": 2.753,
+          "selector": "small",
+          "text": "完整擷取範圍"
+        },
+        {
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "color": "rgb(145, 160, 143)",
+          "complex": false,
+          "font": "12px",
+          "ratio": 2.753,
+          "selector": "#threads-sub",
+          "text": "2 種事件類型 · 8,960 筆可視化事件"
+        },
+        {
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "color": "rgb(145, 160, 143)",
+          "complex": false,
+          "font": "12px",
+          "ratio": 2.753,
+          "selector": "#cache-sub",
+          "text": "Worker 解析＋磁碟建索引"
+        },
+        {
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "color": "rgb(159, 174, 148)",
+          "complex": false,
+          "font": "14px",
+          "ratio": 2.345,
+          "selector": "span.rank",
+          "text": "01"
+        },
+        {
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "color": "rgb(138, 155, 137)",
+          "complex": false,
+          "font": "12px",
+          "ratio": 2.945,
+          "selector": "div.eyebrow",
+          "text": "FAMILIAR BY DESIGN"
+        },
+        {
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "color": "rgb(114, 146, 94)",
+          "complex": false,
+          "font": "14px",
+          "ratio": 3.507,
+          "selector": "a",
+          "text": "參考 Perfetto 官方操作說明 ↗"
+        }
+      ],
+      "theme": "light",
+      "view": "insights-view"
+    },
+    "hints": {
+      "footer": {
+        "background": "rgb(244, 246, 243)",
+        "color": "rgb(161, 173, 154)",
+        "display": "flex"
+      },
+      "placeholder": {
+        "background": "rgb(255, 255, 255)",
+        "color": "rgb(155, 164, 154)"
+      },
+      "relationSourceOpacity": "0.6"
+    },
+    "sourceHashes": {
+      "style.css": "d68c5243e2dda09746c136429e1640a6d3c0362a806fc9ea9c291643781892dc",
+      "workspace.css": "7151674bbb70cf8af3f1a611664c9185a72b5b783630fb686bd6ba24d6f9ff72",
+      "app.js": "45c9f4c30c1ec89fea1a3b696a14878b42dfbd38c3956b1cb472a85658b2f1ab",
+      "index.html": "d06f9df325617d6bfa24ca2565a8d81f6ee73b2eb9be6314c2df7672c216f0b3"
+    }
+  },
+  "additionalFindingsFromFirstCandidate": {
+    "checked": 79,
+    "failures": [
+      {
+        "background": [
+          68,
+          88,
+          59
+        ],
+        "color": "rgb(176, 193, 172)",
+        "complex": false,
+        "font": "14px",
+        "ratio": 4.093,
+        "selector": "#track-count",
+        "text": "112"
+      },
+      {
+        "background": [
+          53,
+          72,
+          46
+        ],
+        "color": "rgb(110, 154, 105)",
+        "complex": false,
+        "font": "18px",
+        "ratio": 3.064,
+        "selector": "span.file-symbol",
+        "text": "{ }"
+      },
+      {
+        "background": [
+          42,
+          60,
+          41
+        ],
+        "color": "rgb(100, 130, 98)",
+        "complex": false,
+        "font": "29px",
+        "ratio": 2.764,
+        "selector": "span.local-icon",
+        "text": "⌁"
+      }
+    ],
+    "theme": "dark",
+    "view": "insights-view"
+  },
+  "after": {
+    "searchLight": {
+      "checked": 84,
+      "failures": [],
+      "theme": "light",
+      "view": "events-view"
+    },
+    "summaryLight": {
+      "checked": 125,
+      "failures": [],
+      "theme": "light",
+      "view": "timeline-view"
+    },
+    "addressLight": {
+      "checked": 110,
+      "failures": [],
+      "theme": "light",
+      "view": "timeline-view"
+    },
+    "detailColorsLight": [
+      {
+        "background": [
+          233,
+          240,
+          228
+        ],
+        "color": "rgb(73, 104, 59)",
+        "font": "11px",
+        "opacity": "1",
+        "ratio": 5.4257194528260895,
+        "selector": ".category-badge"
+      },
+      {
+        "background": [
+          255,
+          255,
+          255
+        ],
+        "color": "rgb(73, 104, 59)",
+        "font": "14px",
+        "opacity": "1",
+        "ratio": 6.312803574959869,
+        "selector": ".json-value:not(.address)"
+      },
+      {
+        "background": [
+          244,
+          234,
+          207
+        ],
+        "color": "rgb(115, 87, 31)",
+        "font": "14px",
+        "opacity": "1",
+        "ratio": 5.628717535956156,
+        "selector": ".json-value.address"
+      },
+      {
+        "background": [
+          247,
+          240,
+          220
+        ],
+        "color": "rgb(115, 87, 31)",
+        "font": "12px",
+        "opacity": "1",
+        "ratio": 5.929351557942438,
+        "selector": ".relation-key"
+      },
+      {
+        "background": [
+          247,
+          240,
+          220
+        ],
+        "color": "rgb(115, 87, 31)",
+        "font": "12px",
+        "opacity": "1",
+        "ratio": 5.929351557942438,
+        "selector": ".relation-key>span"
+      },
+      {
+        "background": [
+          255,
+          255,
+          255
+        ],
+        "color": "rgb(89, 107, 96)",
+        "font": "10px",
+        "opacity": "1",
+        "ratio": 5.680660752213344,
+        "selector": "#selection-badge"
+      }
+    ],
+    "relationLight": {
+      "checked": 106,
+      "failures": [],
+      "theme": "light",
+      "view": "timeline-view"
+    },
+    "relationDark": {
+      "checked": 106,
+      "failures": [],
+      "theme": "dark",
+      "view": "timeline-view"
+    },
+    "detailColorsDark": [
+      {
+        "background": [
+          53,
+          72,
+          46
+        ],
+        "color": "rgb(183, 203, 168)",
+        "font": "11px",
+        "opacity": "1",
+        "ratio": 5.723585459487038,
+        "selector": ".category-badge"
+      },
+      {
+        "background": [
+          32,
+          48,
+          40
+        ],
+        "color": "rgb(171, 193, 155)",
+        "font": "14px",
+        "opacity": "1",
+        "ratio": 7.151189657311833,
+        "selector": ".json-value:not(.address)"
+      },
+      {
+        "background": [
+          81,
+          70,
+          46
+        ],
+        "color": "rgb(222, 203, 153)",
+        "font": "14px",
+        "opacity": "1",
+        "ratio": 5.786344551741026,
+        "selector": ".json-value.address"
+      },
+      {
+        "background": [
+          81,
+          70,
+          46
+        ],
+        "color": "rgb(222, 203, 153)",
+        "font": "12px",
+        "opacity": "1",
+        "ratio": 5.786344551741026,
+        "selector": ".relation-key"
+      },
+      {
+        "background": [
+          81,
+          70,
+          46
+        ],
+        "color": "rgb(222, 203, 153)",
+        "font": "12px",
+        "opacity": "1",
+        "ratio": 5.786344551741026,
+        "selector": ".relation-key>span"
+      },
+      {
+        "background": [
+          32,
+          48,
+          40
+        ],
+        "color": "rgb(176, 193, 172)",
+        "font": "10px",
+        "opacity": "1",
+        "ratio": 7.307533824252262,
+        "selector": "#selection-badge"
+      }
+    ],
+    "analysisDark": {
+      "checked": 79,
+      "failures": [],
+      "theme": "dark",
+      "view": "insights-view"
+    },
+    "helpDark": {
+      "checked": 125,
+      "failures": [],
+      "theme": "dark",
+      "view": "insights-view"
+    },
+    "analysisLight": {
+      "checked": 80,
+      "failures": [],
+      "theme": "light",
+      "view": "insights-view"
+    },
+    "helpLight": {
+      "checked": 125,
+      "failures": [],
+      "theme": "light",
+      "view": "insights-view"
+    },
+    "smallLight": {
+      "audit": {
+        "checked": 69,
+        "failures": [],
+        "theme": "light",
+        "view": "timeline-view"
+      },
+      "layout": {
+        "height": 600,
+        "scrollWidth": 800,
+        "sidebarCollapsed": true,
+        "width": 800
+      }
+    },
+    "smallDark": {
+      "audit": {
+        "checked": 69,
+        "failures": [],
+        "theme": "dark",
+        "view": "timeline-view"
+      },
+      "layout": {
+        "height": 600,
+        "scrollWidth": 800,
+        "sidebarCollapsed": true,
+        "width": 800
+      }
+    },
+    "hints": {
+      "footer": {
+        "background": "rgb(244, 246, 243)",
+        "color": "rgb(89, 107, 96)"
+      },
+      "placeholder": {
+        "background": "rgb(255, 255, 255)",
+        "color": "rgb(89, 107, 96)"
+      },
+      "relationSourceOpacity": "1"
+    }
+  },
+  "limitations": [
+    "Computed contrast for listed views and solid text surfaces only; not full WCAG or screen-reader certification",
+    "Gradient privacy-card colors require separate endpoint checks",
+    "Underlying modal-backdrop content is not treated as a new independently measured surface",
+    "No application JavaScript or engine behavior changed"
+  ],
+  "sourceHashes": {
+    "style.css": "55376a8b979982f697b353991cb935b67367be12d6a3b5683e2f1f71c94bb92f",
+    "workspace.css": "7151674bbb70cf8af3f1a611664c9185a72b5b783630fb686bd6ba24d6f9ff72",
+    "app.js": "45c9f4c30c1ec89fea1a3b696a14878b42dfbd38c3956b1cb472a85658b2f1ab",
+    "index.html": "61fffe037b4f061bedc407bbe4505df337e52b9f27ed4ac8aeb490673b06c8fa",
+    "worker.js": "0b608555062f8d8750a7302c0039362a3fd29d69dae5c875519012eb1b590f5b",
+    "core.js": "4a8769e8d9f34f8fbb282b8fa97b6d600462f01ad9eb6ada534e16c8f79b0ef5",
+    "relations.js": "4cedee4f16eda8615c7dc1658511414348280e73c481879f2ef68b0d903b796a",
+    "runtime-metrics.js": "ccfd123fe113acb7b7073b7efbe396fb0286cc74773ae750d96486a30b8a8f98",
+    "hardware-demo.js": "d5b031b38768a2d7c4cf006e3c6606e0d303b14a265b8832b428bed81ec8769f"
+  },
+  "baselineCommit": "historical-revision",
+  "reusedApplicationFiles": [
+    "app.js",
+    "workspace.css",
+    "worker.js",
+    "core.js",
+    "relations.js",
+    "runtime-metrics.js",
+    "hardware-demo.js"
+  ],
+  "minimumListedDetailContrast": 5.4257194528260895,
+  "privacyCardEndpointContrast": {
+    "light": [
+      4.7279364182154024,
+      4.900721198925097
+    ],
+    "dark": 6.2301058090968775
+  },
+  "applicationBehaviorReuse": "All listed application, Worker, engine and layout files are byte-identical to v0.14.1. Historical gesture and large-file observations retain their original version; only CSS foreground colors, relation-path opacity and HTML release/cache labels change."
+}
