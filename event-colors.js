@@ -16,9 +16,9 @@ export function readableEventText(fill){
 export function eventColor(record,dark=false){
   const name=String(record.label||''),cacheKey=`${dark?'d':'l'}:${name}`;if(cache.has(cacheKey))return cache.get(cacheKey);let type;
   if(/stall|wait|barrier|semaphore|mutex|fence|sync/i.test(name))type='wait';
-  else if(/frame|frame|commit|swapbuffers/i.test(name))type='frame';
+  else if(/frame|commit|swapbuffers/i.test(name))type='frame';
   else if(/conv|gemm|matmul|compute|activation|pool/i.test(name))type='compute';
-  else if(/\bdma\b|transfer|load|copy|memcpy|transfer|copy|\bload\b|\bstore\b/i.test(name))type='transfer';
+  else if(/\bdma\b|memcpy|transfer|copy|\bload\b|\bstore\b/i.test(name))type='transfer';
   else if(/request|resource|network|fetch/i.test(name))type='network';
   else if(/script|function|v8|react|reconcile|performwork|runtask/i.test(name))type='script';
   else if(/layout|paint|raster|composite/i.test(name))type='render';

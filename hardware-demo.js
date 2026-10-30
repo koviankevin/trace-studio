@@ -1,4 +1,4 @@
-// Synthetic illustration of CORE grouping; these timings and fields are not measurements.
+// Synthetic illustration of generic core grouping; these timings and fields are not measurements.
 export function hardwareDemo(){
   const events=[];
   const units=['CONTROL_LOAD','BUFFER_A_0','BUFFER_A_1','BUFFER_B_0','BUFFER_B_1','BUFFER_W','WEIGHT_LOAD','INPUT_LOAD_0','INPUT_LOAD_1','LOCAL_COPY','COMPUTE','ROUTE','ELEMENTWISE','POOL','TRANSFORM','OUTPUT_STORE','FRAME_DECODE','FRAME_DISPATCH'];
@@ -13,5 +13,5 @@ export function hardwareDemo(){
       }tid++;
     }
   }
-  events.sort((a,b)=>(a.ts??-1)-(b.ts??-1));return {traceEvents:events,metadata:{description:'Synthetic four-core CORE example. All timings, shapes and memory values are illustrative, not measured.',cores:4}};
+  events.sort((a,b)=>(a.ts??-1)-(b.ts??-1));return {traceEvents:events,metadata:{description:'Synthetic four-core example. All timings, shapes and memory values are illustrative, not measured.',cores:4}};
 }

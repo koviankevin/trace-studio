@@ -1,4 +1,4 @@
-import {normalizeIdentifier} from './argument-facts.js?v=0.4.0';
+import {normalizeIdentifier} from './argument-facts.js?v=1.0.1';
 export function parseTfliteSelection(value,maxIds=256){
   if(value===undefined||value===null||String(value).trim()==='')return [];
   if(!Number.isInteger(maxIds)||maxIds<1||maxIds>4096)throw Error('無效的 ID 數量上限');

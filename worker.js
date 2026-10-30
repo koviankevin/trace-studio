@@ -1,14 +1,14 @@
 import {TraceJSONReader,TraceIndex,demoTrace,LIMITS} from './core.js?v=0.13.0';
 import {RelationIndex} from './relations.js?v=0.13.0';
-import {summarizeGroups} from './track-layout.js?v=0.13.0';
-import {hardwareDemo} from './hardware-demo.js?v=0.4.0';
+import {summarizeGroups} from './track-layout.js?v=1.0.1';
+import {hardwareDemo} from './hardware-demo.js?v=1.0.1';
 import {analyzeTrace,scanTraceIndex} from './analysis.js?v=0.9.0';
-import {loadExtensionHost} from './extensions/runtime.js';
+import {loadExtensionHost} from './extensions/runtime.js?v=1.0.1';
 import {createSessionStore} from './session-store.js?v=0.3.1';
-import {extractRecordFacts} from './argument-facts.js?v=0.4.0';
-import {analyzeArguments} from './argument-analysis.js?v=0.9.0';
+import {extractRecordFacts} from './argument-facts.js?v=1.0.1';
+import {analyzeArguments} from './argument-analysis.js?v=1.0.1';
 import {TraceCache} from './trace-cache.js?v=0.5.0';
-import {compareTraces} from './trace-comparison.js?v=0.9.0';
+import {compareTraces} from './trace-comparison.js?v=1.0.1';
 import {readTar} from './tar-stream.js?v=0.7.0';
 // Register onmessage synchronously. A top-level await here drops messages
 // delivered while custom.js is loading, including the UI's first import.
@@ -152,12 +152,12 @@ onmessage=async({data})=>{
     }else if(type==='query'&&db){const start=performance.now();send('query',{requestId,rows:db.query(data),groups:summarizeGroups(db,data.groups||[],data.start,data.end,data.width||1000),ms:performance.now()-start});}
     else if(type==='analysis'&&db){const started=performance.now(),token=++analysisToken,current=db,cancelled=()=>analysisToken!==token||db!==current;
       const result=await analyzeTrace(current,{...data,cancelled,onProgress:progress=>send('analysisProgress',{requestId,...progress})});
-      if(data.includeArguments){const key=JSON.stringify([result.scope.start,result.scope.end,result.scope.trackIds,data.argumentFocus||null,data.memberOffset||0]);if(argumentCache.has(key))result.arguments={...argumentCache.get(key),reused:true};else{result.arguments=await analyzeArguments(current,{...result.scope,focus:data.argumentFocus,memberOffset:data.memberOffset||0,cancelled,onProgress:progress=>send('analysisProgress',{requestId,...progress})});argumentCache.set(key,result.arguments);if(argumentCache.size>8)argumentCache.delete(argumentCache.keys().next().value);}}
+      if(data.includeArguments){const key=JSON.stringify([result.scope.start,result.scope.end,result.scope.trackIds,data.argumentFocus||null,data.memberOffset||0]);if(argumentCache.has(key))result.arguments={...argumentCache.get(key),reused:true};else{result.arguments=await analyzeArguments(current,{...result.scope,argumentSchema:extensionHost.argumentSchema,focus:data.argumentFocus,memberOffset:data.memberOffset||0,cancelled,onProgress:progress=>send('analysisProgress',{requestId,...progress})});argumentCache.set(key,result.arguments);if(argumentCache.size>8)argumentCache.delete(argumentCache.keys().next().value);}}
       result.extensions=await extensionHost.analyze({summary:result,scope:result.scope,cancelled,scanIndex:()=>scanTraceIndex(current,{...result.scope,cancelled}),readEvent:record=>current.detail(record).event});result.extensionErrors=extensionHost.startupErrors||[];
       if(cancelled()){const error=new Error('分析已取消');error.name='AbortError';throw error;}result.analysisSeconds=(performance.now()-started)/1000;send('analysis',{requestId,result});}
-    else if(type==='compare'){comparing++;try{const token=++analysisToken,cancelled=()=>analysisToken!==token;const result=await compareTraces(data.ids,data.tfliteId,{openTrace:comparisonTrace,scopes:data.scopes,sourceNames:data.sourceNames,cancelled,onProgress:progress=>send('comparisonProgress',{requestId,...progress})});send('comparison',{requestId,result});}finally{comparing--;}}
+    else if(type==='compare'){comparing++;try{const token=++analysisToken,cancelled=()=>analysisToken!==token;const result=await compareTraces(data.ids,data.tfliteId,{openTrace:comparisonTrace,argumentSchema:extensionHost.argumentSchema,scopes:data.scopes,sourceNames:data.sourceNames,cancelled,onProgress:progress=>send('comparisonProgress',{requestId,...progress})});send('comparison',{requestId,result});}finally{comparing--;}}
     else if(type==='cancelAnalysis'){analysisToken++;}
-    else if(type==='detail'&&db){const current=db,index=relations,token=++detailToken,cancelled=()=>token!==detailToken||db!==current,detail=current.detail(data.record);const links=await index.findAsync(detail.event,data.record,detail.endEvent,{cancelled,onProgress:progress=>send('detailProgress',{requestId,...progress})});send('detail',{requestId,...detail,facts:extractRecordFacts(detail),links});}
+    else if(type==='detail'&&db){const current=db,index=relations,token=++detailToken,cancelled=()=>token!==detailToken||db!==current,detail=current.detail(data.record);const links=await index.findAsync(detail.event,data.record,detail.endEvent,{cancelled,onProgress:progress=>send('detailProgress',{requestId,...progress})});send('detail',{requestId,...detail,facts:extractRecordFacts(detail,extensionHost.argumentSchema),links});}
     else if(type==='cancelDetail'){detailToken++;}
     else if(type==='search'&&db){const current=db,token=++searchToken,cancelled=()=>token!==searchToken||db!==current;const result=await current.search(data.term,100,scanned=>send('searchProgress',{requestId,scanned}),{cancelled});send('search',{requestId,...result});}
     else if(type==='cancelSearch'){searchToken++;}

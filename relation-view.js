@@ -1,4 +1,4 @@
-import {coreName} from './track-layout.js?v=0.13.0';
+import {coreName} from './track-layout.js?v=1.0.1';
 import {processName} from './event-labels.js?v=0.13.0';
 
 export const relationRecordKey=record=>`${record.trackId}:${record.offset}`;

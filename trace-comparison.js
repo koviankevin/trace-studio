@@ -1,15 +1,15 @@
-import {analyzeArguments} from './argument-analysis.js?v=0.9.0';
+import {analyzeArguments} from './argument-analysis.js?v=1.0.1';
 import {parseTfliteSelection} from './trace-selection.js?v=0.7.0';
 
 // openTrace returns {trace,source,release}; the active timeline is never replaced.
-export async function compareTraces(ids,value,{openTrace,scopes={},sourceNames={},cancelled=()=>false,onProgress=()=>{}}){
+export async function compareTraces(ids,value,{openTrace,argumentSchema={},scopes={},sourceNames={},cancelled=()=>false,onProgress=()=>{}}){
   const tfliteIds=parseTfliteSelection(value),graph=tfliteIds.length===0,tfliteId=tfliteIds.length===1?tfliteIds[0]:null,unique=[...new Set(ids)];
   if(unique.length<2||unique.length>3)throw Error('請選擇 2–3 份 Trace；ID 留空比較整張圖。');
   const started=performance.now(),traces=[];
   for(const id of unique){let opened;try{
     if(cancelled())throw Object.assign(Error('比較已取消'),{name:'AbortError'});
     opened=await openTrace(id);let scope={};if(scopes[id]){const {start,end}=scopes[id];if(!Number.isFinite(start)||!Number.isFinite(end)||end<=start)throw Error('保存的比較時間範圍無效。');scope={start:Math.max(start,opened.trace.start),end:Math.min(end,opened.trace.end)};}
-    const result=await analyzeArguments(opened.trace,{...scope,focus:graph?{kind:'tflite-all'}:{kind:'tflite-set',values:tfliteIds},cancelled,onProgress:progress=>onProgress({...progress,id,index:traces.length+1,totalTraces:unique.length,name:opened.source.name})});
+    const result=await analyzeArguments(opened.trace,{...scope,argumentSchema,focus:graph?{kind:'tflite-all'}:{kind:'tflite-set',values:tfliteIds},cancelled,onProgress:progress=>onProgress({...progress,id,index:traces.length+1,totalTraces:unique.length,name:opened.source.name})});
     const group=result.matchedSummary;
     traces.push({id,name:opened.source.name,status:'ok',scope:result.scope,matched:result.matched,first:group.start,spanUs:result.matched?group.end-group.start:0,totalUs:group.totalUs,cores:group.cores,pids:group.pids,contextsTruncated:group.contextsTruncated,tfliteGroups:result.groups.tflite,tfliteGroupCount:result.tfliteGroupCount,locations:result.locations,byName:result.byName,nameCount:result.nameCount,members:result.members,hasMore:result.hasMore,truncatedFacts:result.truncatedFacts,conflicts:result.conflicts,warnings:result.warnings,omittedGroupEvents:result.omittedGroupEvents,omittedNameEvents:result.omittedNameEvents,omittedLocationRanges:result.omittedLocationRanges,analysisSeconds:result.analysisSeconds});
   }catch(error){if(error.name==='AbortError')throw error;traces.push({id,name:String(sourceNames[id]||id).slice(0,400),status:'error',message:error.message});}finally{await opened?.release();}}
