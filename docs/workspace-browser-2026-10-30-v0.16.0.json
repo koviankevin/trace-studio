@@ -1,0 +1,54 @@
+{
+  "version": "0.16.0",
+  "recordedAt": "2026-10-30T03:54:12.132Z",
+  "environment": "Windows, ChatGPT in-app Chromium browser, localhost:4318; desktop Edge connection unavailable",
+  "sourceHashes": {
+    "app.js": "8e79015df9ad26603cc6e17ef9df536ec6f8e9ce78eae655a866534e22c7019a",
+    "worker.js": "c392c9949a05bf98d59f128e6bb2bdc0ed878b8905a0e4462d77479888c4630d",
+    "relation-view.js": "eae3d8d00067b78fd753f0e1d1414896cf74e0333be90f32e1f8dc4b6eaa52ec",
+    "workspace-tabs.js": "eb9f4e6809c21ae7090587062a046d2d018aa14097507ee8eb85ee2c283cbf2f",
+    "workspace.css": "767f7f0ad9f9ce26c72bb94f73bbed8c979ce7a82bb21ee27d6ab19a6a131f31",
+    "index.html": "5b26c0c371b28ad7b41de18ea81747e00f985d43d5af1d353c59df2d7b04276b"
+  },
+  "gestureReuse": {
+    "baselineCommit": "historical-revision",
+    "baselineAppSHA256": "45c9f4c30c1ec89fea1a3b696a14878b42dfbd38c3956b1cb472a85658b2f1ab",
+    "sections": [
+      {
+        "start": "function setRange(",
+        "end": "function fitAll(",
+        "sha256": "479dc9cdf3b420c7b557c39df299fd5a63d88331c75cac7d67fbcc5a58d261b4"
+      },
+      {
+        "start": "function localPoint(",
+        "end": "function toggleTrackHeight(",
+        "sha256": "14a25da6feae9c8bbbde281e0a06d5c39b68326b1e8cd57cd636808c2f277005"
+      }
+    ],
+    "note": "Input handlers and range arithmetic match the app behind the historical browser/physical gesture evidence. New tab lifecycle and relation rendering have targeted coverage; no new 3 GB benchmark claimed."
+  },
+  "reusedAcceptance": {
+    "file": "workspace-browser-2026-10-30-v0.15.1.json",
+    "scope": "Existing endpoint geometry and tab lifecycle; Worker, workspace-tabs, CSS, core and relations unchanged. Current actual App/Worker regression also exercises prior horizontal links and tab close/reload."
+  },
+  "browserChecks": {
+    "nearestModeSelectable": true,
+    "nearerSameThreadExcluded": true,
+    "fartherOtherThreadExcluded": true,
+    "oneAddressCandidateLine": true,
+    "noExplicitFlowRequired": true,
+    "noConsoleErrors": true
+  },
+  "syntheticFixture": {
+    "cores": 3,
+    "tracks": 3,
+    "events": 7,
+    "relatedEvents": 4,
+    "relation": "same address, one same-thread overlap and two other-thread candidates"
+  },
+  "limitations": [
+    "No new desktop Edge run; connection unavailable",
+    "No real CORE trace; intranet acceptance remains pending",
+    "Peak browser/Worker RAM, native quota exhaustion and full screen-reader acceptance remain pending"
+  ]
+}

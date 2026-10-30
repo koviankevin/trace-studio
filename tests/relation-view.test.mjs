@@ -3,6 +3,18 @@ import {selectRelationLines,groupRelationCandidates,relationRecordKey,relationKe
 import {extractRelations} from '../dist/relations.js';
 const tracks=[{pid:1,name:'CORE0_COMPUTE'},{pid:1,name:'CORE0_DMA'},{pid:2,name:'CORE0_DMA'},{pid:1,name:'CORE1_DMA'}],selected={trackId:0,ts:100,dur:10,offset:10000};
 const link=(ts,trackId=1,type='address',role='same',otherRole='same')=>({record:{ts,dur:5,trackId,offset:ts},relation:{type,key:'0x1000',role},otherRole});
+test('nearest other thread draws only the closest existing candidate, regardless of evidence type',()=>{
+  const own=link(100,0,'flow'),close=link(111,3),far=link(140,1,'flow');
+  assert.deepEqual(selectRelationLines([own,far,close],selected,tracks,{mode:'nearest'}),[close]);
+  assert.deepEqual(selectRelationLines([own],selected,tracks,{mode:'nearest'}),[]);
+  assert.deepEqual(selectRelationLines([far,close],selected,tracks,{mode:'nearest',start:1000,end:100000,width:10}),[close],'one chosen link survives overview and time boundaries');
+});
+test('nearest thread identity includes PID, excludes counter metrics of the same thread, and ranks interval gaps',()=>{
+  const identity=[{pid:1,tid:7},{pid:1,tid:7},{pid:2,tid:7},{pid:1,tid:8}],sameThread=link(101,1),otherProcess=link(102,2),otherThread=link(103,3);
+  assert.deepEqual(selectRelationLines([sameThread,otherThread,otherProcess],selected,identity,{mode:'nearest'}),[otherProcess]);
+  const overlap={...link(80,3),record:{...link(80,3).record,dur:30}},separate=link(111,2);
+  assert.deepEqual(selectRelationLines([separate,overlap],selected,identity,{mode:'nearest'}),[overlap]);
+});
 test('opt-in compact relations draw only two nearest explicit markers, keeping both time directions',()=>{
   const before=link(90,1,'flow'),after=link(120,2,'symbol','define','use'),all=[link(99),link(111),link(98,1,'symbol','use','use'),link(20,1,'flow'),before,after,link(1000,1,'flow')];
   assert.deepEqual(selectRelationLines(all,selected,tracks,{mode:'compact'}),[before,after]);assert.equal(all.length,7);

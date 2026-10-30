@@ -4,7 +4,7 @@
 
 **[開啟時跡](https://koviankevin.github.io/trace-studio/)** · [操作參考](https://perfetto.dev/docs/visualization/perfetto-ui) · [效能測試](docs/PERFORMANCE.md)
 
-目前為 v0.15.1。已有自動化測試，以及 Windows Chromium 瀏覽器的實際 File／OPFS、三版本比較與 3 GB 合成資料驗收；詳細範圍與未完成項目見[驗證紀錄](docs/VERIFICATION.md)。尚未證實比 Chrome tracing 或 Perfetto 更快；本專案的目標是在熟悉的操作上提供更清楚的資訊與大檔路徑。
+目前為 v0.16.0。已有自動化測試，以及 Windows Chromium 瀏覽器的實際 File／OPFS、三版本比較與 3 GB 合成資料驗收；詳細範圍與未完成項目見[驗證紀錄](docs/VERIFICATION.md)。尚未證實比 Chrome tracing 或 Perfetto 更快；本專案的目標是在熟悉的操作上提供更清楚的資訊與大檔路徑。
 
 ## 使用
 
@@ -45,6 +45,8 @@ v0.13.0 修正特殊 metadata／字串 PID 的保留與顯示，例如 `__proto_
 每個 Trace 分頁都有 ×，關閉目前這份會切換到相鄰分頁，最後一份關閉後保留空白工作區；重新整理不會重新開啟已關閉的分頁。關閉會釋放該份索引與檔案鎖，本機磁碟快取仍可從「Trace 快取管理」還原。
 
 畫面外的關聯軌道會保留至左／右／上／下邊界的連線與方向提示；點詳情中的候選事件可跳轉。仍沿用目前選擇的連線模式、時間範圍與數量上限。
+
+「其他執行緒最近一筆」從目前已找到且通過範圍／關聯鍵篩選的候選中，排除同 PID＋TID，只連時間最近的一筆，包含同址候選及跨核心／程序。先比事件區段間距（重疊為 0），再比起點距離；同距以原始順序決定，不優先較遠的 Flow。畫面外沿用方向提示；不把時間鄰近視為因果，也不產生沒有共同關聯鍵的候選。
 
 「Flow／define-use」只顯示 trace 明示的對應：標準 `ph: s/t/f` 或 `bind_id` Flow，以及相同符號、角色相反的 `args.defines`／`args.uses`。例如 `defines: "tensorA"` 對應 `uses: "tensorA"`。相同自訂 `args.LinkId`／`TfliteID` 請用 Args 集合分析；同址與 MemoryRanges 重疊是候選，不自動視為因果。介面列出符合數量，沒有對應時會說明。自動模式仍有 4 px 門檻，單筆「連線」可在全覽及畫面外查看。
 
