@@ -44,7 +44,8 @@ export function selectRelationLines(links,selected,tracks,{mode='manual',start=-
   const near=(a,b)=>gap(a)-gap(b)||Math.abs(a.record.ts-selected.ts)-Math.abs(b.record.ts-selected.ts)||a.record.offset-b.record.offset;
   if(mode==='nearest'){
     const origin=tracks[selected.trackId];
-    return unique.filter(link=>{if(link.record.trackId===selected.trackId)return false;const target=tracks[link.record.trackId];return !origin||!target||origin.tid===undefined||target.tid===undefined||String(origin.pid)!==String(target.pid)||String(origin.tid)!==String(target.tid);}).sort(near).slice(0,1);
+    const candidates=unique.filter(link=>{if(link.record.trackId===selected.trackId)return false;const target=tracks[link.record.trackId];return !origin||!target||origin.tid===undefined||target.tid===undefined||String(origin.pid)!==String(target.pid)||String(origin.tid)!==String(target.tid);}).sort(near);
+    return [candidates.find(link=>link.record.ts<=selected.ts),candidates.find(link=>link.record.ts>selected.ts)].filter(Boolean);
   }
   const pixels=record=>record.dur>0?record.dur/(end-start)*width:5;
   if(mode!=='more'&&Number.isFinite(width)&&pixels(selected)<4)return [];
