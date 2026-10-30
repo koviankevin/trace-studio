@@ -208,7 +208,13 @@ test('application element references and local assets exist; engine benchmark ha
   const benchmark=JSON.parse(await readFile(new URL('../docs/benchmark-2026-10-30-v0.13.0.json',import.meta.url),'utf8'));
   for(const [file,expected]of Object.entries(benchmark.sourceHashes))assert.equal(createHash('sha256').update(await readFile(new URL(file,base))).digest('hex'),expected,`Rerun benchmark after changing ${file}`);
   const browser=JSON.parse(await readFile(new URL('../docs/input-browser-2026-10-30-v0.14.0.json',import.meta.url),'utf8')),workspace=JSON.parse(await readFile(new URL('../docs/workspace-browser-2026-10-30-v0.16.1.json',import.meta.url),'utf8'));
-  for(const [file,expected]of Object.entries(workspace.sourceHashes))assert.equal(createHash('sha256').update(await readFile(new URL(file,base))).digest('hex'),expected,`Refresh affected workspace acceptance after changing ${file}`);
+  for(const [file,expected]of Object.entries(workspace.sourceHashes)){
+    let bytes=await readFile(new URL(file,base));
+    // v1.0.0 resets the product label only. Reuse the original acceptance only
+    // when reversing those exact labels reproduces its complete source hash.
+    if(file==='index.html')bytes=Buffer.from(bytes.toString('utf8').replaceAll('?v=1.0.0','?v=0.16.1').replace('>v1.0.0</span>','>v0.16.1</span>'));
+    assert.equal(createHash('sha256').update(bytes).digest('hex'),expected,`Refresh affected workspace acceptance after changing ${file}`);
+  }
   for(const [file,expected]of Object.entries(browser.sourceHashes))if(!Object.hasOwn(workspace.sourceHashes,file))assert.equal(createHash('sha256').update(await readFile(new URL(file,base))).digest('hex'),expected);
   assert.equal(workspace.gestureReuse.baselineAppSHA256,browser.sourceHashes['app.js']);for(const section of workspace.gestureReuse.sections){const start=app.indexOf(section.start),end=app.indexOf(section.end);assert(start>=0&&end>start);assert.equal(createHash('sha256').update(app.slice(start,end)).digest('hex'),section.sha256);}assert(Object.values(workspace.browserChecks).every(value=>value===true));
   assert.equal(browser.capturedReport.applicationVersion,'0.14.0');assert.equal(browser.capturedReport.version,2);assert.equal(browser.capturedReport.inputs.recorded,2);assert(browser.capturedReport.inputs.recent.every(row=>row.isTrusted&&!row.ctrlKey&&!row.shiftKey));assert.equal(browser.capturedReport.inputs.trustedCtrlWheels,0);assert.equal(browser.capturedReport.inputs.trustedShiftDrags,0);assert.equal(browser.afterTraceSwitch.inputs.recorded,0);assert.equal(browser.afterTraceSwitch.completedFrames,0);assert.equal(browser.afterTraceSwitch.trace.events,3);assert(browser.privacy.filenameAbsent&&browser.privacy.absoluteRangeFieldsAbsent);assert.equal(browser.layout.scrollWidth,browser.layout.width);
