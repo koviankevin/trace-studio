@@ -192,7 +192,10 @@ test('application startup and file selection reach the loaded timeline',async()=
     const inactive=[...elements.get('trace-tabs').innerHTML.matchAll(/data-trace-close="([^"]+)"/g)].map(m=>m[1]).find(id=>id!==current);
     closeTab(inactive);await until(()=>!elements.get('trace-tabs').innerHTML.includes(`data-trace-close="${inactive}"`));assert.equal(workers.at(-1).lastReady.info.id,current);
     elements.get('storage').click();await until(()=>elements.get('cache-list').innerHTML.includes(inactive));elements.get('cache-dialog').close();
-    closeTab(current);await until(()=>elements.get('file-name').textContent!=='offscreen-core-relations.json');assert.notEqual(storage.get('trace-studio-session'),current);
+    // Hold the adjacent restore reply so the test cannot mistake the intermediate empty view for completion.
+    const closingWorker=workers.at(-1),deliverClose=closingWorker.onmessage;
+    closingWorker.onmessage=event=>{if(event.data.type==='ready'&&event.data.restored)setTimeout(()=>deliverClose(event),50);else deliverClose(event);};
+    closeTab(current);await until(()=>elements.get('file-name').textContent!=='offscreen-core-relations.json'&&!elements.get('loading').open);assert.notEqual(storage.get('trace-studio-session'),current);
     for(const id of [...elements.get('trace-tabs').innerHTML.matchAll(/data-trace-close="([^"]+)"/g)].map(m=>m[1])){closeTab(id);await until(()=>!elements.get('trace-tabs').innerHTML.includes(`data-trace-close="${id}"`)&&!elements.get('loading').open);}
     assert.equal(elements.get('file-name').textContent,'未開啟 Trace');assert.equal(storage.get('trace-studio-tabs'),'[]');assert(!storage.has('trace-studio-session'));
     for(const active of workers)await active.terminate();document.handlers={};window.handlers={};for(const element of elements.values())element.handlers={};frames.length=0;
