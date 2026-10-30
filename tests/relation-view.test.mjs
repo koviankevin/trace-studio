@@ -1,5 +1,6 @@
 import test from 'node:test';import assert from 'node:assert/strict';
-import {selectRelationLines,groupRelationCandidates,relationRecordKey,relationKey,relationEndpoint} from '../dist/relation-view.js';
+import {selectRelationLines,groupRelationCandidates,relationRecordKey,relationKey,relationEndpoint,isExplicitRelation} from '../dist/relation-view.js';
+import {extractRelations} from '../dist/relations.js';
 const tracks=[{pid:1,name:'CORE0_COMPUTE'},{pid:1,name:'CORE0_DMA'},{pid:2,name:'CORE0_DMA'},{pid:1,name:'CORE1_DMA'}],selected={trackId:0,ts:100,dur:10,offset:10000};
 const link=(ts,trackId=1,type='address',role='same',otherRole='same')=>({record:{ts,dur:5,trackId,offset:ts},relation:{type,key:'0x1000',role},otherRole});
 test('opt-in compact relations draw only two nearest explicit markers, keeping both time directions',()=>{
@@ -13,7 +14,7 @@ test('overview suppresses automatic lines; candidate inspection is explicit and 
   assert.deepEqual(selectRelationLines(all,selected,tracks,{mode:'compact',start:0,end:10000,width:100}),[]);
   assert.deepEqual(selectRelationLines(all,selected,tracks,{start:0,end:10000,width:100,focus:relationRecordKey(address.record)}),[address]);
   assert.equal(selectRelationLines(all,selected,tracks,{mode:'more'}).length,2);
-  assert.equal(selectRelationLines(all,selected,tracks,{mode:'more',start:100,end:115}).length,0);
+  assert.equal(selectRelationLines(all,selected,tracks,{mode:'more',start:100,end:115}).length,2);
   assert.notEqual(relationKey(address),relationKey(duplicate));
 });
 test('expanded lines stay bounded; groups separate processes and cores without dropping candidates',()=>{
@@ -51,4 +52,23 @@ test('collapsed core anchors retain their real center or an offscreen boundary',
   const record={trackId:1,offset:1,ts:20},options={points:new Map(),layout:[{type:'group',collapsed:true,trackIds:[1],y:40,h:32}],scrollTop:0,height:100,toX:t=>t};
   assert.deepEqual(relationEndpoint(record,options),{x:20,y:56,edge:null});
   assert.deepEqual(relationEndpoint(record,{...options,scrollTop:100}),{x:20,y:8,edge:'above'});
+});
+
+test('panning retains a chosen candidate and compact explicit link beyond either time boundary',()=>{
+  const before=link(20,1,'flow'),after=link(200,1,'symbol','define','use'),view={start:80,end:130,width:500};
+  assert.deepEqual(selectRelationLines([before],selected,tracks,{...view,focus:relationRecordKey(before.record)}),[before]);
+  assert.deepEqual(selectRelationLines([before,after],selected,tracks,{...view,mode:'compact'}),[before,after]);
+});
+
+test('offscreen time anchors keep a visible track endpoint and clamp both axes',()=>{
+  const record={trackId:1,offset:1,ts:20,dur:5},options={points:new Map(),layout:[{type:'track',track:{id:1},y:40,h:32}],scrollTop:0,height:100,width:500,start:80,end:130,toX:t=>(t-80)*10};
+  const left=relationEndpoint(record,options);assert(left,'an unqueried event left of the time window still has a boundary anchor');assert.equal(left.x,8);assert.equal(left.horizontal,'left');assert.equal(left.y,56);
+  const right=relationEndpoint({...record,ts:200},options);assert.equal(right.x,492);assert.equal(right.horizontal,'right');
+});
+
+test('explicit means trace flow markers or opposite define/use roles, never custom ID equality',()=>{
+  assert.deepEqual(extractRelations({ph:'X',args:{LinkId:374,TfliteID:280}}),[]);
+  const source=extractRelations({ph:'s',id:7,cat:'pipeline'})[0],target=extractRelations({ph:'f',id:7,cat:'pipeline'})[0];
+  assert.equal(source.identity,target.identity);assert(isExplicitRelation({relation:source,otherRole:target.role}));
+  const define=extractRelations({ph:'X',args:{defines:'tensorA'}})[0],use=extractRelations({ph:'X',args:{uses:'tensorA'}})[0];assert.equal(define.identity,use.identity);assert(isExplicitRelation({relation:define,otherRole:use.role}));assert(!isExplicitRelation({relation:use,otherRole:'use'}));assert(!isExplicitRelation(link(20)));assert(!isExplicitRelation(link(20,1,'symbol','same','use')));
 });

@@ -108,7 +108,7 @@ test('application startup and file selection reach the loaded timeline',async()=
     input.files=[new File([JSON.stringify([{ph:'X',pid:'CORE0',tid:'CORE0_COMPUTE',ts:0,dur:10,args:{TfliteID:7,LinkId:42,CoreId:0,MemoryRanges:memory('0x1000','OUTPUT')}},{ph:'X',pid:'CORE0',tid:'CORE0_DMA',ts:20,dur:5,args:{TfliteID:7,LinkId:42,CoreId:0,MemoryRanges:memory('0x1080','INPUT')}},{ph:'X',name:'Compute',pid:'CORE1',tid:'CORE1_COMPUTE',ts:20,dur:4,args:{TfliteID:7,LinkId:43,CoreId:1,MemoryRanges:memory('0x1000','OUTPUT')}}])],'args.json')];
     input.onchange({target:input});await until(()=>elements.get('file-name').textContent==='args.json');assert.equal(elements.get('search-input').value,'');assert(!elements.get('search-results').innerHTML.includes('Power'));
     elements.get('insights-list').handlers.click({target:{closest:()=>({dataset:{source:'top',result:'0'}})}});
-    await until(()=>elements.get('details-content').innerHTML.includes('分析同 TfliteID 7'));assert.equal(elements.get('selection-heading').textContent,'COMPUTE');
+    await until(()=>elements.get('details-content').innerHTML.includes('分析同 TfliteID 7'));assert.equal(elements.get('selection-heading').textContent,'COMPUTE');assert(elements.get('details-content').innerHTML.includes('沒有符合目前篩選的 Flow／define-use 對應事件'));
     elements.get('details-content').handlers.click({target:{closest:selector=>selector==='[data-argument-focus]'?{dataset:{argumentFocus:'tflite'}}:null}});
     await until(()=>elements.get('analysis-results').innerHTML.includes('同 TfliteID 7'));assert(elements.get('analysis-results').innerHTML.includes('1–3 / 3'));
     elements.get('analysis-results').onclick({target:{closest:selector=>selector==='[data-argument-kind]'?{dataset:{argumentKind:'flow',argumentId:'42'}}:null}});
@@ -175,6 +175,11 @@ test('application startup and file selection reach the loaded timeline',async()=
     assert(canvasCurves[0][5]>=88&&canvasCurves[0][5]<=100,'the hidden target terminates at a marked viewport boundary');
     assert(canvasLabels.some(text=>String(text).includes('畫面下方')),'the boundary must be labelled as an offscreen relation');
     elements.get('tracks-scroll').getBoundingClientRect=fullTrackRect;elements.get('expand-groups').click();draw();
+    const beforeHorizontalRelation=workers.at(-1).lastQuery.requestId;
+    elements.get('zoom-in').click();elements.get('zoom-in').click();
+    await until(()=>workers.at(-1).lastQuery?.requestId>beforeHorizontalRelation);canvasCurves.length=0;canvasLabels.length=0;draw();
+    assert.equal(canvasCurves.length,1,'an explicit link must survive a target moving left of the time window');assert(canvasLabels.some(text=>String(text).includes('左方')),'the hidden time endpoint must be labelled on the left');
+    elements.get('fit').click();
     elements.get('details-content').handlers.change({target:{matches:selector=>selector==='[data-relation-mode]',value:'manual'}});
     elements.get('track-labels').handlers.mousedown({detail:1});elements.get('track-labels').handlers.click({detail:1,target:{closest:selector=>selector==='[data-track-toggle]'?{dataset:{trackToggle:'0'}}:null}});assert(/data-track-toggle="0"[^>]*aria-expanded="true"/.test(elements.get('track-labels').innerHTML));
     elements.get('track-labels').handlers.dblclick({target:{closest:selector=>selector==='[data-track]'?{dataset:{track:'0'}}:null}});assert(/data-track-toggle="0"[^>]*aria-expanded="true"/.test(elements.get('track-labels').innerHTML),'the second click landing on the resized row must not toggle twice');

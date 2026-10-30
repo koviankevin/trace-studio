@@ -1,0 +1,51 @@
+{
+  "version": "0.15.1",
+  "recordedAt": "2026-10-30T03:40:45.092Z",
+  "environment": "Windows, ChatGPT in-app Chromium browser, localhost:4318; desktop Edge connection unavailable",
+  "sourceHashes": {
+    "app.js": "7edbed0e5796241abd83f6169e00ed4968b08132f21f6cc06c6aa0ad25f75b68",
+    "worker.js": "c392c9949a05bf98d59f128e6bb2bdc0ed878b8905a0e4462d77479888c4630d",
+    "relation-view.js": "987f1577282b6dcf7e271380a3154a18c8c20a8aaa49fa1de2b2b81f768038d3",
+    "workspace-tabs.js": "eb9f4e6809c21ae7090587062a046d2d018aa14097507ee8eb85ee2c283cbf2f",
+    "workspace.css": "767f7f0ad9f9ce26c72bb94f73bbed8c979ce7a82bb21ee27d6ab19a6a131f31",
+    "index.html": "3e78b9e5665f4707b7e014131665bcb604baf9363910278b0887fbb8497bbfb7"
+  },
+  "gestureReuse": {
+    "baselineCommit": "historical-revision",
+    "baselineAppSHA256": "45c9f4c30c1ec89fea1a3b696a14878b42dfbd38c3956b1cb472a85658b2f1ab",
+    "sections": [
+      {
+        "start": "function setRange(",
+        "end": "function fitAll(",
+        "sha256": "479dc9cdf3b420c7b557c39df299fd5a63d88331c75cac7d67fbcc5a58d261b4"
+      },
+      {
+        "start": "function localPoint(",
+        "end": "function toggleTrackHeight(",
+        "sha256": "14a25da6feae9c8bbbde281e0a06d5c39b68326b1e8cd57cd636808c2f277005"
+      }
+    ],
+    "note": "Input handlers and range arithmetic match the app behind the historical browser/physical gesture evidence. New tab lifecycle and relation rendering have targeted coverage; no new 3 GB benchmark claimed."
+  },
+  "reusedAcceptance": {
+    "file": "workspace-browser-2026-10-30-v0.15.0.json",
+    "scope": "Tab lifecycle browser checks; Worker, workspace-tabs and CSS unchanged. Current app/Worker regression also exercises closing and reload after horizontal relation checks."
+  },
+  "browserChecks": {
+    "leftAndRightOffscreenCrossCoreLinks": true,
+    "manualOffscreenPreview": true,
+    "renamedModeAndMatchCount": true,
+    "noConsoleErrors": true
+  },
+  "syntheticFixture": {
+    "cores": 3,
+    "tracks": 3,
+    "events": 6,
+    "relationships": "two explicit define/use matches beyond opposite time boundaries"
+  },
+  "limitations": [
+    "No new desktop Edge run; connection unavailable",
+    "No real CORE trace; intranet acceptance remains pending",
+    "Peak browser/Worker RAM, native quota exhaustion and full screen-reader acceptance remain pending"
+  ]
+}
