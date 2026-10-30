@@ -40,10 +40,14 @@ export function selectRelationLines(links,selected,tracks,{mode='manual',start=-
   // Explicitly inspecting a candidate bypasses overview suppression, one line only.
   if(focus)return unique.filter(link=>relationRecordKey(link.record)===focus).slice(0,1);
   if(mode==='manual')return [];
+  const gap=link=>Math.max(0,selected.ts-(link.record.ts+link.record.dur),link.record.ts-(selected.ts+selected.dur));
+  const near=(a,b)=>gap(a)-gap(b)||Math.abs(a.record.ts-selected.ts)-Math.abs(b.record.ts-selected.ts)||a.record.offset-b.record.offset;
+  if(mode==='nearest'){
+    const origin=tracks[selected.trackId];
+    return unique.filter(link=>{if(link.record.trackId===selected.trackId)return false;const target=tracks[link.record.trackId];return !origin||!target||origin.tid===undefined||target.tid===undefined||String(origin.pid)!==String(target.pid)||String(origin.tid)!==String(target.tid);}).sort(near).slice(0,1);
+  }
   const pixels=record=>record.dur>0?record.dur/(end-start)*width:5;
   if(mode!=='more'&&Number.isFinite(width)&&pixels(selected)<4)return [];
-  const gap=link=>Math.max(0,selected.ts-(link.record.ts+link.record.dur),link.record.ts-(selected.ts+selected.dur));
-  const near=(a,b)=>gap(a)-gap(b)||Math.abs(a.record.ts-selected.ts)-Math.abs(b.record.ts-selected.ts);
   const ranked=unique.sort((a,b)=>Number(strong(b))-Number(strong(a))||near(a,b));
   if(mode==='more')return ranked.slice(0,16);
   const candidates=ranked.filter(link=>strong(link)&&(!Number.isFinite(width)||pixels(link.record)>=4));
