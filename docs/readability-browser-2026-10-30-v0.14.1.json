@@ -1,0 +1,485 @@
+{
+  "version": "0.14.1",
+  "baselineVersion": "0.14.0",
+  "capturedAt": "2026-10-30T00:29:38.645Z",
+  "browser": "Windows in-app Chromium 156",
+  "method": "Read-only DOM computed foreground and composited solid ancestor backgrounds; six observed selectors, two themes, 1280x720 and 800x600. Not an entire-page or screen-reader audit.",
+  "before": {
+    "dark": {
+      "dark": true,
+      "rows": [
+        {
+          "background": [
+            110,
+            154,
+            105
+          ],
+          "color": "rgb(255, 255, 255)",
+          "contrast": 3.236134253829054,
+          "fontSize": "15px",
+          "selector": ".open.primary"
+        },
+        {
+          "background": [
+            29,
+            43,
+            35
+          ],
+          "color": "rgb(90, 107, 96)",
+          "contrast": 2.606576574583112,
+          "fontSize": "15px",
+          "selector": ".nav:not(.active)"
+        },
+        {
+          "background": [
+            37,
+            55,
+            45
+          ],
+          "color": "rgb(139, 151, 136)",
+          "contrast": 4.13699646458683,
+          "fontSize": "11px",
+          "selector": ".ruler>div"
+        },
+        {
+          "background": [
+            32,
+            48,
+            40
+          ],
+          "color": "rgb(186, 197, 182)",
+          "contrast": 7.756481905683758,
+          "fontSize": "13px",
+          "selector": ".pin:not(.pinned)"
+        },
+        {
+          "background": [
+            32,
+            48,
+            40
+          ],
+          "color": "rgb(142, 155, 135)",
+          "contrast": 4.745428815059575,
+          "fontSize": "11px",
+          "selector": ".timeline-footer"
+        },
+        {
+          "background": [
+            32,
+            48,
+            40
+          ],
+          "color": "rgb(142, 155, 135)",
+          "contrast": 4.745428815059575,
+          "fontSize": "11px",
+          "selector": "#render-info"
+        }
+      ],
+      "viewport": {
+        "height": 720,
+        "scrollWidth": 1280,
+        "width": 1280
+      }
+    },
+    "light": {
+      "dark": false,
+      "rows": [
+        {
+          "background": [
+            35,
+            78,
+            62
+          ],
+          "color": "rgb(255, 255, 255)",
+          "contrast": 9.4137443974762,
+          "fontSize": "15px",
+          "selector": ".open.primary"
+        },
+        {
+          "background": [
+            240,
+            243,
+            237
+          ],
+          "color": "rgb(90, 107, 96)",
+          "contrast": 5.057894165454744,
+          "fontSize": "15px",
+          "selector": ".nav:not(.active)"
+        },
+        {
+          "background": [
+            248,
+            250,
+            248
+          ],
+          "color": "rgb(139, 151, 136)",
+          "contrast": 2.9100490366984952,
+          "fontSize": "11px",
+          "selector": ".ruler>div"
+        },
+        {
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "color": "rgb(186, 197, 182)",
+          "contrast": 1.7872642528759322,
+          "fontSize": "13px",
+          "selector": ".pin:not(.pinned)"
+        },
+        {
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "color": "rgb(142, 155, 135)",
+          "contrast": 2.9213129894844987,
+          "fontSize": "11px",
+          "selector": ".timeline-footer"
+        },
+        {
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "color": "rgb(142, 155, 135)",
+          "contrast": 2.9213129894844987,
+          "fontSize": "11px",
+          "selector": "#render-info"
+        }
+      ],
+      "viewport": {
+        "height": 720,
+        "scrollWidth": 1280,
+        "width": 1280
+      }
+    }
+  },
+  "after": {
+    "dark": {
+      "dark": true,
+      "rows": [
+        {
+          "background": [
+            110,
+            154,
+            105
+          ],
+          "color": "rgb(23, 35, 30)",
+          "contrast": 5.008694575424301,
+          "fontSize": "15px",
+          "selector": ".open.primary"
+        },
+        {
+          "background": [
+            29,
+            43,
+            35
+          ],
+          "color": "rgb(176, 193, 172)",
+          "contrast": 7.784268516951896,
+          "fontSize": "15px",
+          "selector": ".nav:not(.active)"
+        },
+        {
+          "background": [
+            37,
+            55,
+            45
+          ],
+          "color": "rgb(176, 193, 172)",
+          "contrast": 6.65635288556166,
+          "fontSize": "11px",
+          "selector": ".ruler>div"
+        },
+        {
+          "background": [
+            32,
+            48,
+            40
+          ],
+          "color": "rgb(176, 193, 172)",
+          "contrast": 7.307533824252262,
+          "fontSize": "13px",
+          "selector": ".pin:not(.pinned)"
+        },
+        {
+          "background": [
+            32,
+            48,
+            40
+          ],
+          "color": "rgb(176, 193, 172)",
+          "contrast": 7.307533824252262,
+          "fontSize": "11px",
+          "selector": ".timeline-footer"
+        },
+        {
+          "background": [
+            32,
+            48,
+            40
+          ],
+          "color": "rgb(176, 193, 172)",
+          "contrast": 7.307533824252262,
+          "fontSize": "11px",
+          "selector": "#render-info"
+        }
+      ],
+      "viewport": {
+        "height": 720,
+        "scrollWidth": 1280,
+        "width": 1280
+      }
+    },
+    "light": {
+      "dark": false,
+      "rows": [
+        {
+          "background": [
+            35,
+            78,
+            62
+          ],
+          "color": "rgb(255, 255, 255)",
+          "contrast": 9.4137443974762,
+          "fontSize": "15px",
+          "selector": ".open.primary"
+        },
+        {
+          "background": [
+            240,
+            243,
+            237
+          ],
+          "color": "rgb(89, 107, 96)",
+          "contrast": 5.07152478947964,
+          "fontSize": "15px",
+          "selector": ".nav:not(.active)"
+        },
+        {
+          "background": [
+            248,
+            250,
+            248
+          ],
+          "color": "rgb(89, 107, 96)",
+          "contrast": 5.415832880077454,
+          "fontSize": "11px",
+          "selector": ".ruler>div"
+        },
+        {
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "color": "rgb(89, 107, 96)",
+          "contrast": 5.680660752213344,
+          "fontSize": "13px",
+          "selector": ".pin:not(.pinned)"
+        },
+        {
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "color": "rgb(89, 107, 96)",
+          "contrast": 5.680660752213344,
+          "fontSize": "11px",
+          "selector": ".timeline-footer"
+        },
+        {
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "color": "rgb(89, 107, 96)",
+          "contrast": 5.680660752213344,
+          "fontSize": "11px",
+          "selector": "#render-info"
+        }
+      ],
+      "viewport": {
+        "height": 720,
+        "scrollWidth": 1280,
+        "width": 1280
+      }
+    },
+    "smallLight": {
+      "dark": false,
+      "rows": [
+        {
+          "background": [
+            35,
+            78,
+            62
+          ],
+          "color": "rgb(255, 255, 255)",
+          "contrast": 9.4137443974762,
+          "fontSize": "15px",
+          "selector": ".open.primary"
+        },
+        {
+          "background": [
+            240,
+            243,
+            237
+          ],
+          "color": "rgb(89, 107, 96)",
+          "contrast": 5.07152478947964,
+          "fontSize": "15px",
+          "selector": ".nav:not(.active)"
+        },
+        {
+          "background": [
+            248,
+            250,
+            248
+          ],
+          "color": "rgb(89, 107, 96)",
+          "contrast": 5.415832880077454,
+          "fontSize": "11px",
+          "selector": ".ruler>div"
+        },
+        {
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "color": "rgb(89, 107, 96)",
+          "contrast": 5.680660752213344,
+          "fontSize": "13px",
+          "selector": ".pin:not(.pinned)"
+        },
+        {
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "color": "rgb(89, 107, 96)",
+          "contrast": 5.680660752213344,
+          "fontSize": "11px",
+          "selector": ".timeline-footer"
+        },
+        {
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "color": "rgb(89, 107, 96)",
+          "contrast": 5.680660752213344,
+          "fontSize": "11px",
+          "selector": "#render-info"
+        }
+      ],
+      "viewport": {
+        "height": 600,
+        "scrollWidth": 800,
+        "width": 800
+      }
+    },
+    "smallDark": {
+      "dark": true,
+      "rows": [
+        {
+          "background": [
+            110,
+            154,
+            105
+          ],
+          "color": "rgb(23, 35, 30)",
+          "contrast": 5.008694575424301,
+          "fontSize": "15px",
+          "selector": ".open.primary"
+        },
+        {
+          "background": [
+            29,
+            43,
+            35
+          ],
+          "color": "rgb(176, 193, 172)",
+          "contrast": 7.784268516951896,
+          "fontSize": "15px",
+          "selector": ".nav:not(.active)"
+        },
+        {
+          "background": [
+            37,
+            55,
+            45
+          ],
+          "color": "rgb(176, 193, 172)",
+          "contrast": 6.65635288556166,
+          "fontSize": "11px",
+          "selector": ".ruler>div"
+        },
+        {
+          "background": [
+            32,
+            48,
+            40
+          ],
+          "color": "rgb(176, 193, 172)",
+          "contrast": 7.307533824252262,
+          "fontSize": "13px",
+          "selector": ".pin:not(.pinned)"
+        },
+        {
+          "background": [
+            32,
+            48,
+            40
+          ],
+          "color": "rgb(176, 193, 172)",
+          "contrast": 7.307533824252262,
+          "fontSize": "11px",
+          "selector": ".timeline-footer"
+        },
+        {
+          "background": [
+            32,
+            48,
+            40
+          ],
+          "color": "rgb(176, 193, 172)",
+          "contrast": 7.307533824252262,
+          "fontSize": "11px",
+          "selector": "#render-info"
+        }
+      ],
+      "viewport": {
+        "height": 600,
+        "scrollWidth": 800,
+        "width": 800
+      }
+    }
+  },
+  "limits": [
+    "No full WCAG certification",
+    "No screen-reader speech validation",
+    "Hover and all other page states remain outside this measurement"
+  ],
+  "gestureReport": "Pending user manual input; v0.14.0 report remains valid because application and gesture modules are unchanged.",
+  "sourceHashes": {
+    "style.css": "d68c5243e2dda09746c136429e1640a6d3c0362a806fc9ea9c291643781892dc",
+    "workspace.css": "7151674bbb70cf8af3f1a611664c9185a72b5b783630fb686bd6ba24d6f9ff72",
+    "index.html": "d06f9df325617d6bfa24ca2565a8d81f6ee73b2eb9be6314c2df7672c216f0b3",
+    "app.js": "45c9f4c30c1ec89fea1a3b696a14878b42dfbd38c3956b1cb472a85658b2f1ab",
+    "runtime-metrics.js": "ccfd123fe113acb7b7073b7efbe396fb0286cc74773ae750d96486a30b8a8f98",
+    "worker.js": "0b608555062f8d8750a7302c0039362a3fd29d69dae5c875519012eb1b590f5b",
+    "core.js": "4a8769e8d9f34f8fbb282b8fa97b6d600462f01ad9eb6ada534e16c8f79b0ef5",
+    "relations.js": "4cedee4f16eda8615c7dc1658511414348280e73c481879f2ef68b0d903b796a"
+  },
+  "baselineSourceCommit": "historical-revision",
+  "byteIdenticalToBaseline": true
+}
