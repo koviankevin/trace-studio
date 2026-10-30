@@ -1,5 +1,9 @@
 # 時跡 Trace Studio
 
+## v1.0.1
+
+示範、欄位預設及文件使用通用名稱；TfliteID 保留，內部欄位透過 extensions/custom.js 的 argumentSchema 宣告。事件詳情、分析和比較共用設定；原始 trace 欄位完整保留。
+
 ## v1.0.0 · 統一版本起點
 
 自本次起，GH Studio 工具統一以 **v1.0.0** 作為新起點。這是版本命名重整，保留既有功能與歷史紀錄；後續各工具依變更分別遞增：修正用修正版、相容功能用次版、不相容變更用主版。對外正式版本不加 preview；資料格式版本不隨產品版本重設。
@@ -8,7 +12,7 @@
 
 **[開啟時跡](https://koviankevin.github.io/trace-studio/)** · [操作參考](https://perfetto.dev/docs/visualization/perfetto-ui) · [效能測試](docs/PERFORMANCE.md)
 
-目前為 v1.0.0（原 v0.16.1 的功能基準）。已有自動化測試，以及 Windows Chromium 瀏覽器的實際 File／OPFS、三版本比較與 3 GB 合成資料驗收；詳細範圍與未完成項目見[驗證紀錄](docs/VERIFICATION.md)。尚未證實比 Chrome tracing 或 Perfetto 更快；本專案的目標是在熟悉的操作上提供更清楚的資訊與大檔路徑。
+目前為 v1.0.1。已有自動化測試，以及 Windows Chromium 瀏覽器的實際 File／OPFS、三版本比較與 3 GB 合成資料驗收；詳細範圍與未完成項目見[驗證紀錄](docs/VERIFICATION.md)。尚未證實比 Chrome tracing 或 Perfetto 更快；本專案的目標是在熟悉的操作上提供更清楚的資訊與大檔路徑。
 
 ## 使用
 

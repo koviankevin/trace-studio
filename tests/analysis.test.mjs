@@ -44,7 +44,7 @@ test('extension cancellation propagates and invalid colors cannot break the defa
   const host=createExtensionHost([{id:'a',eventColor:()=>({fill:'url(javascript:x)'}),analyze:()=>({rows:[]})}]);assert.equal(host.eventColor({}),null);await assert.rejects(host.analyze({cancelled:()=>true}),{name:'AbortError'});
 });
 test('event palette distinguishes compute, transfer, wait and frame and is stable across redraws',()=>{
-  const inputs=['CONV','DMA · COMPUTE','Semaphore wait','FRAME'];const result=inputs.map(label=>eventColor({label}));assert.equal(new Set(result.map(x=>x.fill)).size,4);assert.equal(eventColor({label:'CONV'}).fill,result[0].fill);assert.notEqual(eventColor({label:'CONV'},true).fill,result[0].fill);assert.equal(eventColor({label:'CUSTOM_OP'}).category,'其他');
+  const inputs=['CONV','DMA · COPY','Semaphore wait','FRAME'];const result=inputs.map(label=>eventColor({label}));assert.equal(new Set(result.map(x=>x.fill)).size,4);assert.equal(eventColor({label:'CONV'}).fill,result[0].fill);assert.notEqual(eventColor({label:'CONV'},true).fill,result[0].fill);assert.equal(eventColor({label:'CUSTOM_OP'}).category,'其他');
 });
 
 

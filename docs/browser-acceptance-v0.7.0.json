@@ -81,5 +81,6 @@
     "Actual multi-tab OPFS conflicts and quota exhaustion",
     "Browser peak memory and interaction p95",
     "Real hardware trace semantic validation"
-  ]
+  ],
+  "publicLabelRedaction": "歷史紀錄中的示範名稱與欄位已改為通用名稱；保留原量測數據與來源指紋，不視為重新量測或逐字畫面副本。"
 }

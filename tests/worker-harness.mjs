@@ -20,7 +20,7 @@ class Directory{
 }
 Object.defineProperty(globalThis,'navigator',{value:{locks,storage:{getDirectory:async()=>new Directory(root),estimate:async()=>(workerData.storageEstimate??{quota:1e12,usage:0})}}});
 globalThis.postMessage=message=>parentPort.postMessage(message);globalThis.onmessage=null;
-await import('../dist/worker.js');
+await import(workerData.entry||'../dist/worker.js');
 parentPort.on('message',data=>{
   if(data.type==='testWriteFault'){writeFault={name:data.name,after:data.after||0};parentPort.postMessage({type:'testWriteFaultConfigured',requestId:data.requestId});return;}
   if(data.type==='testQuotaEstimate'){workerData.storageEstimate=data.estimate;parentPort.postMessage({type:'testQuotaConfigured',requestId:data.requestId});return;}

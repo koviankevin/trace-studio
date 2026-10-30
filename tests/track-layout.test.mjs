@@ -33,8 +33,8 @@ test('collapsed activity overview stays bounded and reads only in-memory block s
   const result=summarizeGroups(trace,[{id:'core',trackIds:[0]}],0,100,4000);assert.equal(result[0].bins.length,240);assert(result[0].bins.some(n=>n>0));assert(summarizeGroups(trace,[{id:'core',trackIds:[0]}],200,300,100)[0].bins.every(n=>n===0));
 });
 test('event field summary preserves supplied identities, shapes and traffic without inventing conclusions',()=>{
-  const result=eventSummary({args:{core_id:0,linkid:81,opid:1,input:{shape:[12,12,64]},output_shape:[10,10,32],memory_traffic:{DRAM:{read_bytes:450900,write_bytes:0}},not_flow_id:999}});
-  assert.equal(result.find(r=>r.label==='Core ID').value,'0');assert.equal(result.find(r=>r.label==='輸入 Shape').value,'[12,12,64]');assert.equal(result.find(r=>r.label==='DRAM 讀取').value,'450900 B');assert.equal(result.find(r=>r.label==='DRAM 寫入').value,'0 B');
+  const result=eventSummary({args:{core_id:0,linkid:81,opid:1,input:{shape:[12,12,64]},output_shape:[10,10,32],memory_traffic:{DRAM:{read_bytes:1024,write_bytes:0}},not_flow_id:999}});
+  assert.equal(result.find(r=>r.label==='Core ID').value,'0');assert.equal(result.find(r=>r.label==='輸入 Shape').value,'[12,12,64]');assert.equal(result.find(r=>r.label==='DRAM 讀取').value,'1024 B');assert.equal(result.find(r=>r.label==='DRAM 寫入').value,'0 B');
   assert(!result.some(r=>r.section==='analysis'));assert.deepEqual(eventSummary({args:{not_flow_id:999,duration:10}}),[]);
   assert.equal(eventSummary({args:{bottleneck:'compute (trace supplied)',suggestion:'literal <text>'}}).find(r=>r.label==='來源建議').value,'literal <text>');
 });

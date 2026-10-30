@@ -44,5 +44,6 @@
     "relation-view.js": "d9fea6f513fc0ea345195eb1b06d5004b9982532f08acdc0e145ccfec3a43e05",
     "relations.js": "4cedee4f16eda8615c7dc1658511414348280e73c481879f2ef68b0d903b796a",
     "core.js": "4a8769e8d9f34f8fbb282b8fa97b6d600462f01ad9eb6ada534e16c8f79b0ef5"
-  }
+  },
+  "publicLabelRedaction": "歷史紀錄中的示範名稱與欄位已改為通用名稱；保留原量測數據與來源指紋，不視為重新量測或逐字畫面副本。"
 }

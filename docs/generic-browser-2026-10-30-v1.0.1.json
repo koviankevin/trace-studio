@@ -1,0 +1,75 @@
+{
+  "version": "1.0.1",
+  "recordedAt": "2026-10-30T11:38:54.579Z",
+  "environment": "Windows in-app Chromium, localhost:4318",
+  "sourceHashes": {
+    "analysis.js": "aebaa304cab48b4a2f825870a9e7e140b24ff53ed534edd05d1f0557fe324e30",
+    "app.js": "1a90048d9583916893056b0cab9865bdf02a456bccf9364c26964ea2b0ced914",
+    "argument-analysis.js": "df154d38367bdc17c7ed4526e04772e48023012a1f027c4e7a9e21689a3f4be7",
+    "argument-facts.js": "53d433220d5ea522784e66a0dc71fe7f8a68a9b21efd65978828bdea452c68c8",
+    "comparison-view.js": "8e1616bf06f18147147e04a8ea582c466ce8540c01df04dfb6b37fb8dcce787d",
+    "core.js": "4a8769e8d9f34f8fbb282b8fa97b6d600462f01ad9eb6ada534e16c8f79b0ef5",
+    "counter-plot.js": "5be799531fcf8831fe7f1e8c0eabce4b9dd6fc6ef22e8ca4cd673e3ca15d7487",
+    "event-colors.js": "7bcda5dbd41eddfc62befa78f473d57b8930f1f0cd720e03f1ecc00674b21cdc",
+    "event-labels.js": "62eb7f695f4de200e80612c52aacf6877854be7f6c8d92928268a2818e51cdd6",
+    "event-summary.js": "0cbd27a1862224d754e23339837023a4a3f3ff7de997a14e84263858f8a37580",
+    "extensions/custom.js": "7a5ad7c3e80000e59c1e98b94fdf9d3a26e62c83ce6ac7b4fb3ae7a1c1cb99ae",
+    "extensions/example.js": "00583122cd61b679c2fa5dd39703028a5e2fda1b1819bfaef9c23764be40d1da",
+    "extensions/runtime.js": "8a9ed699527259f9c907ec3122dd1693f1f1a78167bab35df3baa7a633d5f830",
+    "focus.js": "d3b61f93f195d0791f78a00b6c7bf75e7db0cd971773c35b0201d9994884f282",
+    "hardware-demo.js": "c6ae79bea9a8f47d5ec13e0844b2009b05386534a058eba83ec1f1b5160098b3",
+    "icon.svg": "0e22875a1bd6c491a32ef97e01e1b1d5c61e26cddbe9185d0eec7093a4f89648",
+    "index.html": "eae360b11418089e10671ff17e321e5657d38fc476f149ec0e635e15cbacac52",
+    "LICENSE": "9b569417be9f195f8ffa709a23836c4e0f880b2752b09653baa8a98d3b02db3a",
+    "navigation.js": "4a1260c4022f9f3d38004afee39147afd23c17e27352bab7257dc67950f85cb2",
+    "NOTICE": "4bdcae36f300baac2fd10dd372ba4b2c1b534951b4289b3cc43f92a6bc60fbb5",
+    "relation-view.js": "668803e70914cdaf8102f98007545f81c30e62d8eb31e0f48365bfddd28e6735",
+    "relations.js": "4cedee4f16eda8615c7dc1658511414348280e73c481879f2ef68b0d903b796a",
+    "runtime-metrics.js": "ccfd123fe113acb7b7073b7efbe396fb0286cc74773ae750d96486a30b8a8f98",
+    "session-store.js": "3a027f9386bbc5c907460ff6a2b6f6f7b91f8f8531c0b713666180354fa1ef8c",
+    "style.css": "55376a8b979982f697b353991cb935b67367be12d6a3b5683e2f1f71c94bb92f",
+    "tar-stream.js": "813e0d1c7ebc9529993a26ebc172d1bf4917377f8c697f0e0795ec758d06b592",
+    "time-format.js": "6343b647e85c77e38ba7762b38b0d1ddd037df2ed88df01274e4fc1b9a880f0b",
+    "trace-cache.js": "0ecf58568398901b262c130f4178da005263bf163787235ca9d901fef76250ab",
+    "trace-comparison.js": "33782c3a78dcb574da5bf0953a6765b07840084c6e7124b14ad1c3ba9f08405c",
+    "trace-selection.js": "acd8aeb19120d718d16e69404393d2a00ee8d710773980d2744010bcaac1cbf1",
+    "track-layout.js": "62e329c7501856e1eddbc67589dd26616b84c16995bf69348c2120ffbc528bd6",
+    "worker.js": "016aac4bd83d2205bca18b9a1d9153c8213354952d2873bb084f46517efaa203",
+    "workspace-tabs.js": "eb9f4e6809c21ae7090587062a046d2d018aa14097507ee8eb85ee2c283cbf2f",
+    "workspace.css": "767f7f0ad9f9ce26c72bb94f73bbed8c979ce7a82bb21ee27d6ab19a6a131f31"
+  },
+  "gestureReuse": {
+    "baselineCommit": "historical-revision",
+    "baselineAppSHA256": "45c9f4c30c1ec89fea1a3b696a14878b42dfbd38c3956b1cb472a85658b2f1ab",
+    "sections": [
+      {
+        "start": "function setRange(",
+        "end": "function fitAll(",
+        "sha256": "479dc9cdf3b420c7b557c39df299fd5a63d88331c75cac7d67fbcc5a58d261b4"
+      },
+      {
+        "start": "function localPoint(",
+        "end": "function toggleTrackHeight(",
+        "sha256": "14a25da6feae9c8bbbde281e0a06d5c39b68326b1e8cd57cd636808c2f277005"
+      }
+    ],
+    "note": "Input handlers and range arithmetic match the app behind the historical browser/physical gesture evidence. New tab lifecycle and relation rendering have targeted coverage; no new 3 GB benchmark claimed."
+  },
+  "browserChecks": {
+    "demoLoaded": true,
+    "genericCoreNames": true,
+    "genericFieldSummary": true,
+    "tfliteAnalysis": true,
+    "memoryRangeAnalysis": true,
+    "noConsoleErrors": true
+  },
+  "schemaAcceptance": {
+    "test": "tests/schema-integration.test.mjs",
+    "scope": "Real Worker with copied application and custom schema: detail, Args analysis and two-trace comparison all honor local aliases",
+    "passed": true
+  },
+  "limitations": [
+    "Historical labels are redacted; original measurements are retained and not presented as new benchmarks.",
+    "No real intranet trace, total browser RAM, native quota exhaustion or screen reader acceptance."
+  ]
+}

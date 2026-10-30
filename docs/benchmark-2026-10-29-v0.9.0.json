@@ -27,5 +27,6 @@
   },
   "createdAt": "2026-10-29T15:35:33.086Z",
   "mainThreadTicks": 1443,
-  "maxMainThreadTimerDelayMs": 21.64669999999751
+  "maxMainThreadTimerDelayMs": 21.64669999999751,
+  "publicLabelRedaction": "歷史紀錄中的示範名稱與欄位已改為通用名稱；保留原量測數據與來源指紋，不視為重新量測或逐字畫面副本。"
 }

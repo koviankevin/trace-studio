@@ -3,5 +3,6 @@
   "reusedEvidence": "docs/parser-benchmark-2026-10-30-v0.12.0.json",
   "extraction": "const WS through before const encoder; exact byte comparison",
   "readerSHA256": "ec97c38dfaec36a44423e614391ab482683a1286f81d469e2d18e5657a1497b8",
-  "note": "Parser-only evidence reused because reader code is identical. New core/relations full-source benchmarks rerun. Prior browser File times stay labeled v0.12.0."
+  "note": "Parser-only evidence reused because reader code is identical. New core/relations full-source benchmarks rerun. Prior browser File times stay labeled v0.12.0.",
+  "publicLabelRedaction": "歷史紀錄中的示範名稱與欄位已改為通用名稱；保留原量測數據與來源指紋，不視為重新量測或逐字畫面副本。"
 }

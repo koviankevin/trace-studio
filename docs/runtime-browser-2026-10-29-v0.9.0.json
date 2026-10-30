@@ -183,5 +183,6 @@
     "Small smoke observation, not a stable latency ceiling, compositor/FPS measurement or comparison against Perfetto",
     "No new browser 3 GB file import this release; Node engine import rerun and prior browser OPFS index restored",
     "Approximate JS heap does not prove total browser/Worker peak memory"
-  ]
+  ],
+  "publicLabelRedaction": "歷史紀錄中的示範名稱與欄位已改為通用名稱；保留原量測數據與來源指紋，不視為重新量測或逐字畫面副本。"
 }

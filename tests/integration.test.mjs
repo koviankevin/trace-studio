@@ -207,12 +207,9 @@ test('application element references and local assets exist; engine benchmark ha
   for(const asset of ['style.css','workspace.css','app.js','worker.js','core.js','relations.js','navigation.js','track-layout.js','event-summary.js','event-colors.js','analysis.js','session-store.js','counter-plot.js','argument-analysis.js','argument-facts.js','event-labels.js','trace-cache.js','workspace-tabs.js','trace-comparison.js','comparison-view.js','relation-view.js','tar-stream.js','trace-selection.js','time-format.js','runtime-metrics.js','focus.js','extensions/runtime.js','extensions/custom.js','extensions/example.js','hardware-demo.js','icon.svg'])assert((await readFile(new URL(asset,base))).length>0);
   const benchmark=JSON.parse(await readFile(new URL('../docs/benchmark-2026-10-30-v0.13.0.json',import.meta.url),'utf8'));
   for(const [file,expected]of Object.entries(benchmark.sourceHashes))assert.equal(createHash('sha256').update(await readFile(new URL(file,base))).digest('hex'),expected,`Rerun benchmark after changing ${file}`);
-  const browser=JSON.parse(await readFile(new URL('../docs/input-browser-2026-10-30-v0.14.0.json',import.meta.url),'utf8')),workspace=JSON.parse(await readFile(new URL('../docs/workspace-browser-2026-10-30-v0.16.1.json',import.meta.url),'utf8'));
+  const browser=JSON.parse(await readFile(new URL('../docs/input-browser-2026-10-30-v0.14.0.json',import.meta.url),'utf8')),workspace=JSON.parse(await readFile(new URL('../docs/generic-browser-2026-10-30-v1.0.1.json',import.meta.url),'utf8'));
   for(const [file,expected]of Object.entries(workspace.sourceHashes)){
     let bytes=await readFile(new URL(file,base));
-    // v1.0.0 resets the product label only. Reuse the original acceptance only
-    // when reversing those exact labels reproduces its complete source hash.
-    if(file==='index.html')bytes=Buffer.from(bytes.toString('utf8').replaceAll('?v=1.0.0','?v=0.16.1').replace('>v1.0.0</span>','>v0.16.1</span>'));
     assert.equal(createHash('sha256').update(bytes).digest('hex'),expected,`Refresh affected workspace acceptance after changing ${file}`);
   }
   for(const [file,expected]of Object.entries(browser.sourceHashes))if(!Object.hasOwn(workspace.sourceHashes,file))assert.equal(createHash('sha256').update(await readFile(new URL(file,base))).digest('hex'),expected);

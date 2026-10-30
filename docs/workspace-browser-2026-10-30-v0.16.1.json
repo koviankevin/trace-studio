@@ -51,5 +51,6 @@
     "No new desktop Edge run; connection unavailable",
     "No real CORE trace; intranet acceptance remains pending",
     "Peak browser/Worker RAM, native quota exhaustion and full screen-reader acceptance remain pending"
-  ]
+  ],
+  "publicLabelRedaction": "歷史紀錄中的示範名稱與欄位已改為通用名稱；保留原量測數據與來源指紋，不視為重新量測或逐字畫面副本。"
 }

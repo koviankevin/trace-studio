@@ -42,5 +42,6 @@
     "core.js": "b332ea20cc9b7d72be90fa8ca08190e0a5c5d027bbb651041c6d0b25f380f761",
     "relations.js": "60c8ad6c1c94df9c3359b68f447eb8e939873b9e3cbfabc38930a9119fedc473"
   },
-  "createdAt": "2026-10-29T17:15:39.287Z"
+  "createdAt": "2026-10-29T17:15:39.287Z",
+  "publicLabelRedaction": "歷史紀錄中的示範名稱與欄位已改為通用名稱；保留原量測數據與來源指紋，不視為重新量測或逐字畫面副本。"
 }

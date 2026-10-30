@@ -67,5 +67,6 @@
     "app.js": "52ae7f257dea71854ec8b94d3c9755f65603d115751b9c3dd761da6fa50d5a62",
     "index.html": "e467251833abf2e71b9172f4a21c522995b73e430c56331474c9fd3e1b831481"
   },
-  "provenance": "Synthetic fixtures only. UI observations and downloaded artifact assertions; not a standalone Chrome/Edge, peak-memory or interaction-percentile benchmark. Drawer check used the recorded app source; earlier keyboard and paired checks preceded the additive drawer accessibility change."
+  "provenance": "Synthetic fixtures only. UI observations and downloaded artifact assertions; not a standalone Chrome/Edge, peak-memory or interaction-percentile benchmark. Drawer check used the recorded app source; earlier keyboard and paired checks preceded the additive drawer accessibility change.",
+  "publicLabelRedaction": "歷史紀錄中的示範名稱與欄位已改為通用名稱；保留原量測數據與來源指紋，不視為重新量測或逐字畫面副本。"
 }

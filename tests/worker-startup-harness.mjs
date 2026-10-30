@@ -15,7 +15,7 @@ const context=vm.createContext({
 const url=new URL('../dist/worker.js',import.meta.url);
 const module=new vm.SourceTextModule(await readFile(url,'utf8'),{context,identifier:url.href});
 await module.link(async specifier=>{
-  const values=specifier==='./extensions/runtime.js'
+  const values=specifier.split('?')[0]==='./extensions/runtime.js'
     ?{loadExtensionHost:async()=>{started();await gate;return loadExtensionHost();}}
     :await import(new URL(specifier,url));
   return new vm.SyntheticModule(Object.keys(values),function(){for(const [key,value]of Object.entries(values))this.setExport(key,value);},{context});

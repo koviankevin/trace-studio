@@ -1,7 +1,7 @@
 const natural=new Intl.Collator('en',{numeric:true,sensitivity:'base'});
 import {shortTid,processName} from './event-labels.js?v=0.13.0';
 export function coreName(name){
-  const match=String(name||'').match(/(?:^|[\s/_[(:.-])(CORE|NPU|VPU|DSP|GPU|CPU|CORE)[\s_#:-]*(\d+)(?=$|[\s_./:[\]-])/i);
+  const match=String(name||'').match(/(?:^|[\s/_[(:.-])(NPU|VPU|DSP|GPU|CPU|CORE)[\s_#:-]*(\d+)(?=$|[\s_./:[\]-])/i);
   return match?`${match[1].toUpperCase()}${Number(match[2])}`:null;
 }
 function compareTracks(a,b){

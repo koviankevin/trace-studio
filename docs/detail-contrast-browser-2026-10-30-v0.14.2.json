@@ -884,5 +884,6 @@
     ],
     "dark": 6.2301058090968775
   },
-  "applicationBehaviorReuse": "All listed application, Worker, engine and layout files are byte-identical to v0.14.1. Historical gesture and large-file observations retain their original version; only CSS foreground colors, relation-path opacity and HTML release/cache labels change."
+  "applicationBehaviorReuse": "All listed application, Worker, engine and layout files are byte-identical to v0.14.1. Historical gesture and large-file observations retain their original version; only CSS foreground colors, relation-path opacity and HTML release/cache labels change.",
+  "publicLabelRedaction": "歷史紀錄中的示範名稱與欄位已改為通用名稱；保留原量測數據與來源指紋，不視為重新量測或逐字畫面副本。"
 }

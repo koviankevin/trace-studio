@@ -6,8 +6,8 @@
 
 ```js
 // dist/extensions/custom.js
-import coreExample from './example.js';
-export default [coreExample];
+import genericExample from './example.js';
+export default [genericExample];
 ```
 
 `example.js` 會在事件詳情加上核心名稱，並分析範圍內前 10,000 筆事件的 Flow 欄位覆蓋。它是**未啟用的抽樣範例**，不是完整 Flow／瓶頸分析。
@@ -146,3 +146,20 @@ RelationIndex.findAsync(event, record, endEvent, options) 是 Worker 使用的�
 先保留 Flow／symbol 精確鍵候選，同址再依原始索引的時間間隔與起點距離選取；最多保留 256 個同址原始參照、驗證 256 個原始候選、輸出 64 個去重後事件。候選會讀回完整 Args 核對鍵，再解析為實際 B/E 區段或曲線樣本。一次候選驗證可能有多次讀取／JSON.parse；256 不是 I/O 次數或 bytes 上限。indexHits 是匹配的索引參照數，可能包含多鍵及 B/E 別名，不等於唯一事件數。sampled 代表候選取樣或驗證預算耗盡，capped 也涵蓋結果上限。
 
 這是有界探索，不是完整依賴圖或全域最近配置查詢：B/E 原始端點沒有完整 duration，密集、長區段或重用位址時預選排序可能省略重要候選；Flow／symbol 超過上限也沒有保證保留全部最近事件。若要 allocation／producer-consumer 的確定推導，需要額外的生命週期與方向 metadata。時間預算是合作式，單次同步磁碟讀取或巨型 JSON.parse 仍可能超時。
+
+## 內部欄位對應
+
+公開預設僅含通用欄位與 TfliteID。內部格式在 custom.js 的擴充宣告加上 argumentSchema；設定同時供選取事件、Args 分析與跨 Trace 比較使用。原始 JSON 不改寫。以下名稱為自訂範例，請在內網替換：
+
+~~~js
+export default [{
+  id: 'local-schema',
+  argumentSchema: {
+    idFields: { tflite: ['my_operator'], flow: ['my_link'], core: ['my_core'] },
+    memoryFields: { start: ['my_start'], end: ['my_end'], size: ['my_bytes'], location: ['my_space'] },
+    identityFields: ['my_identity']
+  }
+}];
+~~~
+
+欄位別名由英數正規化比對，可接受相同父物件內的數字尾碼。每類最多增加 32 個名稱、單名 80 字元，宣告錯誤會顯示擴充載入失敗並回到通用預設。記憶體欄位必須在同一物件中配對，不能將不同父物件的起訖混合。額外欄位摘要可用 eventFields，自訂分析可用 analyze；公開專案不內建任何內部名稱對照表。

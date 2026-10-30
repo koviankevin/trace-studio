@@ -22,5 +22,6 @@
   "allQueriedExtremaMatch": true,
   "sourceHashes": {
     "core.js": "2d37a38c14c8039b13a7cf8bd5b4a3785ccc0d1ff08d98349c2e5398af733adc"
-  }
+  },
+  "publicLabelRedaction": "歷史紀錄中的示範名稱與欄位已改為通用名稱；保留原量測數據與來源指紋，不視為重新量測或逐字畫面副本。"
 }

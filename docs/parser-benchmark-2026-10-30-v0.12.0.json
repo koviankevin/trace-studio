@@ -156,5 +156,6 @@
     ],
     "createdAt": "2026-10-29T17:14:48.853Z"
   },
-  "notes": "Three runs each, same corpus; parser-only, no disk indexing. Raw source character counts and event counts checked. Timings are observations, no CI timing threshold."
+  "notes": "Three runs each, same corpus; parser-only, no disk indexing. Raw source character counts and event counts checked. Timings are observations, no CI timing threshold.",
+  "publicLabelRedaction": "歷史紀錄中的示範名稱與欄位已改為通用名稱；保留原量測數據與來源指紋，不視為重新量測或逐字畫面副本。"
 }

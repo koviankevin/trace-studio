@@ -1,10 +1,10 @@
 import {PerfettoNavigation,wheelZoomRatio} from './navigation.js';
-import {groupTracks,allGroups,defaultCollapsed,makeTrackLayout,revealTrack,trackName} from './track-layout.js?v=0.13.0';
-import {eventSummary} from './event-summary.js?v=0.4.0';
-import {eventColor,readableEventText} from './event-colors.js?v=0.10.0';
-import {loadExtensionHost} from './extensions/runtime.js';
+import {groupTracks,allGroups,defaultCollapsed,makeTrackLayout,revealTrack,trackName} from './track-layout.js?v=1.0.1';
+import {eventSummary} from './event-summary.js?v=1.0.1';
+import {eventColor,readableEventText} from './event-colors.js?v=1.0.1';
+import {loadExtensionHost} from './extensions/runtime.js?v=1.0.1';
 import {counterPlot,formatCounterValue} from './counter-plot.js?v=0.3.2';
-import {extractArgumentFacts} from './argument-facts.js?v=0.4.0';
+import {extractArgumentFacts} from './argument-facts.js?v=1.0.1';
 import {fallbackEventName,missingEventName,processName} from './event-labels.js?v=0.13.0';
 import {comparisonHTML} from './comparison-view.js?v=0.7.0';
 import {selectRelationLines,groupRelationCandidates,relationRecordKey,relationKey,relationAssociations,relationEndpoint,isExplicitRelation} from './relation-view.js?v=0.16.1';
@@ -38,7 +38,7 @@ function number(n){return n.toLocaleString('en-US');}
 function toast(message){$('toast').textContent=message;$('toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').hidden=true,6500);}
 function send(type,data={}){if(['import','restore','demo','hardwareDemo'].includes(type))data={requestId:loadRequestId,...data};if(['query','detail','cancelDetail','neighbor','search','analysis'].includes(type))data={traceId:state.info?.id,...data};worker.postMessage({type,...data});}
 function forgetCaches(ids){try{if(ids.includes(localStorage.getItem('trace-studio-session'))){if(state.info&&!ids.includes(state.info.id))localStorage.setItem('trace-studio-session',state.info.id);else localStorage.removeItem('trace-studio-session');}}catch{}}
-function startWorker(){worker?.terminate();queryBusy=false;queryDirty=false;clearTimeout(queryTimer);queryTimer=null;const active=new Worker(new URL('./worker.js?v=0.15.0',import.meta.url),{type:'module'});worker=active;active.onmessage=event=>{if(worker===active)handleMessage(event);};active.postMessage({type:'cachePolicy',limitMB:cacheLimit});active.onerror=e=>{if(worker!==active)return;finishLoading();toast(`背景引擎錯誤：${e.message}`);};}
+function startWorker(){worker?.terminate();queryBusy=false;queryDirty=false;clearTimeout(queryTimer);queryTimer=null;const active=new Worker(new URL('./worker.js?v=1.0.1',import.meta.url),{type:'module'});worker=active;active.onmessage=event=>{if(worker===active)handleMessage(event);};active.postMessage({type:'cachePolicy',limitMB:cacheLimit});active.onerror=e=>{if(worker!==active)return;finishLoading();toast(`背景引擎錯誤：${e.message}`);};}
 function finishLoading(){importing=false;importCancelling=false;if($('loading').open)$('loading').close();}
 function beginLoading(title='正在讀取 Trace',remember=true){
   $('cancel-search').hidden=true;
@@ -298,7 +298,7 @@ function selectRecord(r,ensureVisible=false){if(!state.info)return;if($('details
 function clearSelection(){state.detailId++;send('cancelDetail');$('selection-status').textContent='已清除事件選取。';resetRelations();state.selected=null;state.detail=null;state.links=[];state.area=null;$('selection-heading').textContent='目前選取';$('selection-badge').textContent='EVENT DETAILS';$('details-content').innerHTML='<div class="selection-empty">↖ 點選事件查看 args、位址關聯與原始 JSON。</div>';paint();}
 function memoryBytes(value){const n=Number(value);return Number.isSafeInteger(n)?`${number(n)} B`:String(value)+' B';}
 function argumentFactsHTML(event,supplied){
-  const facts=supplied||extractArgumentFacts(event),ids=facts.ids;
+  const facts=supplied||extractArgumentFacts(event,extensionHost.argumentSchema),ids=facts.ids;
   const buttons=[['tflite','TfliteID'],['flow','LinkId']].filter(([key])=>ids[key]!==undefined).map(([key,label])=>`<button class="soft-button" data-argument-focus="${key}" title="${esc(facts.sources[key])}">分析同 ${label} ${esc(ids[key])}</button>`).join('');
   if(!buttons&&!facts.memories.length&&!facts.warnings.length)return '';
   return `<section class="argument-facts"><h3>事件欄位分析</h3><div class="argument-actions">${buttons}${facts.memories.length?'<button class="soft-button" data-argument-focus="memory">比對記憶體範圍</button>':''}</div>${facts.memories.length?`<div class="analysis-table-wrap"><table class="analysis-table"><thead><tr><th>Location／用途</th><th>起點 → 尾端（含）</th><th>區段大小</th><th>判讀依據</th></tr></thead><tbody>${facts.memories.map(memory=>`<tr><th>${esc(memory.location)}<small>${memory.role==='input'?'輸入':memory.role==='output'?'輸出':'未標示用途'}</small></th><td>${esc(memory.start)} → ${esc(memory.end)}</td><td>${esc(memoryBytes(memory.bytes))}${memory.sizeMatches===false?`<small class="warning">宣告 ${esc(memoryBytes(memory.declaredBytes))}，不一致</small>`:''}</td><td>${esc(memory.basis==='start-and-size'?'起點＋Size':memory.basis==='size-confirmed-exclusive'?'Size 證實原尾端不含':memory.basis==='size-confirmed-inclusive'?'Size 證實尾端包含':'尾端包含尚未驗證')}</td></tr>`).join('')}</tbody></table></div>`:''}${facts.conflicts.length?`<p class="warning">${facts.conflicts.length} 個識別欄位不一致，優先使用較直接的明確欄位。</p>`:''}${facts.warnings.map(warning=>`<p class="warning">${esc(warning)}</p>`).join('')}${facts.truncated?'<p class="warning">此事件部分欄位達解析上限；完整資料仍在下方原始 JSON。</p>':''}</section>`;
@@ -306,7 +306,7 @@ function argumentFactsHTML(event,supplied){
 function focusArguments(kind,value){
   if(!state.info||state.analysisBusy)return;
   if(value!==undefined)argumentFocus={kind,value};
-  else if(state.detail){const facts=state.detail.facts||extractArgumentFacts(state.detail.event),event=state.detail.event;
+  else if(state.detail){const facts=state.detail.facts||extractArgumentFacts(state.detail.event,extensionHost.argumentSchema),event=state.detail.event;
     argumentFocus=kind==='memory'?{kind,pid:event.pid??0,core:facts.ids.core,memories:facts.memories,sourceOffset:state.selected.offset,ts:state.selected.ts,dur:state.selected.dur,crossProcess:false}:{kind,value:facts.ids[kind]};
   }else return;
   $('argument-focus').textContent=kind==='memory'?'目前事件的記憶體範圍':`${kind==='tflite'?'TfliteID':'LinkId'} ${argumentFocus.value}`;

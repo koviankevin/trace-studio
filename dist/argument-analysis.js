@@ -1,8 +1,8 @@
 import {scanTraceIndex} from './analysis.js?v=0.9.0';
-import {extractRecordFacts,compareMemory} from './argument-facts.js?v=0.4.0';
+import {extractRecordFacts,compareMemory} from './argument-facts.js?v=1.0.1';
 
 // On-demand raw-argument analysis. It never runs on import or viewport queries.
-export async function analyzeArguments(trace,{start=trace.start,end=trace.end,trackIds=trace.tracks.map(t=>t.id),focus=null,maxGroups=16384,memberOffset=0,timeBudgetMs=8,onProgress=()=>{},cancelled=()=>false,yieldNow=()=>new Promise(resolve=>setTimeout(resolve,0))}={}){
+export async function analyzeArguments(trace,{start=trace.start,end=trace.end,trackIds=trace.tracks.map(t=>t.id),focus=null,argumentSchema={},maxGroups=16384,memberOffset=0,timeBudgetMs=8,onProgress=()=>{},cancelled=()=>false,yieldNow=()=>new Promise(resolve=>setTimeout(resolve,0))}={}){
   if(!Number.isFinite(start)||!Number.isFinite(end)||end<=start)throw Error('請選擇有效的事件欄位分析範圍');
   if(!Number.isInteger(memberOffset)||memberOffset<0||!Number.isInteger(maxGroups)||maxGroups<1||maxGroups>65536)throw Error('事件欄位分析的頁次或群組上限無效');
   if(!Number.isFinite(timeBudgetMs)||timeBudgetMs<0||timeBudgetMs>50)throw Error('事件欄位分析的執行時間預算無效');
@@ -22,7 +22,7 @@ export async function analyzeArguments(trace,{start=trace.start,end=trace.end,tr
     const detail=trace.detail(source);
     if(source.kind===2&&track.counterSource!==undefined){const owners=counterOwners.get(JSON.stringify([track.pid,track.tid,track.counterSource]));const key=Object.keys(detail.event.args||{}).find(key=>Number.isFinite(detail.event.args[key])&&owners.has(key));if(owners.get(key)!==track.id)continue;}
     if(source.kind===2&&track.counterSource===undefined){const keys=Object.keys(detail.event.args||{}).filter(key=>Number.isFinite(detail.event.args[key]));let owner;for(const key of keys){owner=trace.tracks.find(t=>selected.has(t.id)&&t.kind==='counter'&&t.pid===track.pid&&t.tid===track.tid&&[String(detail.event.name??'未命名事件'),'undefined','null','未命名事件'].some(name=>t.key===`${track.pid}/${track.tid}/${name} · ${key}`));if(owner)break;}if(owner&&owner.id!==track.id)continue;}
-    const facts=extractRecordFacts(detail),record={...source,label:trace.displayName?trace.displayName(source,source.trackId,detail.event):source.label};events++;if(Object.keys(facts.ids).length)withIds++;if(facts.truncated)truncatedFacts++;conflicts+=facts.conflicts.length;warnings+=facts.warnings.length;
+    const facts=extractRecordFacts(detail,argumentSchema),record={...source,label:trace.displayName?trace.displayName(source,source.trackId,detail.event):source.label};events++;if(Object.keys(facts.ids).length)withIds++;if(facts.truncated)truncatedFacts++;conflicts+=facts.conflicts.length;warnings+=facts.warnings.length;
     let matches=[];
     if(focus?.kind==='tflite-all'&&facts.ids.tflite!==undefined)matches=[{kind:'has-id',path:facts.sources.tflite}];
     if(focus?.kind==='tflite-set'&&selectedTfliteIds.has(facts.ids.tflite))matches=[{kind:'same-id',path:facts.sources.tflite}];

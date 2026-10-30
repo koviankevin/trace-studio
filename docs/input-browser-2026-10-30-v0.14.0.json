@@ -325,5 +325,6 @@
     "from": "docs/metadata-browser-2026-10-30-v0.13.0.json",
     "reason": "Engine, labels, grouping and detail renderer unchanged; runtime UI/instrumentation newly tested.",
     "renderDetailSHA256": "852ae4fd21a187c985eecd17f00b795a1f9bd9d613d08373964b92b6a2c8edcb"
-  }
+  },
+  "publicLabelRedaction": "歷史紀錄中的示範名稱與欄位已改為通用名稱；保留原量測數據與來源指紋，不視為重新量測或逐字畫面副本。"
 }

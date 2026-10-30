@@ -481,5 +481,6 @@
     "relations.js": "4cedee4f16eda8615c7dc1658511414348280e73c481879f2ef68b0d903b796a"
   },
   "baselineSourceCommit": "historical-revision",
-  "byteIdenticalToBaseline": true
+  "byteIdenticalToBaseline": true,
+  "publicLabelRedaction": "歷史紀錄中的示範名稱與欄位已改為通用名稱；保留原量測數據與來源指紋，不視為重新量測或逐字畫面副本。"
 }
