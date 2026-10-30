@@ -1,6 +1,17 @@
 # 驗證紀錄
 
-## 目前進度：v0.13.0
+## 目前進度：v0.14.0
+
+在原有、預設關閉的本機效能記錄加入有界輸入觀察，沿用開始／停止／複製按鈕。每筆只保留修飾鍵、瀏覽器可信標記、分類、時間範圍長度與相對位移；不保存座標、檔名、事件內容或原始絕對時間戳。修飾鍵收到次數與實際縮放／平移次數分開，碰到範圍邊界、普通輸入、取消、非可信輸入或只點擊時不會誤報為成功手勢；最近明細上限 64，計數為累計。格式升為 2，另標記 applicationVersion。
+
+先在正式 app／Worker 測試入口重現停止後切換 Trace，舊完成樣本仍被掛上新 trace 摘要（1 !== 0）。現在任何開啟／切換都重設記錄，舊 pointer capture 也以獨立 epoch 隔離；停止記錄的空新 capture elapsedMs 為零。測試覆蓋可信／非可信修飾鍵、meta、範圍邊界、選取與平移差異、取消、重設／隱藏、容量、輸出副本及額外私有欄位不外洩。
+
+實際內嵌 Chromium 的普通滾輪與拖曳各捕捉一筆，isTrusted 為 true、Ctrl／Shift 均為 false，動作分別為 scroll／area，因此兩類可信修飾鍵計數仍是零；沒有將其當作 Ctrl 滾輪或 Shift 平移通過。停止後從 9,076 事件的示範切到 3 事件 fixture，frames／inputs 都清零，報告歸屬新 Trace。800×600 視窗的 clientWidth／scrollWidth 均為 785。來源雜湊、完整前後報告及界線見 [瀏覽器紀錄](input-browser-2026-10-30-v0.14.0.json)。使用者已同意新版準備好後親自操作兩種組合並回傳報告，正向原生手勢驗收仍待該實機結果。
+
+core.js／relations.js 未改且 SHA-256 與 v0.13.0 相同，沿用 3 GB、百萬 counter 與密集同址基準；事件資料、分組及詳情 renderer 沿用範圍另以來源指紋核對。發布仍須完整測試與正式資產驗證。商品等級、獨立桌面驗收及完整瀏覽器峰值 RAM 未宣告完成。
+
+
+## v0.13.0
 
 先以真實 TraceJSONReader → TraceIndex → manifest → 磁碟還原路徑重現合法 metadata 的 __proto__ 欄位消失。最小例中，原始 JSON 有此欄位，但 finish 前的 metadata 已沒有 own key，排除還原與序列化才遺失的假設；普通字典賦值觸發了內建 setter。現在 metadata／process_name 以可列舉資料屬性保存，程序名稱查找只接受來源自有欄位，避免 constructor／toString 等被當成內建函式名稱。
 

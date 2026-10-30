@@ -1,0 +1,329 @@
+{
+  "version": "0.14.0",
+  "recordedAt": "2026-10-30T00:05:53.804Z",
+  "initialReport": {
+    "applicationVersion": "0.14.0",
+    "browser": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+    "canvas": {
+      "maxMs": null,
+      "medianMs": null,
+      "p95Ms": null,
+      "samples": 0
+    },
+    "coalescedIntents": 0,
+    "completedFrames": 0,
+    "completedQueries": 0,
+    "elapsedMs": 0.20000001788139343,
+    "enabled": true,
+    "heap": {
+      "lastBytes": 6887288,
+      "maxSampledBytes": 6887288
+    },
+    "hiddenOmitted": 0,
+    "inputs": {
+      "pannedShiftDrags": 0,
+      "recent": [],
+      "recorded": 0,
+      "trustedCtrlWheels": 0,
+      "trustedShiftDrags": 0,
+      "windowLimit": 64,
+      "zoomedCtrlWheels": 0
+    },
+    "intents": 0,
+    "longTasks": {
+      "count": 0,
+      "maxMs": 0,
+      "supported": true,
+      "totalMs": 0
+    },
+    "notes": [
+      "Canvas latency ends when the matching query result is submitted by drawTimeline; it includes debounce/queue time, not compositor presentation or FPS.",
+      "Only completed latest-state updates are sampled; coalesced intents and hidden-page observations are counted separately. Quantiles use floor((n-1)*p) over the bounded recent window.",
+      "JS heap is an optional browser-provided approximation, may exclude Worker heaps or include shared heaps, and is not total browser peak memory.",
+      "Input samples keep modifier flags, spans and relative shifts only. Trusted browser input does not certify physical hardware, completed rendering or an entire compatibility test."
+    ],
+    "observations": {
+      "frames": [],
+      "queries": []
+    },
+    "roundTrip": {
+      "maxMs": null,
+      "medianMs": null,
+      "p95Ms": null,
+      "samples": 0
+    },
+    "trace": {
+      "cacheBytes": 5446914,
+      "events": 9076,
+      "inputBytes": 4882710,
+      "tracks": 112
+    },
+    "version": 2,
+    "viewport": {
+      "height": 720,
+      "pixelRatio": 1,
+      "width": 1280
+    },
+    "visibility": "visible",
+    "windowLimit": 512,
+    "worker": {
+      "maxMs": null,
+      "medianMs": null,
+      "p95Ms": null,
+      "samples": 0
+    }
+  },
+  "geometry": {
+    "height": 417,
+    "width": 952,
+    "x": 317,
+    "y": 270
+  },
+  "capturedReport": {
+    "applicationVersion": "0.14.0",
+    "browser": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+    "canvas": {
+      "maxMs": 49.80000001192093,
+      "medianMs": 35.599999994039536,
+      "p95Ms": 36.900000005960464,
+      "samples": 4
+    },
+    "coalescedIntents": 0,
+    "completedFrames": 4,
+    "completedQueries": 6,
+    "elapsedMs": 48226.5,
+    "enabled": false,
+    "heap": {
+      "lastBytes": 8421795,
+      "maxSampledBytes": 8941272
+    },
+    "hiddenOmitted": 0,
+    "inputs": {
+      "pannedShiftDrags": 0,
+      "recent": [
+        {
+          "action": "scroll",
+          "afterSpanUs": 563206.4425000001,
+          "atMs": 46863.59999999404,
+          "beforeSpanUs": 563206.4425000001,
+          "cancelled": false,
+          "ctrlKey": false,
+          "isTrusted": true,
+          "kind": "wheel",
+          "metaKey": false,
+          "moved": false,
+          "panDeltaUs": 0,
+          "rangeChanged": false,
+          "shiftKey": false
+        },
+        {
+          "action": "area",
+          "afterSpanUs": 563206.4425000001,
+          "atMs": 47429.20000001788,
+          "beforeSpanUs": 563206.4425000001,
+          "cancelled": false,
+          "ctrlKey": false,
+          "isTrusted": true,
+          "kind": "pointer",
+          "metaKey": false,
+          "moved": true,
+          "panDeltaUs": 0,
+          "rangeChanged": false,
+          "shiftKey": false
+        }
+      ],
+      "recorded": 2,
+      "trustedCtrlWheels": 0,
+      "trustedShiftDrags": 0,
+      "windowLimit": 64,
+      "zoomedCtrlWheels": 0
+    },
+    "intents": 4,
+    "longTasks": {
+      "count": 0,
+      "maxMs": 0,
+      "supported": true,
+      "totalMs": 0
+    },
+    "notes": [
+      "Canvas latency ends when the matching query result is submitted by drawTimeline; it includes debounce/queue time, not compositor presentation or FPS.",
+      "Only completed latest-state updates are sampled; coalesced intents and hidden-page observations are counted separately. Quantiles use floor((n-1)*p) over the bounded recent window.",
+      "JS heap is an optional browser-provided approximation, may exclude Worker heaps or include shared heaps, and is not total browser peak memory.",
+      "Input samples keep modifier flags, spans and relative shifts only. Trusted browser input does not certify physical hardware, completed rendering or an entire compatibility test."
+    ],
+    "observations": {
+      "frames": [
+        {
+          "canvasMs": 49.80000001192093,
+          "roundTripMs": 6.699999988079071,
+          "workerMs": 3.600000023841858
+        },
+        {
+          "canvasMs": 36.900000005960464,
+          "roundTripMs": 2.5999999940395355,
+          "workerMs": 1
+        },
+        {
+          "canvasMs": 35.599999994039536,
+          "roundTripMs": 2.0999999940395355,
+          "workerMs": 0.699999988079071
+        },
+        {
+          "canvasMs": 34.099999994039536,
+          "roundTripMs": 2.100000023841858,
+          "workerMs": 1
+        }
+      ],
+      "queries": [
+        {
+          "roundTripMs": 0.9000000059604645,
+          "workerMs": 0.5
+        },
+        {
+          "roundTripMs": 6.699999988079071,
+          "workerMs": 3.600000023841858
+        },
+        {
+          "roundTripMs": 2.5999999940395355,
+          "workerMs": 1
+        },
+        {
+          "roundTripMs": 2.0999999940395355,
+          "workerMs": 0.699999988079071
+        },
+        {
+          "roundTripMs": 2.100000023841858,
+          "workerMs": 1
+        },
+        {
+          "roundTripMs": 0.9000000059604645,
+          "workerMs": 0.30000001192092896
+        }
+      ]
+    },
+    "roundTrip": {
+      "maxMs": 6.699999988079071,
+      "medianMs": 2.0999999940395355,
+      "p95Ms": 2.5999999940395355,
+      "samples": 6
+    },
+    "trace": {
+      "cacheBytes": 5446914,
+      "events": 9076,
+      "inputBytes": 4882710,
+      "tracks": 112
+    },
+    "version": 2,
+    "viewport": {
+      "height": 720,
+      "pixelRatio": 1,
+      "width": 1280
+    },
+    "visibility": "visible",
+    "windowLimit": 512,
+    "worker": {
+      "maxMs": 3.600000023841858,
+      "medianMs": 0.699999988079071,
+      "p95Ms": 1,
+      "samples": 6
+    }
+  },
+  "privacy": {
+    "filenameAbsent": true,
+    "absoluteRangeFieldsAbsent": true
+  },
+  "afterTraceSwitch": {
+    "applicationVersion": "0.14.0",
+    "browser": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+    "canvas": {
+      "maxMs": null,
+      "medianMs": null,
+      "p95Ms": null,
+      "samples": 0
+    },
+    "coalescedIntents": 0,
+    "completedFrames": 0,
+    "completedQueries": 0,
+    "elapsedMs": 0,
+    "enabled": false,
+    "heap": {
+      "lastBytes": null,
+      "maxSampledBytes": null
+    },
+    "hiddenOmitted": 0,
+    "inputs": {
+      "pannedShiftDrags": 0,
+      "recent": [],
+      "recorded": 0,
+      "trustedCtrlWheels": 0,
+      "trustedShiftDrags": 0,
+      "windowLimit": 64,
+      "zoomedCtrlWheels": 0
+    },
+    "intents": 0,
+    "longTasks": {
+      "count": 0,
+      "maxMs": 0,
+      "supported": false,
+      "totalMs": 0
+    },
+    "notes": [
+      "Canvas latency ends when the matching query result is submitted by drawTimeline; it includes debounce/queue time, not compositor presentation or FPS.",
+      "Only completed latest-state updates are sampled; coalesced intents and hidden-page observations are counted separately. Quantiles use floor((n-1)*p) over the bounded recent window.",
+      "JS heap is an optional browser-provided approximation, may exclude Worker heaps or include shared heaps, and is not total browser peak memory.",
+      "Input samples keep modifier flags, spans and relative shifts only. Trusted browser input does not certify physical hardware, completed rendering or an entire compatibility test."
+    ],
+    "observations": {
+      "frames": [],
+      "queries": []
+    },
+    "roundTrip": {
+      "maxMs": null,
+      "medianMs": null,
+      "p95Ms": null,
+      "samples": 0
+    },
+    "trace": {
+      "cacheBytes": 454,
+      "events": 3,
+      "inputBytes": 496,
+      "tracks": 2
+    },
+    "version": 2,
+    "viewport": {
+      "height": 720,
+      "pixelRatio": 1,
+      "width": 1280
+    },
+    "visibility": "visible",
+    "windowLimit": 512,
+    "worker": {
+      "maxMs": null,
+      "medianMs": null,
+      "p95Ms": null,
+      "samples": 0
+    }
+  },
+  "layout": {
+    "height": 600,
+    "scrollWidth": 785,
+    "width": 785
+  },
+  "environment": "Windows in-app Chromium 156. Actual trusted plain wheel/pointer input was recorded; positive Ctrl/Shift hardware combinations await the user. Counter/epoch/synthetic cases also covered at the real app/Worker test seam.",
+  "sourceHashes": {
+    "app.js": "45c9f4c30c1ec89fea1a3b696a14878b42dfbd38c3956b1cb472a85658b2f1ab",
+    "runtime-metrics.js": "ccfd123fe113acb7b7073b7efbe396fb0286cc74773ae750d96486a30b8a8f98",
+    "index.html": "5a1edeb5cebf8528a18006009085e7b69badee129e2e9930d79be83f5e18e118",
+    "worker.js": "0b608555062f8d8750a7302c0039362a3fd29d69dae5c875519012eb1b590f5b",
+    "core.js": "4a8769e8d9f34f8fbb282b8fa97b6d600462f01ad9eb6ada534e16c8f79b0ef5",
+    "relations.js": "4cedee4f16eda8615c7dc1658511414348280e73c481879f2ef68b0d903b796a",
+    "event-labels.js": "62eb7f695f4de200e80612c52aacf6877854be7f6c8d92928268a2818e51cdd6",
+    "track-layout.js": "2789121b36f5c13b389da12793b5d8371c04d52733765b544b168ceef9c6281d",
+    "relation-view.js": "d9fea6f513fc0ea345195eb1b06d5004b9982532f08acdc0e145ccfec3a43e05"
+  },
+  "reusedEvidence": {
+    "from": "docs/metadata-browser-2026-10-30-v0.13.0.json",
+    "reason": "Engine, labels, grouping and detail renderer unchanged; runtime UI/instrumentation newly tested.",
+    "renderDetailSHA256": "852ae4fd21a187c985eecd17f00b795a1f9bd9d613d08373964b92b6a2c8edcb"
+  }
+}

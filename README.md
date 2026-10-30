@@ -4,7 +4,7 @@
 
 **[開啟時跡](https://koviankevin.github.io/trace-studio/)** · [操作參考](https://perfetto.dev/docs/visualization/perfetto-ui) · [效能測試](docs/PERFORMANCE.md)
 
-目前為 v0.13.0。已有自動化測試，以及 Windows Chromium 瀏覽器的實際 File／OPFS、三版本比較與 3 GB 合成資料驗收；詳細範圍與未完成項目見[驗證紀錄](docs/VERIFICATION.md)。尚未證實比 Chrome tracing 或 Perfetto 更快；本專案的目標是在熟悉的操作上提供更清楚的資訊與大檔路徑。
+目前為 v0.14.0。已有自動化測試，以及 Windows Chromium 瀏覽器的實際 File／OPFS、三版本比較與 3 GB 合成資料驗收；詳細範圍與未完成項目見[驗證紀錄](docs/VERIFICATION.md)。尚未證實比 Chrome tracing 或 Perfetto 更快；本專案的目標是在熟悉的操作上提供更清楚的資訊與大檔路徑。
 
 ## 使用
 
@@ -59,6 +59,16 @@ v0.13.0 修正特殊 metadata／字串 PID 的保留與顯示，例如 `__proto_
 | 所有快捷鍵 | ? |
 
 導航的彈性動畫、按住加速與滾輪算法改寫自 Apache-2.0 授權的 Perfetto v48.0。這是核心操作相容，並未實作 Perfetto 的所有功能或外掛介面。
+
+## 手勢與效能驗收
+
+1. 開啟一份 Trace（可使用內建示範），到「Trace 資訊」按「開始記錄」。
+2. 回到「時間軸」，先按 W 放大兩次，再將游標放在右側事件區，操作 Ctrl／Cmd＋滾輪與 Shift＋拖曳。先確認畫面有縮放、平移，再回到資訊頁。
+3. 按「停止記錄」與「複製效能報告」，即可貼出本機 JSON；沒有剪貼簿權限時，展開下方 JSON 手動複製。
+
+報告 applicationVersion 為網站版本、version 為診斷格式（目前 2）。inputs 分別統計收到可信修飾鍵的輸入，以及其中範圍確實縮放／平移的次數，明細最多保留 64 筆。一般滾輪、未帶 Shift 的選取、取消及非可信輸入不會被算成成功手勢。可信是瀏覽器的 isTrusted 標記，仍須配合實際操作與畫面，不能當成防偽憑證或完整相容性認證。
+
+開啟／切換 Trace、重新開始或重新計數會清空記錄；請在同一份 Trace 完成操作後先複製。報告只包含耗時、數量、修飾鍵、範圍長度及相對位移，不含檔名、Args、事件名稱或絕對時間戳，不會自動上傳。JS heap 與 Node RSS 都不能代替整個瀏覽器／Worker 的峰值記憶體。
 
 ## 多核心工作台
 
