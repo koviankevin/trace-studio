@@ -149,6 +149,32 @@ test('application startup and file selection reach the loaded timeline',async()=
     elements.get('details-content').handlers.change({target:{matches:selector=>selector==='[data-relation-key]',value:JSON.stringify(['address','0x1000'])}});assert(elements.get('details-content').innerHTML.includes('consumer'));assert(elements.get('details-content').innerHTML.includes('same address only'));canvasCurves.length=0;draw();assert.equal(canvasCurves.length,0,'an address key filter must not masquerade as an explicit dependency');
     elements.get('details-content').handlers.click({target:{closest:selector=>selector==='[data-relation-preview]'?{dataset:{relationPreview:'1'}}:null}});canvasCurves.length=0;draw();assert.equal(canvasCurves.length,1,'an explicit candidate preview draws just one line');
     elements.get('details-content').handlers.click({target:{closest:selector=>selector==='[data-relation-preview]'?{dataset:{relationPreview:'1'}}:null}});canvasCurves.length=0;draw();assert.equal(canvasCurves.length,0,'clicking the same candidate again clears its preview');
+    const fullTrackRect=elements.get('tracks-scroll').getBoundingClientRect;
+    elements.get('tracks-scroll').getBoundingClientRect=()=>({width:1100,height:100,left:0,top:0});
+    input.files=[new File([JSON.stringify([
+      {ph:'M',name:'thread_name',pid:1,tid:1,args:{name:'CORE0_COMPUTE'}},
+      {ph:'M',name:'thread_name',pid:1,tid:2,args:{name:'CORE1_COMPUTE'}},
+      {ph:'X',name:'producer',pid:1,tid:1,ts:0,dur:100,args:{defines:'cross-core'}},
+      {ph:'X',name:'offscreen consumer',pid:1,tid:2,ts:20,dur:5,args:{uses:'cross-core'}}
+    ])],'offscreen-core-relations.json')];input.onchange({target:input});
+    await until(()=>elements.get('file-name').textContent==='offscreen-core-relations.json');elements.get('expand-groups').click();
+    elements.get('insights-list').handlers.click({target:{closest:()=>({dataset:{source:'top',result:'0'}})}});
+    await until(()=>elements.get('details-content').innerHTML.includes('offscreen consumer'));
+    await until(()=>workers.at(-1).lastQuery?.traceId===workers.at(-1).lastReady.info.id);
+    elements.get('details-content').handlers.change({target:{matches:selector=>selector==='[data-relation-mode]',value:'compact'}});
+    canvasCurves.length=0;canvasLabels.length=0;draw();
+    const smallTrackRect=elements.get('tracks-scroll').getBoundingClientRect;
+    elements.get('tracks-scroll').getBoundingClientRect=fullTrackRect;elements.get('expand-groups').click();
+    await until(()=>workers.at(-1).lastQuery?.rows.some(row=>row.id===1));canvasCurves.length=0;draw();const fullCurves=canvasCurves.length;
+    elements.get('tracks-scroll').getBoundingClientRect=smallTrackRect;elements.get('expand-groups').click();
+    elements.get('details-content').handlers.change({target:{matches:selector=>selector==='[data-relation-mode]',value:'more'}});canvasCurves.length=0;draw();const smallMoreCurves=canvasCurves.length;
+    elements.get('details-content').handlers.change({target:{matches:selector=>selector==='[data-relation-mode]',value:'compact'}});canvasCurves.length=0;canvasLabels.length=0;draw();
+    assert.equal(fullCurves,1,'the same cross-core link has its real endpoint when both layers are visible');
+    assert.equal(smallMoreCurves,1,'more mode also retains the offscreen connection');
+    assert.equal(canvasCurves.length,1,'a cross-core relation must remain visible to the viewport edge when its layer is offscreen');
+    assert(canvasCurves[0][5]>=88&&canvasCurves[0][5]<=100,'the hidden target terminates at a marked viewport boundary');
+    assert(canvasLabels.some(text=>String(text).includes('畫面下方')),'the boundary must be labelled as an offscreen relation');
+    elements.get('tracks-scroll').getBoundingClientRect=fullTrackRect;elements.get('expand-groups').click();draw();
     elements.get('details-content').handlers.change({target:{matches:selector=>selector==='[data-relation-mode]',value:'manual'}});
     elements.get('track-labels').handlers.mousedown({detail:1});elements.get('track-labels').handlers.click({detail:1,target:{closest:selector=>selector==='[data-track-toggle]'?{dataset:{trackToggle:'0'}}:null}});assert(/data-track-toggle="0"[^>]*aria-expanded="true"/.test(elements.get('track-labels').innerHTML));
     elements.get('track-labels').handlers.dblclick({target:{closest:selector=>selector==='[data-track]'?{dataset:{track:'0'}}:null}});assert(/data-track-toggle="0"[^>]*aria-expanded="true"/.test(elements.get('track-labels').innerHTML),'the second click landing on the resized row must not toggle twice');
@@ -159,5 +185,20 @@ test('application startup and file selection reach the loaded timeline',async()=
     elements.get('copy').focus();document.handlers.keydown({key:'Escape',code:'Escape',target:elements.get('copy'),preventDefault(){}});assert.equal(document.activeElement,elements.get('tracks-scroll'));assert.equal(elements.get('selection-status').textContent,'已清除事件選取。');const cleared=elements.get('details-content').innerHTML;workers.at(-1).onmessage({data:workers.at(-1).lastDetail});assert.equal(elements.get('details-content').innerHTML,cleared,'a delayed detail response must not repopulate a cleared selection');
     document.handlers.keydown({key:'P',code:'KeyP',ctrlKey:true,shiftKey:true,target:elements.get('tracks-scroll'),preventDefault(){}});assert(elements.get('commands').open);assert.equal(elements.get('command-input').getAttribute('aria-expanded'),'true');assert.equal(elements.get('command-input').getAttribute('aria-activedescendant'),'command-option-0');
     elements.get('command-input').onkeydown({key:'ArrowDown',preventDefault(){}});assert.equal(elements.get('command-input').getAttribute('aria-activedescendant'),'command-option-1');elements.get('command-input').value='no-matching-command';elements.get('command-input').oninput();assert.equal(elements.get('command-input').getAttribute('aria-activedescendant'),null);assert.equal(elements.get('command-status').textContent,'0 個符合的指令');elements.get('commands').close();elements.get('commands').handlers.close();assert.equal(elements.get('command-input').getAttribute('aria-expanded'),'false');
+    // Closing a tab releases its index, preserves its OPFS session and persists the workspace.
+    await until(()=>elements.get('trace-tabs').innerHTML.includes('data-trace-close='));
+    const closeTab=id=>elements.get('trace-tabs').onclick({target:{closest:selector=>selector==='[data-trace-close]'?{dataset:{traceClose:id}}:null}});
+    const current=workers.at(-1).lastReady.info.id;
+    const inactive=[...elements.get('trace-tabs').innerHTML.matchAll(/data-trace-close="([^"]+)"/g)].map(m=>m[1]).find(id=>id!==current);
+    closeTab(inactive);await until(()=>!elements.get('trace-tabs').innerHTML.includes(`data-trace-close="${inactive}"`));assert.equal(workers.at(-1).lastReady.info.id,current);
+    elements.get('storage').click();await until(()=>elements.get('cache-list').innerHTML.includes(inactive));elements.get('cache-dialog').close();
+    closeTab(current);await until(()=>elements.get('file-name').textContent!=='offscreen-core-relations.json');assert.notEqual(storage.get('trace-studio-session'),current);
+    for(const id of [...elements.get('trace-tabs').innerHTML.matchAll(/data-trace-close="([^"]+)"/g)].map(m=>m[1])){closeTab(id);await until(()=>!elements.get('trace-tabs').innerHTML.includes(`data-trace-close="${id}"`)&&!elements.get('loading').open);}
+    assert.equal(elements.get('file-name').textContent,'未開啟 Trace');assert.equal(storage.get('trace-studio-tabs'),'[]');assert(!storage.has('trace-studio-session'));
+    for(const active of workers)await active.terminate();document.handlers={};window.handlers={};for(const element of elements.values())element.handlers={};frames.length=0;
+    await import('../dist/app.js?workspace-reload=closed');await until(()=>elements.get('trace-tabs').innerHTML.includes('尚未開啟 Trace'));assert.equal(elements.get('file-name').textContent,'未開啟 Trace');
+    elements.get('storage').click();await until(()=>elements.get('cache-list').innerHTML.includes(current));
+    elements.get('cache-list').handlers.click({target:{closest:selector=>selector==='[data-cache-open]'?{dataset:{cacheOpen:current}}:null}});
+    await until(()=>elements.get('file-name').textContent==='offscreen-core-relations.json'&&elements.get('trace-tabs').innerHTML.includes(current));assert(!workers.at(-1).lastReady.memoryRestored);
   }finally{await Promise.all(workers.map(w=>w.stopped||w.terminate()));await removeTestRoot(root);}
 });

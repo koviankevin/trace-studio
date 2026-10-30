@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';
-import {selectRelationLines,groupRelationCandidates,relationRecordKey,relationKey} from '../dist/relation-view.js';
+import {selectRelationLines,groupRelationCandidates,relationRecordKey,relationKey,relationEndpoint} from '../dist/relation-view.js';
 const tracks=[{pid:1,name:'CORE0_COMPUTE'},{pid:1,name:'CORE0_DMA'},{pid:2,name:'CORE0_DMA'},{pid:1,name:'CORE1_DMA'}],selected={trackId:0,ts:100,dur:10,offset:10000};
 const link=(ts,trackId=1,type='address',role='same',otherRole='same')=>({record:{ts,dur:5,trackId,offset:ts},relation:{type,key:'0x1000',role},otherRole});
 test('opt-in compact relations draw only two nearest explicit markers, keeping both time directions',()=>{
@@ -32,4 +32,23 @@ test('default manual mode keeps the timeline clear until a single candidate is i
 
 test('relation candidate groups ignore inherited process names after structured cloning',()=>{
   const tracks=['__proto__','constructor','toString'].map(pid=>({pid,name:'DMA'})),links=tracks.map((_,id)=>link(id,id)),names=structuredClone(JSON.parse('{"__proto__":"CORE0"}')),groups=groupRelationCandidates(links,tracks,names);assert.deepEqual(groups.map(g=>g.label),['CORE0 / 其他軌道','Process constructor / 其他軌道','Process toString / 其他軌道']);
+});
+
+test('relation endpoints preserve rendered lanes and mark unqueried offscreen tracks',()=>{
+  const record={trackId:1,offset:1,ts:20},layout=[{type:'track',track:{id:1},y:300,h:32}],options={points:new Map(),layout,scrollTop:0,height:100,toX:t=>t*2};
+  assert.deepEqual(relationEndpoint(record,options),{x:40,y:92,edge:'below'});
+  assert.deepEqual(relationEndpoint(record,{...options,scrollTop:400}),{x:40,y:8,edge:'above'});
+  const points=new Map([[relationRecordKey(record),{x:42,y:65}]]);
+  assert.deepEqual(relationEndpoint(record,{...options,points}),{x:42,y:65,edge:null});
+  points.set(relationRecordKey(record),{x:42,y:-2});
+  assert.deepEqual(relationEndpoint(record,{...options,points}),{x:42,y:8,edge:'above'});
+  assert.equal(relationEndpoint(record,{...options,layout:[]}),null,'filtered tracks have no invented position');
+  assert.equal(relationEndpoint(record,{...options,layout:[{type:'track',track:{id:1},y:20,h:32}]}),null,'visible aggregates are not individual event anchors');
+  assert.equal(relationEndpoint(record,{...options,height:0}),null);
+});
+
+test('collapsed core anchors retain their real center or an offscreen boundary',()=>{
+  const record={trackId:1,offset:1,ts:20},options={points:new Map(),layout:[{type:'group',collapsed:true,trackIds:[1],y:40,h:32}],scrollTop:0,height:100,toX:t=>t};
+  assert.deepEqual(relationEndpoint(record,options),{x:20,y:56,edge:null});
+  assert.deepEqual(relationEndpoint(record,{...options,scrollTop:100}),{x:20,y:8,edge:'above'});
 });

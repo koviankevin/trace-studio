@@ -4,7 +4,7 @@
 
 **[開啟時跡](https://koviankevin.github.io/trace-studio/)** · [操作參考](https://perfetto.dev/docs/visualization/perfetto-ui) · [效能測試](docs/PERFORMANCE.md)
 
-目前為 v0.14.2。已有自動化測試，以及 Windows Chromium 瀏覽器的實際 File／OPFS、三版本比較與 3 GB 合成資料驗收；詳細範圍與未完成項目見[驗證紀錄](docs/VERIFICATION.md)。尚未證實比 Chrome tracing 或 Perfetto 更快；本專案的目標是在熟悉的操作上提供更清楚的資訊與大檔路徑。
+目前為 v0.15.0。已有自動化測試，以及 Windows Chromium 瀏覽器的實際 File／OPFS、三版本比較與 3 GB 合成資料驗收；詳細範圍與未完成項目見[驗證紀錄](docs/VERIFICATION.md)。尚未證實比 Chrome tracing 或 Perfetto 更快；本專案的目標是在熟悉的操作上提供更清楚的資訊與大檔路徑。
 
 ## 使用
 
@@ -41,6 +41,10 @@ v0.13.0 修正特殊 metadata／字串 PID 的保留與顯示，例如 `__proto_
 - 給內網 AI 的程式擴充入口：[custom.js](dist/extensions/custom.js) 與[擴充說明](docs/EXTENSIONS.md)，可新增分析、事件欄位及配色。
 
 ## 操作
+
+每個 Trace 分頁都有 ×，關閉目前這份會切換到相鄰分頁，最後一份關閉後保留空白工作區；重新整理不會重新開啟已關閉的分頁。關閉會釋放該份索引與檔案鎖，本機磁碟快取仍可從「Trace 快取管理」還原。
+
+畫面外的關聯軌道會保留至上／下邊界的連線與方向提示；點詳情中的候選事件可跳轉。仍沿用目前選擇的連線模式、時間範圍與數量上限。
 
 | 操作 | 按鍵 / 手勢 |
 | --- | --- |

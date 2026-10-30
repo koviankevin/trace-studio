@@ -5,7 +5,7 @@ test('tar.gz imports independent JSON and nested JSON.gz sessions, preserving su
   const root=await mkdtemp(join(tmpdir(),'trace-studio-test-')),worker=new Worker(new URL('./worker-harness.mjs',import.meta.url),{workerData:{root}});
   try{await next(worker,'initialized');const bytes=tarFixture([{name:'traces/a.json',data:json('A')},{name:'readme.txt',data:'ignore'},{name:'../unsafe.json',data:json('unsafe')},{name:'traces/b.json.gz',data:gzipSync(json('B'))},{name:'broken.json',data:'{"traceEvents":['}],{gzip:true});
     let reply=next(worker,'ready',1);worker.postMessage({type:'import',requestId:1,file:new File([bytes],'bundle.tar.gz')});const result=await reply;assert.equal(result.archive.imported,2);assert.equal(result.archive.failed,1);assert.equal(result.archive.skipped,2);assert.equal(result.info.source.archive.path,'traces/b.json.gz');assert.equal(result.info.metadata.archiveImport.failed,1);assert.equal(result.info.top[0].label,'B');
-    reply=next(worker,'sessions',2);worker.postMessage({type:'sessions',requestId:2});const entries=(await reply).sessions;assert.equal(entries.length,2);assert(entries.every(entry=>entry.complete));
+    reply=next(worker,'sessions',2);worker.postMessage({type:'sessions',requestId:2});const entries=(await reply).sessions;assert.equal(entries.length,2);assert(entries.every(entry=>entry.complete));assert.deepEqual([...result.archive.ids].sort(),entries.map(entry=>entry.id).sort());assert.equal(result.archive.ids.at(-1),result.info.id);
     reply=next(worker,'ready',3);worker.postMessage({type:'restore',requestId:3,id:entries.find(entry=>entry.name.includes('a.json')).id});assert.equal((await reply).info.top[0].label,'A');
   }finally{await worker.terminate();await removeTestRoot(root);}
 });

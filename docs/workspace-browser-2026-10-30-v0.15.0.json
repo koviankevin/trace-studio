@@ -1,0 +1,50 @@
+{
+  "version": "0.15.0",
+  "recordedAt": "2026-10-30T03:10:43.463Z",
+  "environment": "Windows, ChatGPT in-app Chromium browser, localhost:4318; desktop Edge connection unavailable",
+  "sourceHashes": {
+    "app.js": "eb277e7c212392af38ae96f5f03788a4f395cd905521d309f2f8d3690ebe50b4",
+    "worker.js": "c392c9949a05bf98d59f128e6bb2bdc0ed878b8905a0e4462d77479888c4630d",
+    "relation-view.js": "ac10f422fb86d08be6219cd2b4f99b9cc4ec540c733fb4c319d0de412e2c0847",
+    "workspace-tabs.js": "eb9f4e6809c21ae7090587062a046d2d018aa14097507ee8eb85ee2c283cbf2f",
+    "workspace.css": "767f7f0ad9f9ce26c72bb94f73bbed8c979ce7a82bb21ee27d6ab19a6a131f31",
+    "index.html": "1ae8c2dbc3de808bd1d4e9e7216c6536923a6270b208ae5122c9b63803185520"
+  },
+  "gestureReuse": {
+    "baselineCommit": "historical-revision",
+    "baselineAppSHA256": "45c9f4c30c1ec89fea1a3b696a14878b42dfbd38c3956b1cb472a85658b2f1ab",
+    "sections": [
+      {
+        "start": "function setRange(",
+        "end": "function fitAll(",
+        "sha256": "479dc9cdf3b420c7b557c39df299fd5a63d88331c75cac7d67fbcc5a58d261b4"
+      },
+      {
+        "start": "function localPoint(",
+        "end": "function toggleTrackHeight(",
+        "sha256": "14a25da6feae9c8bbbde281e0a06d5c39b68326b1e8cd57cd636808c2f277005"
+      }
+    ],
+    "note": "Input handlers and range arithmetic match the app behind the historical browser/physical gesture evidence. New tab lifecycle and relation rendering have targeted coverage; no new 3 GB benchmark claimed."
+  },
+  "browserChecks": {
+    "inactiveClosePreservesCurrent": true,
+    "keyboardActiveCloseSelectsAdjacent": true,
+    "lastCloseLeavesEmpty": true,
+    "emptySurvivesReload": true,
+    "closedCacheReopens": true,
+    "twoTabsAfterReopen": true,
+    "offscreenCrossCoreCurveAndBelowBadge": true
+  },
+  "syntheticFixture": {
+    "cores": 2,
+    "tracks": 26,
+    "events": 52,
+    "relationship": "explicit defines/uses cross-core"
+  },
+  "limitations": [
+    "No new desktop Edge run; connection unavailable",
+    "No real CORE trace; intranet acceptance remains pending",
+    "Peak browser/Worker RAM, native quota exhaustion and full screen-reader acceptance remain pending"
+  ]
+}
